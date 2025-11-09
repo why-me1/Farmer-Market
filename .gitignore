@@ -13,10 +13,10 @@ Thumbs.db
 # Ignore PHPStorm or other IDE config
 .idea/
 
-# Ignore vendor and dependencies (if using Composer)
+# Ignore vendor and dependencies
 vendor/
 
-# Ignore node modules (if any frontend uses Node)
+# Ignore node modules
 node_modules/
 
 # Ignore database files and backups
@@ -25,7 +25,7 @@ database_backup/
 backup/
 *.bak
 
-# Ignore uploaded user files (optional, if you have upload folders)
+# Ignore uploaded user files
 uploads/
 images/uploads/
 assets/uploads/
@@ -35,6 +35,6 @@ assets/uploads/
 logs/
 error_log
 
-# Ignore config files containing credentials (optional)
+# Ignore config files containing credentials
 config.php
 db.php
