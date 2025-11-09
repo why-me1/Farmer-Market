@@ -1,0 +1,40 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore local environment settings
+.env
+*.env
+
+# Ignore VS Code settings
+.vscode/
+*.code-workspace
+
+# Ignore PHPStorm or other IDE config
+.idea/
+
+# Ignore vendor and dependencies (if using Composer)
+vendor/
+
+# Ignore node modules (if any frontend uses Node)
+node_modules/
+
+# Ignore database files and backups
+*.sql
+database_backup/
+backup/
+*.bak
+
+# Ignore uploaded user files (optional, if you have upload folders)
+uploads/
+images/uploads/
+assets/uploads/
+
+# Ignore local server logs
+*.log
+logs/
+error_log
+
+# Ignore config files containing credentials (optional)
+config.php
+db.php
