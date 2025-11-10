@@ -172,7 +172,3 @@ ini_set('display_errors', 1);
 ## Future Enhancements
 
 1. **Email Notifications**: Send email alerts for important notifications
-2. **Push Notifications**: Browser push notifications for real-time updates
-3. **Notification Preferences**: User settings for notification types
-4. **Bulk Actions**: Mark multiple notifications as read
-5. **Notification History**: Archive old notifications
