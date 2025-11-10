@@ -8,6 +8,7 @@ if (session_status() == PHP_SESSION_NONE) {
 // Include configuration and function files
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/ratings.php';
 
 // Enable error reporting for debugging
 ini_set('display_errors', 1);
@@ -34,12 +35,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $category = sanitize($_POST['category']);
     $description = sanitize($_POST['description']);
     $price = floatval($_POST['price']);
-    
+
     // Handle image upload
     if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
         $allowed = ['jpg', 'jpeg', 'png', 'gif'];
         $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-        
+
         if (in_array($ext, $allowed)) {
             $image = uniqid() . '.' . $ext;
             move_uploaded_file($_FILES['image']['tmp_name'], '../assets/images/' . $image);
@@ -63,10 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
         // $stmt->bind_param("issdss", $farmer_id, $product_name, $category, $description, $price, $image);
-        $stmt->bind_param("isssss", $farmer_id, $product_name, $category, $description, $price, $image);
+        $stmt->bind_param("isssds", $farmer_id, $product_name, $category, $description, $price, $image);
 
-        
+
         if ($stmt->execute()) {
+            // Adjust farmer automatic rating based on posted price vs market price for this product
+            adjust_rating_for_post($farmer_id, $price, $product_name);
+
             header("Location: dashboard.php");
             exit();
         } else {

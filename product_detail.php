@@ -4,6 +4,7 @@ include 'includes/db.php';
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+require_once 'includes/ratings.php';
 check_login();
 
 if (!isset($_GET['id'])) {
@@ -28,6 +29,9 @@ if ($result->num_rows == 0) {
 
 $post = $result->fetch_assoc();
 $stmt->close();
+
+// Fetch farmer automatic rating (default 5.0)
+$farmer_auto_rating = get_user_automatic_rating($post['farmer_id']);
 
 $current_time = time();
 $expiry_stmt = $conn->prepare("SELECT expiry_date FROM posts WHERE id = ?");
@@ -82,18 +86,18 @@ if ($total_bids >= 5) {
     }
 }
 
-// Fetch recent bids (limit to top 10 for the card)
-$bids_stmt = $conn->prepare("SELECT comments.*, users.username FROM comments 
+// Fetch recent bids (limit to top 10 for the card) - Sort by most recent first
+$bids_stmt = $conn->prepare("SELECT comments.*, users.username, users.id as bidder_id FROM comments 
                              JOIN users ON comments.user_id = users.id 
-                             WHERE comments.post_id = ? ORDER BY comment_text DESC LIMIT 10");
+                             WHERE comments.post_id = ? ORDER BY comments.created_at DESC LIMIT 10");
 $bids_stmt->bind_param("i", $post_id);
 $bids_stmt->execute();
 $bids_result = $bids_stmt->get_result();
 
 // Fetch all bids for the full list
-$all_bids_stmt = $conn->prepare("SELECT comments.*, users.username FROM comments 
+$all_bids_stmt = $conn->prepare("SELECT comments.*, users.username, users.id as bidder_id FROM comments 
                                   JOIN users ON comments.user_id = users.id 
-                                  WHERE comments.post_id = ? ORDER BY comment_text DESC");
+                                  WHERE comments.post_id = ? ORDER BY comments.created_at DESC");
 $all_bids_stmt->bind_param("i", $post_id);
 $all_bids_stmt->execute();
 $all_bids_result = $all_bids_stmt->get_result();
@@ -138,7 +142,7 @@ $min_bid += 0.01;
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
-<!-- browser cache problem solution --- add version number for production and add echo time for development -->
+    <!-- browser cache problem solution --- add version number for production and add echo time for development -->
 </head>
 
 <body>
@@ -185,6 +189,7 @@ $min_bid += 0.01;
                                 <div class="meta-item">
                                     <i class="fas fa-user"></i>
                                     <span>Farmer: <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-link"><?php echo htmlspecialchars($post['username']); ?> <i class="fas fa-external-link-alt"></i></a></span>
+                                    <span style="margin-left:10px; color:#444;">Fairness rating: <strong><?php echo number_format($farmer_auto_rating, 1); ?></strong>/10</span>
                                 </div>
                                 <div class="meta-item">
                                     <i class="fas fa-calendar"></i>
@@ -210,15 +215,16 @@ $min_bid += 0.01;
                                             <input type="number" name="comment_text"
                                                 class="bid-input"
                                                 placeholder="Enter bid amount"
-                                                required step="0.01" min="<?php echo $min_bid; ?>"
+                                                required step="0.01" min="0.01"
                                                 value="<?php echo $min_bid; ?>">
                                         </div>
                                         <div class="bid-info-small mb-3">
                                             <small>
                                                 <i class="fas fa-info-circle"></i>
-                                                Minimum bid: <strong><?php echo number_format($min_bid, 2); ?>৳</strong>
                                                 <?php if ($max_bid): ?>
-                                                    (Current highest: <?php echo number_format($max_bid, 2); ?>৳)
+                                                    Current highest bid: <strong><?php echo number_format($max_bid, 2); ?>৳</strong>
+                                                <?php else: ?>
+                                                    No bids yet. Be the first to bid!
                                                 <?php endif; ?>
                                             </small>
                                         </div>
@@ -281,7 +287,9 @@ $min_bid += 0.01;
                                     ?>
                                         <div class="bid-item-single-line <?php echo $bid['is_approved'] ? 'winning-bid-line' : ''; ?>">
                                             <span class="bid-name-single">
-                                                <?php echo htmlspecialchars($bid['username']); ?>
+                                                <a href="<?php echo $base_url; ?>user/profile.php?id=<?php echo (int)$bid['bidder_id']; ?>" class="text-dark">
+                                                    <?php echo htmlspecialchars($bid['username']); ?>
+                                                </a>
                                                 <?php if ($bid['is_approved']): ?>
                                                     <i class="fas fa-crown winning-icon-small"></i>
                                                 <?php endif; ?>
@@ -310,7 +318,7 @@ $min_bid += 0.01;
             </div>
 
             <!-- Reviews Section (At the bottom) -->
-            
+
 
 
             <section class="reviews-section-full">
@@ -372,7 +380,7 @@ $min_bid += 0.01;
 
                 <!-- Leave a Review Form (At the very bottom) -->
                 <?php if ($is_sold && isset($_SESSION['user_id'])): ?>
-                    <div class="review-form-card">
+                    <div class="review-form-card" id="review-section">
                         <h5><i class="fas fa-edit me-2"></i>Leave a Review</h5>
                         <form id="reviewForm" method="POST" action="submit_review.php">
                             <div class="row">

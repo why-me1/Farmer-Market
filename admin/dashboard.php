@@ -46,6 +46,20 @@ if ($_SESSION['role'] !== 'admin') {
             border-radius: 15px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-text {
+            min-height: 48px;
+            flex: 1;
         }
 
         .card:hover {
@@ -91,7 +105,7 @@ if ($_SESSION['role'] !== 'admin') {
         <!-- Dashboard Cards -->
         <div class="row dashboard-cards">
             <!-- Manage Users -->
-            <div class="col-md-4">
+            <div class="col-md-6 mb-4">
                 <div class="card text-center">
                     <div class="card-body">
                         <div class="icon-large">
@@ -105,7 +119,7 @@ if ($_SESSION['role'] !== 'admin') {
             </div>
 
             <!-- Manage Posts -->
-            <div class="col-md-4">
+            <div class="col-md-6 mb-4">
                 <div class="card text-center">
                     <div class="card-body">
                         <div class="icon-large">
@@ -118,8 +132,22 @@ if ($_SESSION['role'] !== 'admin') {
                 </div>
             </div>
 
+            <!-- Update Market Price -->
+            <div class="col-md-6 mb-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <div class="icon-large">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
+                        <h5 class="card-title">Update Market Price</h5>
+                        <p class="card-text">Set market prices per product for automatic ratings.</p>
+                        <a href="update_market_price.php" class="btn btn-info btn-block">Update Market Price</a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Site Statistics -->
-            <div class="col-md-4">
+            <div class="col-md-6 mb-4">
                 <div class="card text-center">
                     <div class="card-body">
                         <div class="icon-large">

@@ -1,6 +1,7 @@
 <?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/ratings.php';
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ../index.php');
@@ -49,7 +50,7 @@ if ($total_listings > 0) {
     $success_rate = round(($sold_count / $total_listings) * 100);
 }
 
-// Average rating across farmer's products
+// Average rating across farmer's products (Customer Rating)
 $avg_rating = null;
 $review_count = 0;
 $avg_stmt = $conn->prepare("SELECT AVG(reviews.rating) AS avg_rating, COUNT(reviews.id) AS total_reviews
@@ -61,6 +62,12 @@ $avg_stmt->execute();
 $avg_stmt->bind_result($avg_rating, $review_count);
 $avg_stmt->fetch();
 $avg_stmt->close();
+
+// Get automatic rating (Fairness Rating)
+$fairness_rating = get_user_automatic_rating($farmerId);
+if ($fairness_rating === null) {
+    $fairness_rating = 5.0; // Default if not found
+}
 
 // Determine seller label from average rating
 $avg_rating_value = $avg_rating !== null ? (float)$avg_rating : 0.0;
@@ -122,23 +129,30 @@ $listings = $list_stmt->get_result();
                 </div>
                 <div class="text-right">
                     <div class="d-flex flex-column align-items-end">
-                        <div class="badge badge-success p-2 mb-1">
-                            <?php
-                            $starsFilled = (int)round((float)$avg_rating);
-                            $stars = str_repeat('★', $starsFilled) . str_repeat('☆', 5 - $starsFilled);
-                            echo $stars; // show stars only, no numeric average
-                            ?>
+                        <!-- Customer Rating (Average of Product Reviews) -->
+                        <div class="mb-2">
+                            <small class="text-muted d-block">Customer Rating</small>
+                            <div class="badge badge-primary p-2">
+                                <?php
+                                if ($review_count > 0) {
+                                    echo number_format($avg_rating_value, 1) . '/5.0 (' . $review_count . ' reviews)';
+                                } else {
+                                    echo 'No reviews yet';
+                                }
+                                ?>
+                            </div>
                         </div>
-                        <?php
-                        // Show tiered icon badge under rating
-                        if ((int)$review_count === 0) {
-                            echo '<div class="badge badge-secondary p-2 mb-1">🆕 New Seller (no rating yet)</div>';
-                        } elseif ($avg_rating_value >= 4.5) {
-                            echo '<div class="badge badge-warning p-2 mb-1">🥇 Top Rated Farmer</div>';
-                        } elseif ($avg_rating_value >= 3.5) {
-                            echo '<div class="badge badge-info p-2 mb-1">🥈 Trusted Farmer</div>';
-                        }
-                        ?>
+
+                        <!-- Fairness Rating (Automatic Rating) -->
+                        <div class="mb-2">
+                            <small class="text-muted d-block">
+                                Fairness Rating
+                                <span style="cursor: help;" title="This rating adjusts automatically based on how fair your product prices are compared to the market.">ℹ️</span>
+                            </small>
+                            <div class="badge badge-success p-2">
+                                <?php echo number_format($fairness_rating, 1) . '/10.0'; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

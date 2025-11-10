@@ -245,16 +245,16 @@ check_login();
 
                                             <div class="product-meta mb-3">
                                                 <div class="d-flex justify-content-between align-items-center text-muted small">
-                                                    <span>
-                                                        <i class="fas fa-user me-1"></i>
+                                                    <span class="d-flex align-items-center">
+                                                        <i class="fas fa-user mr-1"></i>
                                                         <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>"
                                                             class="farmer-name-link"
                                                             onclick="event.stopPropagation();">
                                                             <?php echo htmlspecialchars($post['username']); ?>
                                                         </a>
                                                     </span>
-                                                    <span>
-                                                        <i class="fas fa-calendar me-1"></i>
+                                                    <span class="d-flex align-items-center">
+                                                        <i class="fas fa-calendar mr-1"></i>
                                                         <?php echo date("d M Y", strtotime($post['created_at'])); ?>
                                                     </span>
                                                 </div>

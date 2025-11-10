@@ -77,7 +77,7 @@ $base_url = "http://localhost/DEMO/";
                     <li class="nav-item">
                         <a class="nav-link text-white font-weight-bold"
                             href="<?php
-                                    if ($role === 'user') echo $base_url . 'index.php';
+                                    if ($role === 'user') echo $base_url . 'user/dashboard.php';
                                     elseif ($role === 'farmer') echo $base_url . 'farmer/dashboard.php';
                                     else echo $base_url . 'admin/dashboard.php';
                                     ?>">

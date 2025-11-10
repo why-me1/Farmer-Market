@@ -3,6 +3,7 @@
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
 require_once 'includes/notification_functions.php';
+require_once 'includes/ratings.php';
 session_start();
 
 
@@ -27,20 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
     $highest_bid_stmt->bind_result($current_highest_bid);
     $highest_bid_stmt->fetch();
     $highest_bid_stmt->close();
-
-    // Validation: Bid must be higher than starting price
-    if ($comment_text <= $starting_price) {
-        $_SESSION['error_message'] = "Your bid must be higher than the starting price of " . number_format($starting_price, 2) . "৳";
-        header("Location: index.php");
-        exit();
-    }
-
-    // Validation: If there are existing bids, new bid must be higher than current highest bid
-    if ($current_highest_bid !== null && $comment_text <= $current_highest_bid) {
-        $_SESSION['error_message'] = "Your bid must be higher than the current highest bid of " . number_format($current_highest_bid, 2) . "৳";
-        header("Location: index.php");
-        exit();
-    }
 
     $stmt = $conn->prepare("INSERT INTO comments (post_id, user_id, comment_text) VALUES (?, ?, ?)");
     $stmt->bind_param("iis", $post_id, $user_id, $comment_text);
@@ -69,6 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
             notifyBuyerOutbid($row['user_id'], $post_id, $product_name);
         }
         $stmt->close();
+
+        // Adjust automatic rating for the bidder based on how realistic the bid is
+        if ($user_id && $starting_price !== null) {
+            adjust_rating_for_bid($user_id, $comment_text, $starting_price);
+        }
 
         $_SESSION['success_message'] = "Your bid of " . number_format($comment_text, 2) . "৳ has been placed successfully!";
         header("Location: index.php");
