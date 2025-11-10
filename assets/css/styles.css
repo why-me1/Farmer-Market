@@ -60,6 +60,7 @@ Modern Farmer Market CSS Framework
     
 }
 
+
 .primary-gradient {
     background: var(--primary-gradient) !important;
     color: var(--white) !important;
@@ -460,7 +461,6 @@ h6 { font-size: 1.1rem; }
 .form-control {
     border: 2px solid #e9ecef;
     border-radius: var(--radius-md);
-    padding: var(--spacing-md);
     font-size: 1rem;
     transition: var(--transition-fast);
     background: var(--white);
@@ -1168,9 +1168,9 @@ a:hover {
 }
 
 /* Form validation */
-.needs-validation .form-control:invalid {
+/* .needs-validation .form-control:invalid {
     border-color: var(--danger-color);
-}
+} */
 
 .needs-validation .form-control:valid {
     border-color: var(--success-color);
@@ -1598,7 +1598,7 @@ a:hover {
 .login-form select.register-select,
 select.register-select {
     width: 100%;
-    padding: 15px 40px 15px 15px;
+    padding: 1px 40px 1px 15px;
     border: 2px solid #000000;
     border-radius: var(--radius-md);
     background: #ffffff !important;
