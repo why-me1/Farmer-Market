@@ -31,40 +31,50 @@ if (isset($_GET['action']) && isset($_GET['comment_id'])) {
         $stmt->fetch();
         $stmt->close();
 
-        // Get product name and update post status
-        $stmt = $conn->prepare("SELECT product_name FROM posts WHERE id = ?");
+        // Get product name and farmer_id from posts
+        $stmt = $conn->prepare("SELECT product_name, farmer_id FROM posts WHERE id = ?");
         $stmt->bind_param("i", $post_id);
         $stmt->execute();
-        $stmt->bind_result($product_name);
+        $stmt->bind_result($product_name, $post_farmer_id);
         $stmt->fetch();
         $stmt->close();
 
+        // Verify the logged-in farmer owns this product
+        if ($post_farmer_id != $farmer_id) {
+            $_SESSION['error'] = "You don't have permission to approve this bid.";
+            header("Location: manage_comments.php");
+            exit();
+        }
+
         // Update post status to sold
-        $stmt = $conn->prepare("UPDATE posts SET status = 'sold' WHERE id = ?");
-        $stmt->bind_param("i", $post_id);
+        $stmt = $conn->prepare("UPDATE posts SET status = 'sold' WHERE id = ? AND farmer_id = ?");
+        $stmt->bind_param("ii", $post_id, $farmer_id);
         $stmt->execute();
+        $affected_rows = $stmt->affected_rows;
         $stmt->close();
 
-        // Send notifications
-        $farmer_name = getUsername($farmer_id);
-        $buyer_name = getUsername($user_id);
+        if ($affected_rows === 0) {
+            error_log("Failed to update post status to sold for post_id: $post_id, farmer_id: $farmer_id");
+            $_SESSION['error'] = "Failed to update product status. Please try again.";
+        } else {
+            $_SESSION['success'] = "Bid approved successfully! Product marked as sold.";
 
-        // Notify farmer about sale
-        notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_name);
+            // Send notifications
+            $farmer_name = getUsername($farmer_id);
+            $buyer_name = getUsername($user_id);
 
-        // Notify buyer about winning bid
-        notifyBuyerWonBid($user_id, $post_id, $product_name);
+            // Notify farmer about sale
+            notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_name);
 
-        // Delete all comments for the post
-        $stmt = $conn->prepare("DELETE FROM comments WHERE post_id = ? AND is_approved = 0");
-        $stmt->bind_param("i", $post_id);
-        $stmt->execute();
-        $stmt->close();
-        // Optional: Update post approval status if needed
-        $stmt = $conn->prepare("UPDATE posts SET is_approved = is_approved WHERE id = ?");
-        $stmt->bind_param("i", $post_id);
-        $stmt->execute();
-        $stmt->close();
+            // Notify buyer about winning bid
+            notifyBuyerWonBid($user_id, $post_id, $product_name);
+
+            // Delete all unapproved comments for the post
+            $stmt = $conn->prepare("DELETE FROM comments WHERE post_id = ? AND is_approved = 0");
+            $stmt->bind_param("i", $post_id);
+            $stmt->execute();
+            $stmt->close();
+        }
 
         header("Location: manage_comments.php");
         exit();
@@ -99,6 +109,26 @@ $stmt->close();
     <?php include '../includes/nav.php'; ?>
 
     <div class="container mt-5">
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle"></i> <?php echo $_SESSION['success'];
+                                                    unset($_SESSION['success']); ?>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle"></i> <?php echo $_SESSION['error'];
+                                                            unset($_SESSION['error']); ?>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        <?php endif; ?>
+
         <div class="card">
             <div class="card-header bg-primary text-white">
                 <h2 class="mb-0">Manage Comments</h2>

@@ -163,11 +163,11 @@ $result = $stmt->get_result();
                                     </p>
                                     <p class="card-text"><small class="text-muted">Posted on: <?php echo htmlspecialchars($post['created_at']); ?></small></p>
 
-                                    <a href="?edit=<?php echo $post['id']; ?>" class="btn btn-primary btn-sm">Edit</a>
+                                    <a href="?edit=<?php echo $post['id']; ?>" class="btn btn-primary btn-sm w-50">Edit</a>
 
                                     <form action="delete_post.php" method="POST" class="mt-2">
                                         <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($post['id']); ?>">
-                                        <button type="submit" class="btn btn-danger btn-sm">Delete Post</button>
+                                        <button type="submit" class="btn btn-danger btn-sm w-50">Delete Post</button>
                                     </form>
                                 <?php endif; ?>
                             </div>

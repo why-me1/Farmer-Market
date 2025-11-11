@@ -16,24 +16,25 @@ if (isset($_POST['update_delivery']) && isset($_POST['product_id']) && isset($_P
     $product_id = intval($_POST['product_id']);
     $status = sanitize($_POST['status']);
 
-    // Update product status
-    $stmt = $conn->prepare("UPDATE posts SET status = ? WHERE id = ? AND farmer_id = ?");
-    $stmt->bind_param("sii", $status, $product_id, $farmer_id);
-    $stmt->execute();
-    $stmt->close();
-
-    // Get product name and buyer info
+    // Get product name and buyer info BEFORE updating status
     $stmt = $conn->prepare("SELECT p.product_name, c.user_id FROM posts p 
                           JOIN comments c ON p.id = c.post_id 
-                          WHERE p.id = ? AND c.is_approved = 1");
-    $stmt->bind_param("i", $product_id);
+                          WHERE p.id = ? AND p.farmer_id = ? AND c.is_approved = 1 
+                          LIMIT 1");
+    $stmt->bind_param("ii", $product_id, $farmer_id);
     $stmt->execute();
     $stmt->bind_result($product_name, $buyer_id);
     $stmt->fetch();
     $stmt->close();
 
+    // Update product status
+    $stmt = $conn->prepare("UPDATE posts SET status = ? WHERE id = ? AND farmer_id = ?");
+    $stmt->bind_param("sii", $status, $product_id, $farmer_id);
+    $success = $stmt->execute();
+    $stmt->close();
+
     // Send delivery update notification to buyer
-    if ($buyer_id && $product_name) {
+    if ($success && $buyer_id && $product_name) {
         notifyBuyerDeliveryUpdate($buyer_id, $product_id, $product_name, $status);
     }
 
@@ -41,11 +42,11 @@ if (isset($_POST['update_delivery']) && isset($_POST['product_id']) && isset($_P
     exit();
 }
 
-// Fetch sold products for this farmer
+// Fetch sold products for this farmer (including delivered ones)
 $stmt = $conn->prepare("SELECT p.*, c.user_id, u.username FROM posts p 
                        JOIN comments c ON p.id = c.post_id 
                        JOIN users u ON c.user_id = u.id
-                       WHERE p.farmer_id = ? AND p.status = 'sold' AND c.is_approved = 1
+                       WHERE p.farmer_id = ? AND p.status IN ('sold', 'delivered') AND c.is_approved = 1
                        ORDER BY p.created_at DESC");
 $stmt->bind_param("i", $farmer_id);
 $stmt->execute();

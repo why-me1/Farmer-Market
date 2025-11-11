@@ -14,8 +14,11 @@ $role = $_SESSION['role'] ?? 'guest';
 
 // Fetch unread notifications count
 if (isset($_SESSION['user_id'])) {
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
-    $stmt->bind_param("i", $_SESSION['user_id']);
+    // Convert role for notification system (user -> buyer)
+    $user_role_for_notif = ($role === 'user') ? 'buyer' : $role;
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND user_role = ? AND is_read = 0");
+    $stmt->bind_param("is", $_SESSION['user_id'], $user_role_for_notif);
     $stmt->execute();
     $stmt->bind_result($notification_count);
     $stmt->fetch();
@@ -87,8 +90,14 @@ $base_url = "http://localhost/DEMO/";
 
                     <!-- View All Notifications Link -->
                     <li class="nav-item">
-                        <a class="nav-link text-white font-weight-bold" href="<?php echo $base_url; ?>notifications.php">
-                            <i class="fas fa-bell me-1"></i>All Notifications
+                        <a class="nav-link text-white font-weight-bold position-relative" href="<?php echo $base_url; ?>notifications.php">
+                            <i class="fas fa-bell"></i> All Notifications
+                            <?php if ($notification_count > 0): ?>
+                                <span class="badge badge-danger badge-pill position-absolute" id="notifCount"
+                                    style="top: 5px; right: -5px; font-size: 0.65rem; min-width: 18px; height: 18px; padding: 2px 5px; line-height: 14px;">
+                                    <?php echo $notification_count > 99 ? '99+' : $notification_count; ?>
+                                </span>
+                            <?php endif; ?>
                         </a>
                     </li>
                 <?php endif; ?>
@@ -120,16 +129,41 @@ $base_url = "http://localhost/DEMO/";
                 method: "GET",
                 success: function(data) {
                     let result = JSON.parse(data);
-                    $("#notifCount").text(result.count);
-                    let notifList = $("#notifList");
-                    notifList.empty();
+                    let count = result.count || 0;
 
-                    if (result.notifications.length === 0) {
-                        notifList.append('<p class="dropdown-item text-muted">No new notifications</p>');
+                    // Update or create the badge
+                    let badge = $("#notifCount");
+                    if (count > 0) {
+                        let displayCount = count > 99 ? '99+' : count;
+                        if (badge.length === 0) {
+                            // Create badge if it doesn't exist
+                            $('a[href*="notifications.php"]').append(
+                                '<span class="badge badge-danger badge-pill position-absolute" id="notifCount" ' +
+                                'style="top: 5px; right: -5px; font-size: 0.65rem; min-width: 18px; height: 18px; padding: 2px 5px; line-height: 14px;">' +
+                                displayCount + '</span>'
+                            );
+                        } else {
+                            // Update existing badge
+                            badge.text(displayCount).show();
+                        }
                     } else {
-                        result.notifications.forEach(notif => {
-                            notifList.append('<a class="dropdown-item" href="<?php echo $base_url; ?>' + notif.link + '">' + notif.message + '</a>');
-                        });
+                        // Hide badge if no notifications
+                        if (badge.length > 0) {
+                            badge.hide();
+                        }
+                    }
+
+                    let notifList = $("#notifList");
+                    if (notifList.length > 0) {
+                        notifList.empty();
+
+                        if (result.notifications.length === 0) {
+                            notifList.append('<p class="dropdown-item text-muted">No new notifications</p>');
+                        } else {
+                            result.notifications.forEach(notif => {
+                                notifList.append('<a class="dropdown-item" href="<?php echo $base_url; ?>' + notif.link + '">' + notif.message + '</a>');
+                            });
+                        }
                     }
                 }
             });

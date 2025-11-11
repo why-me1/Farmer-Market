@@ -278,6 +278,15 @@ h6 { font-size: 1.1rem; }
     animation: pulse 2s infinite;
 }
 
+/* Notification badge on bell icon */
+.navbar .position-relative .badge.position-absolute {
+    top: 5px !important;
+    right: -5px !important;
+    transform: translate(0, 0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+}
+
 @keyframes pulse {
     0%, 100% {
         transform: scale(1);
@@ -911,6 +920,16 @@ input[type="number"]:focus {
 .product-meta {
     border-top: 1px solid #e9ecef;
     padding-top: var(--spacing-sm);
+    text-align: left !important;
+}
+
+.product-meta .d-flex {
+    text-align: left !important;
+}
+
+.product-meta span {
+    display: inline-flex !important;
+    align-items: center;
 }
 
 /* Price Section */

@@ -5,6 +5,7 @@ date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
 require_once 'includes/ratings.php';
+require_once 'includes/notification_functions.php';
 check_login();
 
 if (!isset($_GET['id'])) {
@@ -76,10 +77,37 @@ if ($total_bids >= 5) {
     if ($bidding_end_time <= $current_time) {
         if ($max_bid >= $post['price']) {
             $is_sold = true;
+
+            // Approve the winning comment
             $approve_stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE post_id = ? AND comment_text = ?");
             $approve_stmt->bind_param("id", $post_id, $max_bid);
             $approve_stmt->execute();
             $approve_stmt->close();
+
+            // Update post status to sold
+            $update_status_stmt = $conn->prepare("UPDATE posts SET status = 'sold' WHERE id = ?");
+            $update_status_stmt->bind_param("i", $post_id);
+            $update_status_stmt->execute();
+            $update_status_stmt->close();
+
+            // Get winner's user_id for notifications
+            $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? LIMIT 1");
+            $winner_stmt->bind_param("id", $post_id, $max_bid);
+            $winner_stmt->execute();
+            $winner_stmt->bind_result($winner_user_id);
+            $winner_stmt->fetch();
+            $winner_stmt->close();
+
+            // Send notifications if winner found
+            if ($winner_user_id) {
+                $winner_name = getUsername($winner_user_id);
+
+                // Notify farmer about sale
+                notifyFarmerProductSold($post['farmer_id'], $post_id, $winner_name, $post['product_name']);
+
+                // Notify buyer about winning bid
+                notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
+            }
         } else {
             $is_unsold = true;
         }
