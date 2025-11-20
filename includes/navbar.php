@@ -23,7 +23,7 @@ $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmer Market</title>
+    <title>Farmers’ Marketplace</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
@@ -33,7 +33,7 @@ $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest';
 
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-success text-white shadow-sm">
-        <a class="navbar-brand text-white font-weight-bold text-uppercase" href="../index.php">Farmer Market</a>
+        <a class="navbar-brand text-white font-weight-bold text-uppercase" href="../index.php">Farmers’ Marketplace</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>

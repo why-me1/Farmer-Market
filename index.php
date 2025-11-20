@@ -13,7 +13,7 @@ check_login();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmer Market - Products in the Market</title>
+    <title>Farmers’ Marketplace - Products in the Market</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,7 +30,7 @@ check_login();
     <div class="main-container">
         <!-- Hero Section -->
         <div class="text-center mb-5">
-            <h1 class="text-gradient mb-3">Farmer Market</h1>
+            <h1 class="text-gradient mb-3">Farmers’ Marketplace</h1>
             <p class="lead text-muted">Discover fresh, locally-sourced products from trusted farmers</p>
         </div>
 

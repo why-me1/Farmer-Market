@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     <div class="login-icon-container">
                                         <i class="fas fa-user-plus"></i>
                                     </div>
-                                    <h2>Join Farmer Market</h2>
+                                    <h2>Join Farmers’ Marketplace</h2>
                                     <p>Create your account and start connecting with local farmers. Get fresh produce delivered to your doorstep.</p>
                                     <div class="login-features">
                                         <div class="feature-item">

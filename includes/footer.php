@@ -3,7 +3,7 @@
         <div class="row">
             <!-- About Us -->
             <div class="col-md-3 mb-4">
-                <h5 class="text-uppercase font-weight-bold">🌿 Farmer's Market</h5>
+                <h5 class="text-uppercase font-weight-bold">🌿 Farmers’ Marketplace</h5>
                 <p>Fresh and organic produce, directly from our farms to your table.</p>
             </div>
 

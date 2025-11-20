@@ -20,12 +20,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($stmt->fetch()) {
             $stmt->close();
-            $time_since_last_attempt = time() - strtotime($last_attempt);
+            $time_since_last_attempt = $last_attempt ? time() - strtotime($last_attempt) : PHP_INT_MAX;
 
             if ($failed_attempts >= 3 && $time_since_last_attempt < $lockout_duration) {
                 $errors[] = "Account locked. Try again after " . ($lockout_duration - $time_since_last_attempt) . " seconds.";
             } else {
-                if (password_verify($password, $hashed_password)) {
+                if ($hashed_password && password_verify($password, $hashed_password)) {
                     $_SESSION['user_id'] = $id;
                     $_SESSION['username'] = $username;
                     $_SESSION['role'] = $role;
@@ -90,7 +90,7 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                                     <div class="login-icon-container">
                                         <i class="fas fa-leaf"></i>
                                     </div>
-                                    <h2>Farmer Market</h2>
+                                    <h2>Farmers’ Marketplace</h2>
                                     <p>Connect with local farmers and get fresh, organic produce delivered to your doorstep.</p>
                                     <div class="login-features">
                                         <div class="feature-item">
