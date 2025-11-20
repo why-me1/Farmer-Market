@@ -56,7 +56,10 @@ $is_sold = false;
 $is_unsold = false;
 $bidding_end_time = null;
 
-if ($total_bids >= 5) {
+// Check if already sold (prevent re-processing)
+$already_sold = ($post['status'] == 'sold');
+
+if ($total_bids >= 5 && !$already_sold) {
     if ($expired_time == NULL) {
         $comment_time_stmt = $conn->prepare("SELECT UNIX_TIMESTAMP(created_at) FROM comments WHERE post_id = ? ORDER BY created_at DESC LIMIT 1");
         $comment_time_stmt->bind_param("i", $post_id);
@@ -98,20 +101,36 @@ if ($total_bids >= 5) {
             $winner_stmt->fetch();
             $winner_stmt->close();
 
-            // Send notifications if winner found
+            // Send notifications if winner found (ONLY ONCE)
             if ($winner_user_id) {
-                $winner_name = getUsername($winner_user_id);
+                // Check if notification already exists before creating
+                $check_notif = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment_approved' LIMIT 1");
+                $check_notif->bind_param("ii", $winner_user_id, $post_id);
+                $check_notif->execute();
+                $notif_result = $check_notif->get_result();
 
-                // Notify farmer about sale
-                notifyFarmerProductSold($post['farmer_id'], $post_id, $winner_name, $post['product_name']);
+                if ($notif_result->num_rows == 0) {
+                    // Notify buyer about winning bid
+                    notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
 
-                // Notify buyer about winning bid
-                notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
+                    // Adjust farmer rating for successful sale
+                    adjust_rating_for_sale($post['farmer_id'], $post_id, $max_bid);
+
+                    // Adjust farmer rating based on bidding activity
+                    adjust_rating_for_bidding_activity($post['farmer_id'], $post_id, $total_bids);
+                }
+                $check_notif->close();
             }
         } else {
             $is_unsold = true;
+
+            // Adjust farmer rating for unsold product (bid didn't meet asking price)
+            adjust_rating_for_unsold($post['farmer_id'], $post_id);
         }
     }
+} elseif ($already_sold) {
+    // Product is already sold, just set the flag
+    $is_sold = true;
 }
 
 // Fetch recent bids (limit to top 10 for the card) - Sort by most recent first

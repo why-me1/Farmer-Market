@@ -8,7 +8,6 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_role = ($_SESSION['role'] === 'user') ? 'buyer' : $_SESSION['role'];
 
 // Handle mark as read action
 if (isset($_GET['action']) && $_GET['action'] === 'mark_read' && isset($_GET['id'])) {
@@ -19,14 +18,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'mark_read' && isset($_GET['id
 
 // Handle mark all as read
 if (isset($_GET['action']) && $_GET['action'] === 'mark_all_read') {
-    markAllNotificationsAsRead($user_id, $user_role);
+    markAllNotificationsAsRead($user_id);
     header('Location: notifications.php');
     exit;
 }
 
 // Get all notifications for the user
-$notifications = getUserNotifications($user_id, $user_role, 50);
-$unread_count = getUnreadNotificationCount($user_id, $user_role);
+$notifications = getUserNotifications($user_id, 50);
+$unread_count = getUnreadNotificationCount($user_id);
 
 include 'includes/nav.php';
 ?>
@@ -62,11 +61,11 @@ include 'includes/nav.php';
                                     <div class="d-flex w-100 justify-content-between">
                                         <div class="mb-1">
                                             <p class="mb-1 <?php echo $notification['is_read'] ? '' : 'font-weight-bold'; ?>">
-                                                <?php echo htmlspecialchars($notification['message']); ?>
+                                                <?php echo htmlspecialchars(getNotificationMessage($notification)); ?>
                                             </p>
                                             <small class="text-muted">
                                                 <i class="fas fa-tag me-1"></i><?php echo ucfirst(str_replace('_', ' ', $notification['type'])); ?>
-                                                <?php if ($notification['product_name']): ?>
+                                                <?php if (isset($notification['product_name']) && $notification['product_name']): ?>
                                                     | <i class="fas fa-box me-1"></i><?php echo htmlspecialchars($notification['product_name']); ?>
                                                 <?php endif; ?>
                                             </small>

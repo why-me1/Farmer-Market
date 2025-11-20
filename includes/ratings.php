@@ -179,5 +179,152 @@ function adjust_rating_for_post($farmer_id, $post_price, $product_name)
     return get_user_automatic_rating($farmer_id);
 }
 
+/**
+ * Adjust farmer rating when product is sold
+ * Considers:
+ * - How fast the product sold (time from creation to sale)
+ * - Price fairness compared to market price
+ * 
+ * Rules:
+ * - Sold within 24 hours: +0.3 (quick sale, good pricing)
+ * - Sold within 24-72 hours: +0.1 (reasonable time)
+ * - Sold after 7+ days: -0.2 (too long, poor pricing)
+ * - Sold with final bid close to market price: +0.2 (fair pricing)
+ */
+function adjust_rating_for_sale($farmer_id, $post_id, $final_bid_amount)
+{
+    global $conn;
+
+    // Get post details
+    $stmt = $conn->prepare("SELECT product_name, price, UNIX_TIMESTAMP(created_at) as created_time, 
+                            UNIX_TIMESTAMP(NOW()) as now_time FROM posts WHERE id = ?");
+    $stmt->bind_param("i", $post_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $post = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$post) return null;
+
+    $time_to_sell = ($post['now_time'] - $post['created_time']) / 3600; // hours
+    $delta = 0.0;
+
+    // Time-based rating
+    if ($time_to_sell <= 24) {
+        // Sold within 24 hours - excellent
+        $delta += 0.3;
+    } elseif ($time_to_sell <= 72) {
+        // Sold within 3 days - good
+        $delta += 0.1;
+    } elseif ($time_to_sell >= 168) {
+        // Took more than 7 days - poor pricing or unattractive product
+        $delta -= 0.2;
+    }
+
+    // Check final price vs market price
+    $market = get_market_price_for_product($post['product_name']);
+    if ($market !== null && $market > 0) {
+        $pct_diff = abs((($final_bid_amount - $market) / $market) * 100);
+
+        if ($pct_diff <= 20) {
+            // Final bid within ±20% of market price - fair pricing
+            $delta += 0.2;
+        }
+    }
+
+    if ($delta != 0.0) {
+        return update_user_rating($farmer_id, $delta);
+    }
+    return get_user_automatic_rating($farmer_id);
+}
+
+/**
+ * Adjust farmer rating when product remains unsold after bidding ends
+ * This happens when:
+ * - 5 bids placed but highest bid is below asking price
+ * - Product expires without meeting reserve price
+ * 
+ * Rules:
+ * - Product remains unsold: -0.4 (overpriced or unrealistic expectations)
+ * - Multiple unsold products in short time: additional -0.1 per unsold item
+ */
+function adjust_rating_for_unsold($farmer_id, $post_id)
+{
+    global $conn;
+
+    $delta = -0.4; // Base penalty for unsold product
+
+    // Check how many products this farmer has unsold in last 30 days
+    $stmt = $conn->prepare("SELECT COUNT(*) as unsold_count FROM posts 
+                            WHERE farmer_id = ? 
+                            AND status = 'active' 
+                            AND expiry_date IS NOT NULL 
+                            AND expiry_date < UNIX_TIMESTAMP(NOW())
+                            AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    $stmt->bind_param("i", $farmer_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    $unsold_count = $row['unsold_count'] ?? 0;
+
+    // Additional penalty for multiple unsold products
+    if ($unsold_count > 1) {
+        $delta -= (($unsold_count - 1) * 0.1);
+    }
+
+    return update_user_rating($farmer_id, $delta);
+}
+
+/**
+ * Adjust farmer rating based on bidding activity
+ * Considers how engaged buyers are with the product
+ * 
+ * Rules:
+ * - Product gets 10+ bids quickly: +0.2 (attractive pricing/product)
+ * - Product gets only 5 bids in long time: -0.1 (barely met minimum, poor interest)
+ */
+function adjust_rating_for_bidding_activity($farmer_id, $post_id, $bid_count)
+{
+    global $conn;
+
+    // Get post creation time and first/last bid times
+    $stmt = $conn->prepare("SELECT UNIX_TIMESTAMP(p.created_at) as post_time,
+                            UNIX_TIMESTAMP(MIN(c.created_at)) as first_bid_time,
+                            UNIX_TIMESTAMP(MAX(c.created_at)) as last_bid_time
+                            FROM posts p
+                            LEFT JOIN comments c ON p.id = c.post_id
+                            WHERE p.id = ?
+                            GROUP BY p.id");
+    $stmt->bind_param("i", $post_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $data = $result->fetch_assoc();
+    $stmt->close();
+
+    if (!$data || !$data['first_bid_time']) return null;
+
+    $time_to_first_bid = ($data['first_bid_time'] - $data['post_time']) / 3600; // hours
+    $bidding_duration = ($data['last_bid_time'] - $data['first_bid_time']) / 3600; // hours
+
+    $delta = 0.0;
+
+    // High engagement - many bids
+    if ($bid_count >= 10) {
+        $delta += 0.2;
+    }
+
+    // Low engagement - barely met minimum and took long time
+    if ($bid_count == 5 && $time_to_first_bid > 48) {
+        $delta -= 0.1;
+    }
+
+    if ($delta != 0.0) {
+        return update_user_rating($farmer_id, $delta);
+    }
+    return get_user_automatic_rating($farmer_id);
+}
+
 // Ensure schema on include
 ratings_ensure_schema();

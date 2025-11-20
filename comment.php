@@ -46,14 +46,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
             notifyFarmerBidPlaced($farmer_id, $post_id, $buyer_name, $comment_text, $product_name);
         }
 
-        // Check for outbid notifications - notify other bidders
+        // Check for outbid notifications - notify other bidders (only if they don't have recent notification)
         $stmt = $conn->prepare("SELECT DISTINCT user_id FROM comments WHERE post_id = ? AND user_id != ? AND is_approved = 0");
         $stmt->bind_param("ii", $post_id, $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
 
         while ($row = $result->fetch_assoc()) {
-            notifyBuyerOutbid($row['user_id'], $post_id, $product_name);
+            // Check if user already has an unread outbid notification for this post
+            $check_stmt = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment' AND is_read = 0 LIMIT 1");
+            $check_stmt->bind_param("ii", $row['user_id'], $post_id);
+            $check_stmt->execute();
+            $check_result = $check_stmt->get_result();
+
+            // Only send notification if they don't have an unread one already
+            if ($check_result->num_rows == 0) {
+                notifyBuyerOutbid($row['user_id'], $post_id, $product_name);
+            }
+            $check_stmt->close();
         }
         $stmt->close();
 

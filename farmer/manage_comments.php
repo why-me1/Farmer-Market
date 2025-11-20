@@ -17,6 +17,21 @@ if (isset($_GET['action']) && isset($_GET['comment_id'])) {
     $comment_id = intval($_GET['comment_id']);
 
     if ($action == 'approve') {
+        // Check if comment is already approved
+        $check_stmt = $conn->prepare("SELECT is_approved FROM comments WHERE id = ?");
+        $check_stmt->bind_param("i", $comment_id);
+        $check_stmt->execute();
+        $check_stmt->bind_result($already_approved);
+        $check_stmt->fetch();
+        $check_stmt->close();
+
+        // If already approved, just redirect
+        if ($already_approved == 1) {
+            $_SESSION['info'] = "This bid is already approved.";
+            header("Location: manage_comments.php");
+            exit();
+        }
+
         // Approve comment
         $stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE id = ?");
         $stmt->bind_param("i", $comment_id);
@@ -59,15 +74,41 @@ if (isset($_GET['action']) && isset($_GET['comment_id'])) {
         } else {
             $_SESSION['success'] = "Bid approved successfully! Product marked as sold.";
 
-            // Send notifications
-            $farmer_name = getUsername($farmer_id);
-            $buyer_name = getUsername($user_id);
+            // Get the approved bid amount for rating calculation
+            $bid_stmt = $conn->prepare("SELECT comment_text FROM comments WHERE id = ?");
+            $bid_stmt->bind_param("i", $comment_id);
+            $bid_stmt->execute();
+            $bid_stmt->bind_result($approved_bid_amount);
+            $bid_stmt->fetch();
+            $bid_stmt->close();
 
-            // Notify farmer about sale
-            notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_name);
+            // Get total bid count for this post
+            $count_stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE post_id = ?");
+            $count_stmt->bind_param("i", $post_id);
+            $count_stmt->execute();
+            $count_stmt->bind_result($bid_count);
+            $count_stmt->fetch();
+            $count_stmt->close();
 
-            // Notify buyer about winning bid
-            notifyBuyerWonBid($user_id, $post_id, $product_name);
+            // Check if rating has already been adjusted (by checking if notification exists)
+            // This prevents duplicate rating updates if approval is clicked multiple times
+            $rating_check = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment_approved' LIMIT 1");
+            $rating_check->bind_param("ii", $user_id, $post_id);
+            $rating_check->execute();
+            $rating_check_result = $rating_check->get_result();
+            $rating_already_updated = ($rating_check_result->num_rows > 0);
+            $rating_check->close();
+
+            // Adjust farmer rating for successful sale (ONLY if not already done)
+            if (!$rating_already_updated) {
+                adjust_rating_for_sale($farmer_id, $post_id, floatval($approved_bid_amount));
+                adjust_rating_for_bidding_activity($farmer_id, $post_id, $bid_count);
+            }
+
+            // Send notification only if it doesn't already exist
+            if (!$rating_already_updated) {
+                notifyBuyerWonBid($user_id, $post_id, $product_name);
+            }
 
             // Delete all unapproved comments for the post
             $stmt = $conn->prepare("DELETE FROM comments WHERE post_id = ? AND is_approved = 0");

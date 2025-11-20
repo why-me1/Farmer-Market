@@ -171,4 +171,4 @@ ini_set('display_errors', 1);
 
 ## Future Enhancements
 
-1. **Email Notifications**: Send email alerts for important notifications
+1. **Email Notifications**

@@ -10,20 +10,19 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$user_role = ($_SESSION['role'] === 'user') ? 'buyer' : $_SESSION['role'];
 
 // Get unread count
-$count = getUnreadNotificationCount($user_id, $user_role);
+$count = getUnreadNotificationCount($user_id);
 
 // Get recent notifications (last 5)
-$notifications = getUserNotifications($user_id, $user_role, 5);
+$notifications = getUserNotifications($user_id, 5);
 
 // Format notifications for display
 $formatted_notifications = [];
 foreach ($notifications as $notification) {
     $formatted_notifications[] = [
         'id' => $notification['id'],
-        'message' => $notification['message'],
+        'message' => getNotificationMessage($notification),
         'type' => $notification['type'],
         'is_read' => $notification['is_read'],
         'created_at' => $notification['created_at'],

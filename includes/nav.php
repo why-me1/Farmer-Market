@@ -14,11 +14,8 @@ $role = $_SESSION['role'] ?? 'guest';
 
 // Fetch unread notifications count
 if (isset($_SESSION['user_id'])) {
-    // Convert role for notification system (user -> buyer)
-    $user_role_for_notif = ($role === 'user') ? 'buyer' : $role;
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND user_role = ? AND is_read = 0");
-    $stmt->bind_param("is", $_SESSION['user_id'], $user_role_for_notif);
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+    $stmt->bind_param("i", $_SESSION['user_id']);
     $stmt->execute();
     $stmt->bind_result($notification_count);
     $stmt->fetch();

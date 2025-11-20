@@ -28,6 +28,8 @@ if ($fairness_rating === null) {
 $total_bids = 0;
 $approved_bids = 0;
 $pending_bids = 0;
+$total_auctions_participated = 0;
+$auctions_won = 0;
 
 // Count total bids
 $bids_stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE user_id = ?");
@@ -37,7 +39,15 @@ $bids_stmt->bind_result($total_bids);
 $bids_stmt->fetch();
 $bids_stmt->close();
 
-// Count approved bids
+// Count unique auctions won (distinct posts where user has approved bid)
+$won_stmt = $conn->prepare("SELECT COUNT(DISTINCT post_id) FROM comments WHERE user_id = ? AND is_approved = 1");
+$won_stmt->bind_param("i", $user_id);
+$won_stmt->execute();
+$won_stmt->bind_result($auctions_won);
+$won_stmt->fetch();
+$won_stmt->close();
+
+// Count approved bids (total number of approved bids for display)
 $approved_stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE user_id = ? AND is_approved = 1");
 $approved_stmt->bind_param("i", $user_id);
 $approved_stmt->execute();
@@ -45,8 +55,32 @@ $approved_stmt->bind_result($approved_bids);
 $approved_stmt->fetch();
 $approved_stmt->close();
 
-// Pending bids
-$pending_bids = $total_bids - $approved_bids;
+// Count total unique auctions participated where bidding has ended
+// An auction has ended if: status = 'sold' OR (expiry_date is set AND expired)
+$auctions_stmt = $conn->prepare("SELECT COUNT(DISTINCT c.post_id) 
+                                  FROM comments c
+                                  JOIN posts p ON c.post_id = p.id
+                                  WHERE c.user_id = ? 
+                                  AND (p.status = 'sold' 
+                                       OR (p.expiry_date IS NOT NULL AND p.expiry_date <= UNIX_TIMESTAMP(NOW())))");
+$auctions_stmt->bind_param("i", $user_id);
+$auctions_stmt->execute();
+$auctions_stmt->bind_result($total_auctions_participated);
+$auctions_stmt->fetch();
+$auctions_stmt->close();
+
+// Pending bids (bids on active/ongoing auctions)
+$pending_stmt = $conn->prepare("SELECT COUNT(*) FROM comments c
+                                JOIN posts p ON c.post_id = p.id
+                                WHERE c.user_id = ? 
+                                AND c.is_approved = 0 
+                                AND p.status = 'active'
+                                AND (p.expiry_date IS NULL OR p.expiry_date > UNIX_TIMESTAMP(NOW()))");
+$pending_stmt->bind_param("i", $user_id);
+$pending_stmt->execute();
+$pending_stmt->bind_result($pending_bids);
+$pending_stmt->fetch();
+$pending_stmt->close();
 
 // Get all bids (for My Bids section)
 $my_bids_stmt = $conn->prepare("
@@ -249,11 +283,15 @@ $purchases = $purchases_stmt->get_result();
                                     <div class="stat-card" style="border-left-color: #17a2b8;">
                                         <h5 class="mb-1">
                                             <?php
-                                            $success_rate = $total_bids > 0 ? round(($approved_bids / $total_bids) * 100) : 0;
+                                            // Win Rate = (Auctions Won / Total Auctions Ended) × 100
+                                            // Auctions Won = distinct posts where user has approved bid
+                                            // Total Auctions Ended = distinct posts user bid on that are sold or expired
+                                            $success_rate = $total_auctions_participated > 0 ? round(($auctions_won / $total_auctions_participated) * 100) : 0;
                                             echo $success_rate . '%';
+                                            // Debug: echo " (Won: $auctions_won / Participated: $total_auctions_participated)";
                                             ?>
                                         </h5>
-                                        <small class="text-muted">Success Rate</small>
+                                        <small class="text-muted">Win Rate</small>
                                     </div>
                                 </div>
                             </div>
