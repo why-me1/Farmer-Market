@@ -205,7 +205,7 @@ check_login();
                             }
                         ?>
 
-                            <div class="col-lg-4 col-md-6 product-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
+                            <div class="col-lg-3 col-md-6 product-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
                                 <a href="product_detail.php?id=<?php echo $post_id; ?>" class="product-card-link">
                                     <div class="card h-100 bidding-card">
                                         <?php if ($post['image']): ?>
