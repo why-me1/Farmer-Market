@@ -39,10 +39,25 @@ $role = isset($_SESSION['role']) ? $_SESSION['role'] : 'guest';
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link text-white font-weight-bold" href="../index.php">Home</a>
+            <ul class="navbar-nav mr-auto">
+                <!-- Dropdown Menu for 'How It Works' -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white font-weight-bold" href="#" id="howItWorksDropdown"
+                        role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        How It Works
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="howItWorksDropdown">
+                        <a class="dropdown-item" href="../bidding_guide.php">How Bidding Works</a>
+                        <a class="dropdown-item" href="../how_to_sell.php">How to Sell</a>
+                        <a class="dropdown-item" href="../how_to_buy.php">How to Buy</a>
+                        <a class="dropdown-item" href="../delivery_info.php">Delivery System</a>
+                        <a class="dropdown-item" href="../faq.php">FAQs</a>
+                        <a class="dropdown-item" href="../terms.php">Terms & Conditions</a>
+                    </div>
                 </li>
+            </ul>
+
+            <ul class="navbar-nav ml-auto">
 
                 <?php if ($role !== 'guest'): ?>
                     <li class="nav-item">

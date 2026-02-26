@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
         }
 
         $_SESSION['success_message'] = "Your bid of " . number_format($comment_text, 2) . "৳ has been placed successfully!";
-        header("Location: index.php");
+        header("Location: product_detail.php?id=" . $post_id);
         exit();
     } else {
         echo "Failed to add comment.";

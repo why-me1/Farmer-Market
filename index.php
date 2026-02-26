@@ -28,10 +28,42 @@ check_login();
     <?php include 'includes/nav.php'; ?>
 
     <div class="main-container">
-        <!-- Hero Section -->
-        <div class="text-center mb-5">
-            <h1 class="text-gradient mb-3">Farmers’ Marketplace</h1>
-            <p class="lead text-muted">Discover fresh, locally-sourced products from trusted farmers</p>
+        <!-- 1. HERO SECTION -->
+        <div class="hero-section">
+            <div class="hero-grid container">
+                <div class="hero-left">
+                    <h1 class="hero-title">Fresh produce, directly from local farmers</h1>
+                    <p class="hero-sub">Handpicked, seasonal and sustainably sourced — find the best from your community marketplace.</p>
+
+                    <div class="hero-search-card">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Search organic tomatoes, apples, dairy...">
+                            <div class="input-group-append">
+                                <button class="btn btn-success" id="heroSearchBtn">Search</button>
+                            </div>
+                        </div>
+
+                        <div class="hero-chips mt-3">
+                            <a href="search.php?q=tomato" class="chip">Tomatoes</a>
+                            <a href="search.php?q=apples" class="chip">Apples</a>
+                            <a href="search.php?q=dairy" class="chip">Dairy</a>
+                            <a href="search.php?q=vegetables" class="chip">Vegetables</a>
+                        </div>
+                    </div>
+
+                    <div class="hero-cta mt-4">
+                        <a href="browse.php" class="btn btn-outline-success btn-lg">Explore Marketplace</a>
+                        <a href="how_to_sell.php" class="btn btn-link ms-3">Sell with us</a>
+                    </div>
+                </div>
+
+                <div class="hero-right d-none d-lg-flex">
+                    <div class="hero-illustration" aria-hidden="true"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Success/Error Messages -->
@@ -83,222 +115,311 @@ check_login();
         <?php endif; ?>
 
 
-        <!-- Search and Filter Section -->
-        <div class="search-container">
-            <div class="row align-items-end">
-                <div class="col-md-6 mb-3">
-                    <label for="searchInput" class="form-label">
-                        <i class="fas fa-search me-2"></i>Search Products
-                    </label>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search by product name...">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="categoryFilter" class="form-label">
-                        <i class="fas fa-filter me-2"></i>Filter by Category
-                    </label>
-                    <select id="categoryFilter" class="form-select">
-                        <option value="all">All Categories</option>
-                        <?php
-                        $category_stmt = $conn->prepare("SELECT DISTINCT category FROM posts WHERE is_approved = 1 ORDER BY category ASC");
-                        $category_stmt->execute();
-                        $category_result = $category_stmt->get_result();
-                        while ($category_row = $category_result->fetch_assoc()):
-                            $category_name = htmlspecialchars($category_row['category']);
-                        ?>
-                            <option value="<?php echo $category_name; ?>"><?php echo $category_name; ?></option>
-                        <?php endwhile; ?>
-                        <?php $category_stmt->close(); ?>
-                    </select>
-                </div>
+
+
+        <!-- 2. LIVE AUCTIONS - ENDING SOON SECTION -->
+        <div class="live-auctions-section mb-5">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-fire me-2"></i>Live Auctions - Ending Soon</h2>
+                <p class="section-subtitle">Products ending in the next 24 hours</p>
             </div>
-        </div>
 
-        <div id="product-list">
-            <?php
-            $category_stmt = $conn->prepare("SELECT DISTINCT category FROM posts WHERE is_approved = 1 ORDER BY category ASC");
-            $category_stmt->execute();
-            $category_result = $category_stmt->get_result();
+            <!-- Filter Bar for Live Auctions -->
+            <div class="filter-bar-live mb-4">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <?php
+                $live_categories = $conn->prepare("SELECT DISTINCT category FROM posts 
+                                                   WHERE is_approved = 1 AND status = 'active' 
+                                                   AND auction_start_date <= NOW() 
+                                                   AND auction_end_date > NOW()
+                                                   ORDER BY category ASC");
+                $live_categories->execute();
+                $live_cat_result = $live_categories->get_result();
+                while ($cat_row = $live_cat_result->fetch_assoc()):
+                    $cat_name = htmlspecialchars($cat_row['category']);
+                ?>
+                    <button class="filter-btn" data-filter="<?php echo $cat_name; ?>"><?php echo $cat_name; ?></button>
+                <?php endwhile; ?>
+                <?php $live_categories->close(); ?>
+            </div>
 
-            while ($category_row = $category_result->fetch_assoc()):
-                $category_name = htmlspecialchars($category_row['category']);
-            ?>
-                <div class="category-group" data-category="<?php echo $category_name; ?>">
-                    <h3 class="category-header"><?php echo $category_name; ?></h3>
-                    <div class="row">
-                        <?php
-                        $stmt = $conn->prepare("SELECT posts.*, users.username FROM posts 
-                                                JOIN users ON posts.farmer_id = users.id 
-                                                WHERE posts.is_approved = 1 AND posts.category = ? 
-                                                ORDER BY posts.created_at DESC");
-                        $stmt->bind_param("s", $category_name);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
+            <!-- Live Auctions Grid -->
+            <div id="live-auctions-grid" class="row">
+                <?php
+                // Get live auctions ending within next 24 hours, sorted by time remaining
+                $live_stmt = $conn->prepare("SELECT posts.*, users.username, 
+                                             (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
+                                             (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
+                                             FROM posts 
+                                             JOIN users ON posts.farmer_id = users.id 
+                                             WHERE posts.is_approved = 1 AND posts.status = 'active'
+                                             AND posts.auction_start_date <= NOW() 
+                                             AND posts.auction_end_date > NOW()
+                                             AND UNIX_TIMESTAMP(posts.auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+                                             ORDER BY posts.auction_end_date ASC
+                                             LIMIT 8");
+                $live_stmt->execute();
+                $live_result = $live_stmt->get_result();
 
-                        while ($post = $result->fetch_assoc()):
-                            $post_id = $post['id'];
-                            $post_creation_time = strtotime($post['created_at']);
-                            $current_time = time();
+                if ($live_result->num_rows > 0):
+                    while ($post = $live_result->fetch_assoc()):
+                        $post_id = $post['id'];
+                        $current_time = time();
+                        $auction_end_time = strtotime($post['auction_end_date']);
+                        $time_remaining = $auction_end_time - $current_time;
+                        $total_bids = $post['total_bids'];
+                        $max_bid = $post['max_bid'];
+                ?>
+                        <div class="col-lg-3 col-md-6 product-card live-auction-card fade-in-up" data-category="<?php echo htmlspecialchars($post['category']); ?>" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
+                            <a href="product_detail.php?id=<?php echo $post_id; ?>" class="product-card-link">
+                                <div class="card h-100 bidding-card">
+                                    <?php if ($post['image']): ?>
+                                        <div class="product-image">
+                                            <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($post['product_name']); ?>">
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="card-body">
+                                        <h5 class="card-title"><?php echo htmlspecialchars($post['product_name']); ?></h5>
 
-                            $expiry_stmt = $conn->prepare("SELECT expiry_date FROM posts WHERE id = ?");
-                            $expiry_stmt->bind_param("i", $post_id);
-                            $expiry_stmt->execute();
-                            $expiry_stmt->bind_result($expired_time);
-                            $expiry_stmt->fetch();
-                            $expiry_stmt->close();
+                                        <div class="product-price mb-3">
+                                            <h6 class="price-label">Price: <span class="price-value">৳ <?php echo number_format($post['price'], 2); ?></span></h6>
+                                            <p class="quantity-label">Quantity: <span class="quantity-value"><?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?></span></p>
+                                        </div>
 
-                            // If expiry_date is NULL, set it to current time + 2 minutes
-
-                            //echo $current_time;
-
-                            // Get bid count and highest bid
-                            $comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(comment_text) as max_bid FROM comments WHERE post_id = ?");
-                            $comment_count_stmt->bind_param("i", $post_id);
-                            $comment_count_stmt->execute();
-                            $comment_result = $comment_count_stmt->get_result();
-                            $comment_data = $comment_result->fetch_assoc();
-                            $total_bids = $comment_data['total_bids'];
-                            $max_bid = $comment_data['max_bid'];
-                            $comment_count_stmt->close();
-
-                            $is_sold = false;
-                            $is_unsold = false;
-                            $bidding_end_time = null;
-
-                            // $bidding_end_time = null;
-                            if ($total_bids >= 5) {
-                                // If 5 bids exist, start 2-minute countdown
-                                // $bidding_end_time = $post_creation_time + 120;
-                                if ($expired_time == NULL) {
-                                    $comment_time_stmt = $conn->prepare("SELECT UNIX_TIMESTAMP(created_at) FROM comments WHERE post_id = ? ORDER BY created_at DESC LIMIT 1");
-                                    $comment_time_stmt->bind_param("i", $post_id);
-                                    $comment_time_stmt->execute();
-                                    $comment_time_stmt->bind_result($last_comment_time);
-                                    $comment_time_stmt->fetch();
-                                    $comment_time_stmt->close();
-
-                                    //echo $last_comment_time;
-
-                                    $bidding_end_time = $last_comment_time + 120;
-                                    // Update expiry_date in the database
-                                    $update_stmt = $conn->prepare("UPDATE posts SET expiry_date = ? WHERE id = ?");
-                                    $update_stmt->bind_param("ii", $bidding_end_time, $post_id);
-                                    $update_stmt->execute();
-                                    $update_stmt->close();
-                                } else {
-                                    $bidding_end_time = $expired_time;
-                                }
-                                //$bidding_end_time = $post_creation_time + 120;
-                                if ($bidding_end_time <= $current_time) {
-                                    if ($max_bid >= $post['price']) {
-                                        $is_sold = true;
-                                        $approve_stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE post_id = ? AND comment_text = ?");
-                                        $approve_stmt->bind_param("id", $post_id, $max_bid);
-                                        $approve_stmt->execute();
-                                        $approve_stmt->close();
-                                    } else {
-                                        $is_unsold = true;
-                                    }
-                                } else {
-                                    $is_sold = false;
-                                    $is_unsold = false;
-                                }
-                            }
-                        ?>
-
-                            <div class="col-lg-3 col-md-6 product-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
-                                <a href="product_detail.php?id=<?php echo $post_id; ?>" class="product-card-link">
-                                    <div class="card h-100 bidding-card">
-                                        <?php if ($post['image']): ?>
-                                            <div class="product-image">
-                                                <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($post['product_name']); ?>">
-                                                <?php if ($is_sold): ?>
-                                                    <img src="assets/images/sold.png" class="sold-stamp" alt="Sold">
-                                                <?php elseif ($is_unsold): ?>
-                                                    <img src="assets/images/unsold.png" class="unsold-stamp" alt="Unsold">
-                                                <?php endif; ?>
+                                        <div class="countdown-section mb-3">
+                                            <div class="status-badge live-badge">
+                                                <i class="fas fa-circle-notch fa-spin me-1"></i>LIVE
                                             </div>
-                                        <?php endif; ?>
-                                        <div class="card-body">
-                                            <h5 class="card-title"><?php echo htmlspecialchars($post['product_name']); ?></h5>
-
-                                            <div class="countdown-section mb-3">
-                                                <?php if ($bidding_end_time && $bidding_end_time > $current_time): ?>
-                                                    <div class="countdown-timer" id="countdown-<?php echo $post_id; ?>" data-end-time="<?php echo $bidding_end_time; ?>">
-                                                        <i class="fas fa-clock me-1"></i>
-                                                        <span class="countdown-text">Time Remaining: </span>
-                                                        <span class="countdown-time"></span>
-                                                    </div>
-                                                <?php elseif ($is_sold): ?>
-                                                    <div class="status-badge sold-badge">
-                                                        <i class="fas fa-check-circle me-1"></i>Sold
-                                                    </div>
-                                                <?php elseif ($is_unsold): ?>
-                                                    <div class="status-badge unsold-badge">
-                                                        <i class="fas fa-times-circle me-1"></i>Unsold
-                                                    </div>
-                                                <?php else: ?>
-                                                    <div class="status-badge active-badge">
-                                                        <i class="fas fa-circle me-1"></i>Active Bidding
-                                                    </div>
-                                                <?php endif; ?>
+                                            <div class="countdown-timer" id="countdown-<?php echo $post_id; ?>" data-end-time="<?php echo $auction_end_time; ?>">
+                                                <i class="fas fa-clock me-1"></i>
+                                                <span class="countdown-text">Ending in: </span>
+                                                <span class="countdown-time"></span>
                                             </div>
+                                        </div>
 
-                                            <div class="product-meta mb-3">
-                                                <div class="d-flex justify-content-between align-items-center text-muted small">
-                                                    <span class="d-flex align-items-center">
-                                                        <i class="fas fa-user mr-1"></i>
-                                                        <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>"
-                                                            class="farmer-name-link"
-                                                            onclick="event.stopPropagation();">
-                                                            <?php echo htmlspecialchars($post['username']); ?>
-                                                        </a>
-                                                    </span>
-                                                    <span class="d-flex align-items-center">
-                                                        <i class="fas fa-calendar mr-1"></i>
-                                                        <?php echo date("d M Y", strtotime($post['created_at'])); ?>
-                                                    </span>
-                                                </div>
+                                        <div class="product-meta mb-3">
+                                            <div class="d-flex justify-content-between align-items-center text-muted small">
+                                                <span class="d-flex align-items-center">
+                                                    <i class="fas fa-gavel mr-1"></i>
+                                                    <?php echo $total_bids; ?> bid<?php echo $total_bids !== 1 ? 's' : ''; ?>
+                                                </span>
+                                                <span class="d-flex align-items-center">
+                                                    <i class="fas fa-user mr-1"></i>
+                                                    <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-name-link" onclick="event.stopPropagation();">
+                                                        <?php echo htmlspecialchars($post['username']); ?>
+                                                    </a>
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
-                                </a>
-                            </div>
-                        <?php endwhile; ?>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>No live auctions ending soon. Check back later!
+                        </div>
                     </div>
-                </div>
-            <?php endwhile; ?>
+                <?php endif; ?>
+                <?php $live_stmt->close(); ?>
+            </div>
+        </div>
+
+        <!-- 3. CATEGORY SECTIONS -->
+        <div class="category-sections-wrapper mb-5">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-th-large me-2"></i>Browse by Category</h2>
+            </div>
+
+            <div class="row category-cards-grid">
+                <?php
+                // Define all 8 categories with icons
+                $all_categories = [
+                    'Vegetables' => 'fa-leaf',
+                    'Fruits' => 'fa-apple-alt',
+                    'Grains' => 'fa-wheat',
+                    'Dairy' => 'fa-cheese',
+                    'Eggs' => 'fa-egg',
+                    'Honey' => 'fa-jar',
+                    'Herbs' => 'fa-clover',
+                    'Root Vegetables' => 'fa-carrot'
+                ];
+
+                foreach ($all_categories as $category_name => $icon):
+                    // Get count of active products in this category
+                    $count_stmt = $conn->prepare("SELECT COUNT(*) as product_count FROM posts 
+                                                WHERE is_approved = 1 AND status = 'active' 
+                                                AND category = ?");
+                    $count_stmt->bind_param("s", $category_name);
+                    $count_stmt->execute();
+                    $count_result = $count_stmt->get_result();
+                    $count_row = $count_result->fetch_assoc();
+                    $count = $count_row['product_count'];
+                    $count_stmt->close();
+                ?>
+                    <div class="col-lg-3 col-md-3 col-sm-6 mb-3">
+                        <a href="browse.php?category=<?php echo urlencode($category_name); ?>" class="category-card-link">
+                            <div class="category-card">
+                                <div class="category-icon">
+                                    <i class="fas <?php echo $icon; ?>"></i>
+                                </div>
+                                <h4 class="category-name"><?php echo $category_name; ?></h4>
+                                <p class="category-count"><?php echo $count; ?> auction<?php echo $count !== 1 ? 's' : ''; ?></p>
+                                <div class="category-action">
+                                    <small class="text-primary">Browse <i class="fas fa-arrow-right ms-1"></i></small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- 4. RECENTLY LISTED SECTION -->
+        <div class="recently-listed-section mb-5">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-star me-2"></i>Recently Listed</h2>
+                <p class="section-subtitle">Newest products added to the marketplace</p>
+            </div>
+
+            <div id="recently-listed-grid" class="row">
+                <?php
+                $recent_stmt = $conn->prepare("SELECT posts.*, users.username,
+                                              (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
+                                              (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
+                                              FROM posts 
+                                              JOIN users ON posts.farmer_id = users.id 
+                                              WHERE posts.is_approved = 1 AND posts.status = 'active'
+                                              ORDER BY posts.created_at DESC
+                                              LIMIT 8");
+                $recent_stmt->execute();
+                $recent_result = $recent_stmt->get_result();
+
+                if ($recent_result->num_rows > 0):
+                    while ($post = $recent_result->fetch_assoc()):
+                        $post_id = $post['id'];
+                        $current_time = time();
+                        $auction_start_time = strtotime($post['auction_start_date']);
+                        $auction_end_time = strtotime($post['auction_end_date']);
+
+                        $is_live = false;
+                        if ($current_time >= $auction_start_time && $current_time < $auction_end_time) {
+                            $is_live = true;
+                        }
+
+                        $total_bids = $post['total_bids'];
+                        $max_bid = $post['max_bid'];
+                ?>
+                        <div class="col-lg-3 col-md-6 product-card recently-listed-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
+                            <a href="product_detail.php?id=<?php echo $post_id; ?>" class="product-card-link">
+                                <div class="card h-100 bidding-card">
+                                    <?php if ($post['image']): ?>
+                                        <div class="product-image">
+                                            <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($post['product_name']); ?>">
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="card-body">
+                                        <h5 class="card-title"><?php echo htmlspecialchars($post['product_name']); ?></h5>
+
+                                        <div class="product-price mb-3">
+                                            <h6 class="price-label">Price: <span class="price-value">৳ <?php echo number_format($post['price'], 2); ?></span></h6>
+                                            <p class="quantity-label">Quantity: <span class="quantity-value"><?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?></span></p>
+                                        </div>
+
+                                        <div class="countdown-section mb-3">
+                                            <?php if ($is_live): ?>
+                                                <div class="status-badge live-badge">
+                                                    <i class="fas fa-circle-notch fa-spin me-1"></i>LIVE
+                                                </div>
+                                                <div class="countdown-timer" id="countdown-<?php echo $post_id; ?>" data-end-time="<?php echo $auction_end_time; ?>">
+                                                    <i class="fas fa-clock me-1"></i>
+                                                    <span class="countdown-text">Ending in: </span>
+                                                    <span class="countdown-time"></span>
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="status-badge pending-badge">
+                                                    <i class="fas fa-hourglass-start me-1"></i>Upcoming
+                                                </div>
+                                                <p class="auction-date-text"><small>Starts: <?php echo date("d M, h:i A", $auction_start_time); ?></small></p>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <div class="product-meta mb-3">
+                                            <div class="d-flex justify-content-between align-items-center text-muted small">
+                                                <span class="d-flex align-items-center">
+                                                    <i class="fas fa-calendar mr-1"></i>
+                                                    <?php echo date("d M Y", strtotime($post['created_at'])); ?>
+                                                </span>
+                                                <span class="d-flex align-items-center">
+                                                    <i class="fas fa-user mr-1"></i>
+                                                    <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-name-link" onclick="event.stopPropagation();">
+                                                        <?php echo htmlspecialchars($post['username']); ?>
+                                                    </a>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>No recently listed products available.
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <?php $recent_stmt->close(); ?>
+            </div>
         </div>
     </div>
-    <script>
-        document.getElementById('searchInput').addEventListener('input', function() {
-            let filter = this.value.toLowerCase();
-            let productCards = document.querySelectorAll('.product-card');
 
-            productCards.forEach(card => {
-                let productName = card.getAttribute('data-name');
-                if (productName.includes(filter)) {
-                    card.style.display = "block";
-                } else {
-                    card.style.display = "none";
+    <script>
+        // Search functionality - redirect to search page
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const query = this.value.trim();
+                if (query) {
+                    window.location.href = 'search.php?q=' + encodeURIComponent(query);
+                }
+            }
+        });
+
+        // Also allow clicking search icon if it exists
+        const searchIcon = document.querySelector('.search-bar-hero .input-group-text');
+        if (searchIcon) {
+            searchIcon.style.cursor = 'pointer';
+            searchIcon.addEventListener('click', function() {
+                const input = document.getElementById('searchInput');
+                const query = input.value.trim();
+                if (query) {
+                    window.location.href = 'search.php?q=' + encodeURIComponent(query);
                 }
             });
-        });
-    </script>
-    <script>
-        document.getElementById('categoryFilter').addEventListener('change', function() {
-            let selectedCategory = this.value.toLowerCase();
-            let productCategories = document.querySelectorAll('.category-group');
+        }
 
-            productCategories.forEach(category => {
-                if (selectedCategory === "all" || category.getAttribute('data-category').toLowerCase() === selectedCategory) {
-                    category.style.display = "block";
-                } else {
-                    category.style.display = "none";
-                }
+        // Live auctions filter
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                let filter = this.getAttribute('data-filter');
+                let cards = document.querySelectorAll('.live-auction-card');
+
+                cards.forEach(card => {
+                    if (filter === 'all' || card.getAttribute('data-category') === filter) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
             });
         });
-    </script>
-    <script>
+
         // Initialize countdown timers
         document.addEventListener('DOMContentLoaded', function() {
             const countdownElements = document.querySelectorAll('.countdown-timer');
@@ -312,7 +433,7 @@ check_login();
                     const remainingTime = endTime - currentTime;
 
                     if (remainingTime <= 0) {
-                        timeDisplay.textContent = 'Bidding Closed!';
+                        timeDisplay.textContent = 'Auction Closed!';
                         timeDisplay.style.color = '#e63946';
                         element.classList.add('closed');
                     } else {
@@ -339,12 +460,8 @@ check_login();
                 updateCountdown();
                 setInterval(updateCountdown, 1000);
             });
-        });
-    </script>
-    <script>
-        // Add smooth scrolling and animations
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add fade-in animation to product cards
+
+            // Animate product cards on scroll
             const productCards = document.querySelectorAll('.product-card');
             productCards.forEach((card, index) => {
                 card.style.animationDelay = (index * 0.1) + 's';
@@ -352,7 +469,6 @@ check_login();
             });
         });
     </script>
-
 
 </body>
 

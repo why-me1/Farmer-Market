@@ -93,7 +93,7 @@ if ($_SESSION['role'] !== 'admin') {
 </head>
 
 <body>
-    <?php include '../includes/navbar.php'; ?>
+    <?php include '../includes/nav.php'; ?>
 
     <div class="container mt-5">
         <!-- Dashboard Header -->

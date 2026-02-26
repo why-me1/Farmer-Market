@@ -35,12 +35,22 @@ $stmt->close();
 $farmer_auto_rating = get_user_automatic_rating($post['farmer_id']);
 
 $current_time = time();
-$expiry_stmt = $conn->prepare("SELECT expiry_date FROM posts WHERE id = ?");
-$expiry_stmt->bind_param("i", $post_id);
-$expiry_stmt->execute();
-$expiry_stmt->bind_result($expired_time);
-$expiry_stmt->fetch();
-$expiry_stmt->close();
+
+// Get auction dates
+$auction_start_time = strtotime($post['auction_start_date']);
+$auction_end_time = strtotime($post['auction_end_date']);
+
+// Determine auction status
+$is_live = false;
+$is_ended = false;
+$time_remaining = 0;
+
+if ($current_time >= $auction_start_time && $current_time < $auction_end_time) {
+    $is_live = true;
+    $time_remaining = $auction_end_time - $current_time;
+} elseif ($current_time >= $auction_end_time) {
+    $is_ended = true;
+}
 
 // Get bid count and highest bid
 $comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(comment_text) as max_bid FROM comments WHERE post_id = ?");
@@ -54,83 +64,64 @@ $comment_count_stmt->close();
 
 $is_sold = false;
 $is_unsold = false;
-$bidding_end_time = null;
 
-// Check if already sold (prevent re-processing)
-$already_sold = ($post['status'] == 'sold');
-
-if ($total_bids >= 5 && !$already_sold) {
-    if ($expired_time == NULL) {
-        $comment_time_stmt = $conn->prepare("SELECT UNIX_TIMESTAMP(created_at) FROM comments WHERE post_id = ? ORDER BY created_at DESC LIMIT 1");
-        $comment_time_stmt->bind_param("i", $post_id);
-        $comment_time_stmt->execute();
-        $comment_time_stmt->bind_result($last_comment_time);
-        $comment_time_stmt->fetch();
-        $comment_time_stmt->close();
-
-        $bidding_end_time = $last_comment_time + 120;
-        $update_stmt = $conn->prepare("UPDATE posts SET expiry_date = ? WHERE id = ?");
-        $update_stmt->bind_param("ii", $bidding_end_time, $post_id);
-        $update_stmt->execute();
-        $update_stmt->close();
-    } else {
-        $bidding_end_time = $expired_time;
-    }
-
-    if ($bidding_end_time <= $current_time) {
-        if ($max_bid >= $post['price']) {
-            $is_sold = true;
-
-            // Approve the winning comment
-            $approve_stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE post_id = ? AND comment_text = ?");
-            $approve_stmt->bind_param("id", $post_id, $max_bid);
-            $approve_stmt->execute();
-            $approve_stmt->close();
-
-            // Update post status to sold
-            $update_status_stmt = $conn->prepare("UPDATE posts SET status = 'sold' WHERE id = ?");
-            $update_status_stmt->bind_param("i", $post_id);
-            $update_status_stmt->execute();
-            $update_status_stmt->close();
-
-            // Get winner's user_id for notifications
-            $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? LIMIT 1");
-            $winner_stmt->bind_param("id", $post_id, $max_bid);
-            $winner_stmt->execute();
-            $winner_stmt->bind_result($winner_user_id);
-            $winner_stmt->fetch();
-            $winner_stmt->close();
-
-            // Send notifications if winner found (ONLY ONCE)
-            if ($winner_user_id) {
-                // Check if notification already exists before creating
-                $check_notif = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment_approved' LIMIT 1");
-                $check_notif->bind_param("ii", $winner_user_id, $post_id);
-                $check_notif->execute();
-                $notif_result = $check_notif->get_result();
-
-                if ($notif_result->num_rows == 0) {
-                    // Notify buyer about winning bid
-                    notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
-
-                    // Adjust farmer rating for successful sale
-                    adjust_rating_for_sale($post['farmer_id'], $post_id, $max_bid);
-
-                    // Adjust farmer rating based on bidding activity
-                    adjust_rating_for_bidding_activity($post['farmer_id'], $post_id, $total_bids);
-                }
-                $check_notif->close();
-            }
-        } else {
-            $is_unsold = true;
-
-            // Adjust farmer rating for unsold product (bid didn't meet asking price)
-            adjust_rating_for_unsold($post['farmer_id'], $post_id);
-        }
-    }
-} elseif ($already_sold) {
-    // Product is already sold, just set the flag
+// Check if auction ended with winning bid
+if ($is_ended && $total_bids >= 5 && $max_bid >= $post['price']) {
     $is_sold = true;
+    // Approve the highest bid
+    $approve_stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE post_id = ? AND comment_text = ?");
+    $approve_stmt->bind_param("id", $post_id, $max_bid);
+    $approve_stmt->execute();
+    $approve_stmt->close();
+} elseif ($is_ended && $total_bids < 5) {
+    $is_unsold = true;
+}
+
+// Send notifications and adjust ratings if needed
+if ($is_sold) {
+    // Get winner's user_id for notifications
+    $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? LIMIT 1");
+    $winner_stmt->bind_param("id", $post_id, $max_bid);
+    $winner_stmt->execute();
+    $winner_stmt->bind_result($winner_user_id);
+    $winner_stmt->fetch();
+    $winner_stmt->close();
+
+    // Send notifications if winner found
+    if ($winner_user_id) {
+        // Check if notification already exists before creating
+        $check_notif = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment_approved' LIMIT 1");
+        $check_notif->bind_param("ii", $winner_user_id, $post_id);
+        $check_notif->execute();
+        $notif_result = $check_notif->get_result();
+
+        if ($notif_result->num_rows == 0) {
+            // Notify buyer about winning bid
+            notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
+
+            // Adjust farmer rating for successful sale
+            adjust_rating_for_sale($post['farmer_id'], $post_id, $max_bid);
+
+            // Adjust farmer rating based on bidding activity
+            adjust_rating_for_bidding_activity($post['farmer_id'], $post_id, $total_bids);
+
+            // Note: Auction status is managed by farmers, not updated automatically on view
+        }
+        $check_notif->close();
+    }
+} elseif ($is_unsold) {
+    // Adjust farmer rating for unsold product (not enough bids)
+    $check_unsold = $conn->prepare("SELECT id FROM notifications WHERE post_id = ? AND type = 'comment_approved' LIMIT 1");
+    $check_unsold->bind_param("i", $post_id);
+    $check_unsold->execute();
+    $unsold_result = $check_unsold->get_result();
+
+    if ($unsold_result->num_rows == 0) {
+        adjust_rating_for_unsold($post['farmer_id'], $post_id);
+
+        // Note: Auction status is managed by farmers, not updated automatically on view
+    }
+    $check_unsold->close();
 }
 
 // Fetch recent bids (limit to top 10 for the card) - Sort by most recent first
@@ -234,6 +225,10 @@ $min_bid += 0.01;
                                     <span>Starting Price: <strong class="text-primary"><?php echo number_format($post['price'], 2); ?>৳</strong></span>
                                 </div>
                                 <div class="meta-item">
+                                    <i class="fas fa-balance-scale"></i>
+                                    <span>Quantity: <strong><?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?></strong></span>
+                                </div>
+                                <div class="meta-item">
                                     <i class="fas fa-user"></i>
                                     <span>Farmer: <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-link"><?php echo htmlspecialchars($post['username']); ?> <i class="fas fa-external-link-alt"></i></a></span>
                                     <span style="margin-left:10px; color:#444;">Fairness rating: <strong><?php echo number_format($farmer_auto_rating, 1); ?></strong>/10</span>
@@ -241,6 +236,14 @@ $min_bid += 0.01;
                                 <div class="meta-item">
                                     <i class="fas fa-calendar"></i>
                                     <span>Posted: <?php echo date("d M Y, h:i A", strtotime($post['created_at'])); ?></span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-history"></i>
+                                    <span>Auction Start: <strong><?php echo date("d M Y, h:i A", $auction_start_time); ?></strong></span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Auction End: <strong><?php echo date("d M Y, h:i A", $auction_end_time); ?></strong></span>
                                 </div>
                             </div>
                         </div>
@@ -251,9 +254,9 @@ $min_bid += 0.01;
                 <div class="col-lg-7 col-md-12">
                     <div class="bidding-sidebar-wrapper">
                         <!-- Place Bids Card -->
-                        <?php if (!$is_sold && !$is_unsold): ?>
+                        <?php if ($is_live): ?>
                             <div class="bidding-card-right place-bid-card">
-                                <h3 class="card-title-right">Place Bids</h3>
+                                <h3 class="card-title-right"><i class="fas fa-circle-notch fa-spin me-2" style="color: #f77f00;"></i>LIVE Auction</h3>
                                 <?php if (isset($_SESSION['user_id'])): ?>
                                     <form action="comment.php" method="POST">
                                         <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
@@ -275,24 +278,10 @@ $min_bid += 0.01;
                                                 <?php endif; ?>
                                             </small>
                                         </div>
-                                        <?php if ($bidding_end_time && $bidding_end_time > $current_time): ?>
-                                            <div class="time-remaining-small mb-3" id="detail-countdown-small" data-end-time="<?php echo $bidding_end_time; ?>">
-                                                <i class="fas fa-clock"></i>
-                                                <span class="countdown-text-small"></span>
-                                            </div>
-                                        <?php elseif ($is_sold): ?>
-                                            <div class="status-badge-large sold mb-3">
-                                                <i class="fas fa-check-circle"></i> Sold
-                                            </div>
-                                        <?php elseif ($is_unsold): ?>
-                                            <div class="status-badge-large unsold mb-3">
-                                                <i class="fas fa-times-circle"></i> Unsold
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="status-badge-large active mb-3">
-                                                <i class="fas fa-circle"></i> Active Bidding
-                                            </div>
-                                        <?php endif; ?>
+                                        <div class="time-remaining-small mb-3" id="detail-countdown-small" data-end-time="<?php echo $auction_end_time; ?>">
+                                            <i class="fas fa-clock"></i>
+                                            <span class="countdown-text-small">Time Remaining: </span>
+                                        </div>
                                         <button type="submit" class="btn btn-primary btn-block btn-bid">
                                             <i class="fas fa-gavel"></i> Place Bid
                                         </button>
@@ -302,6 +291,17 @@ $min_bid += 0.01;
                                         <p>Please <a href="login.php">login</a> to place a bid</p>
                                     </div>
                                 <?php endif; ?>
+                            </div>
+                        <?php elseif (!$is_live && !$is_ended): ?>
+                            <div class="bidding-card-right place-bid-card">
+                                <h3 class="card-title-right"><i class="fas fa-hourglass-start me-2"></i>Upcoming Auction</h3>
+                                <div class="status-badge-large pending mb-3">
+                                    <i class="fas fa-hourglass-start"></i> Auction starts on
+                                </div>
+                                <p class="auction-date-text"><strong><?php echo date("d M Y, h:i A", $auction_start_time); ?></strong></p>
+                                <div class="alert alert-info">
+                                    <small>Auction will go live at the scheduled start date and time.</small>
+                                </div>
                             </div>
                         <?php else: ?>
                             <!-- Status Card for Sold/Unsold -->
