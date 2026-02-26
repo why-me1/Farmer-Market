@@ -2,18 +2,18 @@ Modern Farmer Market CSS Framework
 
 /* Override Bootstrap CSS variables */
 :root {
-    --bs-primary: #046307 !important;
-    --bs-primary-rgb: 4, 99, 7 !important;
+    --bs-primary: #059669 !important;
+    --bs-primary-rgb: 5, 150, 105 !important;
     --bs-body-bg: #f5f7fa !important;
     --bs-light-rgb: 248, 249, 250 !important;
 }
 
 :root {
     /* Color Palette */
-    --primary-color: #046307;
-    --primary-light: #0A9F0D;
-    --primary-dark: #1a3d1a;
-    --secondary-color: #C8FF00;
+    --primary-color: #059669;
+    --primary-light: #10b981;
+    --primary-dark: #065f46;
+    --secondary-color: #f59e0b;
     --accent-color: #e76f51;
     --success-color: #2a9d8f;
     --warning-color: #f77f00;
@@ -24,7 +24,7 @@ Modern Farmer Market CSS Framework
     
     /* Gradients */
     --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
-    --secondary-gradient: linear-gradient(135deg, #C8FF00 0%, #7CB342 100%);
+    --secondary-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
     --card-gradient: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
     
     /* Typography */
@@ -136,7 +136,7 @@ h6 { font-size: 1.1rem; }
 
 /* Navigation */
 .navbar {
-    background: var(--primary-gradient) !important;
+    background: var(--primary-color) !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     padding: var(--spacing-md) 0;
     border: none;
@@ -156,7 +156,7 @@ h6 { font-size: 1.1rem; }
 /* Override Bootstrap's bg-success for navbar */
 .navbar.bg-success,
 .navbar.navbar-light {
-    background: var(--primary-gradient) !important;
+    background: var(--primary-color) !important;
 }
 
 
@@ -259,7 +259,7 @@ h6 { font-size: 1.1rem; }
 }
 
 .navbar .dropdown-item:hover {
-    background: var(--primary-gradient);
+    background: var(--primary-color);
     color: var(--white);
     transform: translateX(5px);
 }
@@ -663,8 +663,8 @@ input[type="number"]:focus {
 }
 
 .alert-success {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: #155724;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    color: #065f46;
     border-left: 4px solid var(--success-color);
 }
 
@@ -1695,9 +1695,9 @@ html body .navbar.primary-gradient,
 html body .navbar.primary-gradient.navbar-expand-lg,
 html body .navbar.primary-gradient.navbar-light,
 html body .navbar.primary-gradient.navbar-expand-lg.navbar-light {
-    background: var(--primary-gradient) !important;
-    background-image: var(--primary-gradient) !important;
-    background-color: transparent !important;
+    background: var(--primary-color) !important;
+    background-image: none !important;
+    background-color: var(--primary-color) !important;
     background-attachment: scroll !important;
     background-clip: border-box !important;
     background-origin: padding-box !important;
@@ -1708,7 +1708,7 @@ html body .navbar.primary-gradient.navbar-expand-lg.navbar-light {
 
 /* Override any Bootstrap 5 default navbar styles */
 html body .navbar {
-    background: var(--primary-gradient) !important;
+    background: var(--primary-color) !important;
 }
 
 /* ============================================
@@ -1789,8 +1789,8 @@ html body .navbar {
 }
 
 .sold-badge {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: #155724;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    color: #065f46;
 }
 
 .unsold-badge {
@@ -2222,8 +2222,8 @@ html body .navbar {
 }
 
 .status-badge-large.sold {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-    color: #155724;
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    color: #065f46;
 }
 
 .status-badge-large.unsold {
@@ -2349,7 +2349,7 @@ html body .navbar {
 }
 
 .bid-item-single-line.winning-bid-line {
-    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
     border-left-color: var(--success-color);
 }
 
@@ -2756,7 +2756,7 @@ html body .navbar {
     padding: 0 1.5rem;
     border: none !important;
     background: transparent !important;
-    color: #28a745;
+    color: #059669;
 }
 
 .search-bar-hero .form-control {
@@ -2883,7 +2883,7 @@ html body .navbar {
 .hero-search-card .input-group .input-group-text {
     background: transparent;
     border: none;
-    color: #28a745;
+    color: #059669;
     padding: 0 14px;
 }
 
@@ -2944,15 +2944,15 @@ html body .navbar {
     border-radius: 8px;
     padding: 12px 28px;
     font-weight: 600;
-    background: #28a745;
+    background: #059669;
     border: none;
     transition: all 0.3s ease;
 }
 
 .hero-search-card .btn-success:hover {
-    background: #218838;
+    background: #065f46;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(40,167,69,0.25);
+    box-shadow: 0 8px 20px rgba(5,150,105,0.3);
 }
 
 .hero-chips {
@@ -2966,8 +2966,8 @@ html body .navbar {
 .chip {
     display: inline-block;
     padding: 8px 16px;
-    background: #f0f8f1;
-    color: #237a3e;
+    background: #ecfdf5;
+    color: #065f46;
     border-radius: 999px;
     font-size: 0.9rem;
     font-weight: 500;
@@ -2978,10 +2978,11 @@ html body .navbar {
 }
 
 .chip:hover {
-    background: #28a745;
+    background: #059669;
     color: white;
-    border-color: #28a745;
+    border-color: #059669;
     transform: translateY(-2px);
+    text-decoration: none;
 }
 
 .hero-cta {
@@ -2997,26 +2998,26 @@ html body .navbar {
     border-radius: 8px;
     padding: 12px 32px;
     font-weight: 600;
-    border: 2px solid #28a745;
+    border: 2px solid #059669;
     transition: all 0.3s ease;
 }
 
 .hero-cta .btn-outline-success:hover {
-    background: #28a745;
+    background: #059669;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(40,167,69,0.25);
+    box-shadow: 0 8px 20px rgba(5,150,105,0.3);
 }
 
 .hero-cta .btn-link {
     padding: 12px 20px;
-    color: #28a745;
+    color: #059669;
     font-weight: 600;
     text-decoration: none;
     transition: all 0.3s ease;
 }
 
 .hero-cta .btn-link:hover {
-    color: #1e7e34;
+    color: #065f46;
 }
 
 .hero-right {
@@ -3028,7 +3029,7 @@ html body .navbar {
 .hero-illustration {
     width: 420px;
     height: 320px;
-    background: linear-gradient(135deg, #f0f8f1 0%, #e8f5ea 100%);
+    background: linear-gradient(135deg, #ecfdf5 0%, #ecfdf5 100%);
     border-radius: 16px;
     box-shadow: 0 12px 40px rgba(40,167,69,0.15);
     display: flex;

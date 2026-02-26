@@ -60,45 +60,426 @@ $result = $stmt->get_result();
 
 <head>
     <meta charset="UTF-8">
-    <title>View Posts</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Listings – Farmers' Marketplace</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
-    <!-- browser cache problem solution --- add version number for production and add echo time for development -->
     <style>
         body {
-            background-color: #f8f9fa;
+            font-family: 'Inter', sans-serif;
+            background: #f4f6fb;
         }
 
-        .card {
+        /* ── Page Hero ── */
+        .page-hero {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 16px;
+            padding: 32px 36px;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 6px 24px rgba(17, 153, 142, .28);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .page-hero-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, .2);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .page-hero .hero-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: .8;
+            margin-bottom: 4px;
+        }
+
+        .page-hero h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .page-hero p {
+            font-size: 13px;
+            opacity: .85;
+            margin: 4px 0 0;
+        }
+
+        /* ── Filter Bar ── */
+        .filter-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+            border: 1px solid #ebebeb;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .filter-pill {
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1.5px solid #e0e0e0;
+            background: #fafafa;
+            color: #666;
+            text-decoration: none !important;
+            transition: all .2s;
+            cursor: pointer;
+        }
+
+        .filter-pill:hover {
+            border-color: #11998e;
+            color: #11998e;
+            background: #f0fdf8;
+        }
+
+        .filter-pill.active {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 3px 10px rgba(17, 153, 142, .3);
+        }
+
+        .btn-new-listing {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
             border: none;
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            border-radius: 9px;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all .2s;
+            box-shadow: 0 3px 10px rgba(17, 153, 142, .3);
+            white-space: nowrap;
         }
 
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        .btn-new-listing:hover {
+            transform: translateY(-1px);
+            color: white;
+            box-shadow: 0 6px 16px rgba(17, 153, 142, .4);
         }
 
-        .status-active {
-            color: green;
-            font-weight: bold;
+        /* ── Listing Cards Grid ── */
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
         }
 
-        .status-sold {
-            color: red;
-            font-weight: bold;
+        .listing-card {
+            background: white;
+            border-radius: 14px;
+            border: 1px solid #ebebeb;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .07);
+            transition: transform .2s, box-shadow .2s;
+            display: flex;
+            flex-direction: column;
         }
 
-        .btn-delete {
-            background-color: #dc3545;
+        .listing-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, .12);
+        }
+
+        .listing-card-img {
+            width: 100%;
+            height: 190px;
+            object-fit: cover;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .listing-card-img-placeholder {
+            width: 100%;
+            height: 190px;
+            background: linear-gradient(135deg, #e8f8ee, #d4f7e0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 52px;
+            color: #a8dcc0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .listing-card-body {
+            padding: 16px 18px;
+            flex: 1;
+        }
+
+        .listing-card-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .listing-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .listing-meta-row {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .listing-meta-row i {
+            color: #11998e;
+            width: 13px;
+            text-align: center;
+        }
+
+        .listing-meta-row strong {
+            color: #444;
+        }
+
+        .listing-price {
+            font-family: 'Poppins', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #11998e;
+            margin-bottom: 10px;
+        }
+
+        .listing-price span {
+            font-size: 12px;
+            color: #aaa;
+            font-weight: 400;
+            margin-left: 2px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 20px;
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+        }
+
+        .status-pill.active {
+            background: #e8f8ee;
+            color: #0d6b5e;
+        }
+
+        .status-pill.sold {
+            background: #fde8e8;
+            color: #c0392b;
+        }
+
+        .listing-card-footer {
+            padding: 12px 18px;
+            border-top: 1px solid #f0f0f0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-card-action {
+            flex: 1;
+            padding: 9px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
             border: none;
+            cursor: pointer;
+            transition: all .2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            text-decoration: none !important;
         }
 
-        .btn-delete:hover {
-            background-color: #c82333;
+        .btn-card-edit {
+            background: #eef0ff;
+            color: #667eea;
+        }
+
+        .btn-card-edit:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-card-delete {
+            background: #fde8e8;
+            color: #e74c3c;
+        }
+
+        .btn-card-delete:hover {
+            background: #e74c3c;
+            color: white;
+        }
+
+        /* ── Inline Edit Form ── */
+        .edit-form-panel {
+            background: #f8fffe;
+            border: 1.5px dashed #11998e;
+            border-radius: 12px;
+            padding: 18px;
+            margin: 0;
+        }
+
+        .edit-form-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #11998e;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1.5px solid #cce8e4;
+            border-radius: 8px;
+            font-size: 13px;
+            background: white;
+            transition: all .2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: #11998e;
+            box-shadow: 0 0 0 3px rgba(17, 153, 142, .12);
+        }
+
+        textarea.edit-input {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .edit-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .btn-save {
+            background: #11998e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-save:hover {
+            background: #0e8076;
+        }
+
+        .btn-cancel-edit {
+            background: #f0f0f0;
+            color: #555;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            text-decoration: none !important;
+        }
+
+        .btn-cancel-edit:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        /* ── Empty State ── */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 30px;
+            background: white;
+            border-radius: 14px;
+            border: 1px solid #ebebeb;
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #e8f8ee;
+            color: #11998e;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 18px;
+        }
+
+        .empty-state h5 {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 576px) {
+            .page-hero {
+                padding: 24px 18px;
+            }
+
+            .listings-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -106,79 +487,133 @@ $result = $stmt->get_result();
 <body>
     <?php include '../includes/nav.php'; ?>
 
-    <div class="container mt-5">
-        <h2 class="mb-4">Your Posts</h2>
+    <div class="main-container">
+        <div class="container py-4" style="max-width: 1200px;">
 
-        <!-- Filter Dropdown -->
-        <form method="GET" class="mb-4">
-            <label for="status" class="form-label">Filter by Status:</label>
-            <select name="status" id="status" class="form-select w-auto d-inline-block" onchange="this.form.submit()">
-                <option value="all" <?php if ($filter === 'all') echo 'selected'; ?>>All</option>
-                <option value="active" <?php if ($filter === 'active') echo 'selected'; ?>>Active (Unsold)</option>
-                <option value="sold" <?php if ($filter === 'sold') echo 'selected'; ?>>Sold</option>
-            </select>
-        </form>
+            <!-- Page Hero -->
+            <div class="page-hero">
+                <div class="page-hero-icon"><i class="fas fa-layer-group"></i></div>
+                <div>
+                    <div class="hero-label"><i class="fas fa-tractor me-1"></i> Farmer Dashboard</div>
+                    <h1>My Listings</h1>
+                    <p>Manage, edit, and track all your auction products in one place.</p>
+                </div>
+            </div>
 
-        <div class="row">
-            <?php
-            if ($result->num_rows > 0) {
-                while ($post = $result->fetch_assoc()):
-            ?>
-                    <div class="col-md-4">
-                        <div class="card mb-4">
+            <!-- Filter & Actions Bar -->
+            <div class="filter-bar">
+                <div class="filter-pills">
+                    <a href="?status=all" class="filter-pill <?php echo ($filter === 'all')    ? 'active' : ''; ?>"><i class="fas fa-th-large me-1"></i> All</a>
+                    <a href="?status=active" class="filter-pill <?php echo ($filter === 'active') ? 'active' : ''; ?>"><i class="fas fa-bolt me-1"></i> Active</a>
+                    <a href="?status=sold" class="filter-pill <?php echo ($filter === 'sold')   ? 'active' : ''; ?>"><i class="fas fa-check-double me-1"></i> Sold</a>
+                </div>
+                <a href="create_post.php" class="btn-new-listing">
+                    <i class="fas fa-plus"></i> New Listing
+                </a>
+            </div>
+
+            <!-- Listings Grid -->
+            <div class="listings-grid">
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while ($post = $result->fetch_assoc()): ?>
+                        <div class="listing-card">
                             <?php if ($post['image']): ?>
-                                <img src="../assets/images/<?php echo htmlspecialchars($post['image']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($post['product_name']); ?>" style="height: 200px; object-fit: cover;">
+                                <img src="../assets/images/<?php echo htmlspecialchars($post['image']); ?>"
+                                    class="listing-card-img"
+                                    alt="<?php echo htmlspecialchars($post['product_name']); ?>">
+                            <?php else: ?>
+                                <div class="listing-card-img-placeholder"><i class="fas fa-seedling"></i></div>
                             <?php endif; ?>
-                            <div class="card-body">
+
+                            <div class="listing-card-body">
                                 <?php if ($edit_id === (int)$post['id']): ?>
-                                    <!-- Edit Mode -->
+                                    <!-- ── Edit Mode ── -->
                                     <form action="" method="POST">
                                         <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                        <div class="edit-form-panel">
+                                            <div class="edit-form-title"><i class="fas fa-pen"></i> Editing Listing</div>
 
-                                        <div class="mb-2">
-                                            <label>Product Name</label>
-                                            <input type="text" name="product_name" class="form-control" value="<?php echo htmlspecialchars($post['product_name']); ?>" required>
+                                            <div class="mb-2">
+                                                <label class="edit-label">Product Name</label>
+                                                <input type="text" name="product_name" class="edit-input"
+                                                    value="<?php echo htmlspecialchars($post['product_name']); ?>" required>
+                                            </div>
+                                            <div class="mb-2">
+                                                <label class="edit-label">Description</label>
+                                                <textarea name="description" class="edit-input" required><?php echo htmlspecialchars($post['description']); ?></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="edit-label">Price (৳)</label>
+                                                <input type="number" name="price" class="edit-input"
+                                                    value="<?php echo $post['price']; ?>" step="0.01" required>
+                                            </div>
+                                            <div style="display:flex;gap:8px;">
+                                                <button type="submit" name="update_post" class="btn-save">
+                                                    <i class="fas fa-check me-1"></i> Save
+                                                </button>
+                                                <a href="view_posts.php" class="btn-cancel-edit">Cancel</a>
+                                            </div>
                                         </div>
-
-                                        <div class="mb-2">
-                                            <label>Description</label>
-                                            <textarea name="description" class="form-control" required><?php echo htmlspecialchars($post['description']); ?></textarea>
-                                        </div>
-
-                                        <div class="mb-2">
-                                            <label>Price (৳)</label>
-                                            <input type="number" name="price" class="form-control" value="<?php echo $post['price']; ?>" required>
-                                        </div>
-
-                                        <button type="submit" name="update_post" class="btn btn-success btn-sm">Update</button>
-                                        <a href="view_posts.php" class="btn btn-secondary btn-sm">Cancel</a>
                                     </form>
                                 <?php else: ?>
-                                    <!-- View Mode -->
-                                    <h5 class="card-title"><?php echo htmlspecialchars($post['product_name']); ?></h5>
-                                    <p class="card-text"><strong>Description:</strong> <?php echo htmlspecialchars($post['description']); ?></p>
-                                    <p class="card-text"><strong>Price:</strong> <?php echo number_format($post['price'], 2); ?>৳</p>
-                                    <p class="card-text"><strong>Status:</strong>
-                                        <span class="status-<?php echo strtolower($post['status']); ?>"><?php echo $post['status']; ?></span>
-                                    </p>
-                                    <p class="card-text"><small class="text-muted">Posted on: <?php echo htmlspecialchars($post['created_at']); ?></small></p>
-
-                                    <a href="?edit=<?php echo $post['id']; ?>" class="btn btn-primary btn-sm w-50">Edit</a>
-
-                                    <form action="delete_post.php" method="POST" class="mt-2">
-                                        <input type="hidden" name="post_id" value="<?php echo htmlspecialchars($post['id']); ?>">
-                                        <button type="submit" class="btn btn-danger btn-sm w-50">Delete Post</button>
-                                    </form>
+                                    <!-- ── View Mode ── -->
+                                    <div class="listing-price">
+                                        ৳<?php echo number_format($post['price'], 2); ?>
+                                    </div>
+                                    <div class="listing-card-title"><?php echo htmlspecialchars($post['product_name']); ?></div>
+                                    <div class="listing-meta">
+                                        <div class="listing-meta-row">
+                                            <i class="fas fa-align-left"></i>
+                                            <span><?php echo mb_strimwidth(htmlspecialchars($post['description']), 0, 70, '…'); ?></span>
+                                        </div>
+                                        <div class="listing-meta-row">
+                                            <i class="fas fa-calendar-alt"></i>
+                                            <span>Listed <?php echo date('M j, Y', strtotime($post['created_at'])); ?></span>
+                                        </div>
+                                        <div class="listing-meta-row">
+                                            <i class="fas fa-circle" style="font-size:8px;"></i>
+                                            <span class="status-pill <?php echo strtolower($post['status']); ?>">
+                                                <?php if (strtolower($post['status']) === 'active'): ?>
+                                                    <i class="fas fa-bolt" style="font-size:9px;"></i>
+                                                <?php else: ?>
+                                                    <i class="fas fa-check" style="font-size:9px;"></i>
+                                                <?php endif; ?>
+                                                <?php echo $post['status']; ?>
+                                            </span>
+                                        </div>
+                                    </div>
                                 <?php endif; ?>
                             </div>
+
+                            <?php if ($edit_id !== (int)$post['id']): ?>
+                                <div class="listing-card-footer">
+                                    <a href="?edit=<?php echo $post['id']; ?>" class="btn-card-action btn-card-edit">
+                                        <i class="fas fa-pen"></i> Edit
+                                    </a>
+                                    <form action="delete_post.php" method="POST" style="flex:1;" onsubmit="return confirm('Delete this listing?');">
+                                        <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
+                                        <button type="submit" class="btn-card-action btn-card-delete" style="width:100%;">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            <?php endif; ?>
                         </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="fas fa-layer-group"></i></div>
+                        <h5>No listings found</h5>
+                        <p>
+                            <?php echo $filter !== 'all' ? "No $filter listings yet. Try a different filter." : "You haven't created any listings yet."; ?>
+                        </p>
+                        <a href="create_post.php" class="btn-new-listing" style="display:inline-flex;">
+                            <i class="fas fa-plus"></i> Create Your First Listing
+                        </a>
                     </div>
-            <?php
-                endwhile;
-            } else {
-                echo "<p class='alert alert-light text-center'>No posts found.</p>";
-            }
-            ?>
+                <?php endif; ?>
+            </div>
+
         </div>
     </div>
 

@@ -108,115 +108,488 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create New Post</title>
+    <title>Create New Listing – Farmers' Marketplace</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
-    <!-- browser cache problem solution --- add version number for production and add echo time for development -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f4f6fb;
+        }
+
+        /* ── Page Header ── */
+        .page-hero {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-radius: 16px;
+            padding: 32px 36px;
+            color: white;
+            margin-bottom: 28px;
+            box-shadow: 0 6px 24px rgba(17, 153, 142, .28);
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .page-hero-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, .2);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+        }
+
+        .page-hero .hero-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: .8;
+            margin-bottom: 4px;
+        }
+
+        .page-hero h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .page-hero p {
+            font-size: 13px;
+            opacity: .85;
+            margin: 4px 0 0;
+        }
+
+        /* ── Form Layout ── */
+        .form-panel {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #ebebeb;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .07);
+            overflow: hidden;
+        }
+
+        .form-section {
+            padding: 24px 28px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+        }
+
+        .form-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #11998e;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .form-section-title i {
+            font-size: 13px;
+        }
+
+        /* ── Inputs ── */
+        .form-label-custom {
+            font-size: 13px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 9px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background: #fafafa;
+            transition: all .2s;
+            color: #333;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #11998e;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(17, 153, 142, .12);
+        }
+
+        textarea.form-input {
+            resize: vertical;
+            min-height: 110px;
+        }
+
+        select.form-input {
+            cursor: pointer;
+        }
+
+        .input-icon-wrap {
+            position: relative;
+        }
+
+        .input-icon-wrap .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .input-icon-wrap .form-input {
+            padding-left: 36px;
+        }
+
+        /* ── Image Upload ── */
+        .image-upload-area {
+            border: 2px dashed #d0d0d0;
+            border-radius: 12px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .25s;
+            background: #fafafa;
+            position: relative;
+        }
+
+        .image-upload-area:hover,
+        .image-upload-area.dragover {
+            border-color: #11998e;
+            background: #f0fdf8;
+        }
+
+        .image-upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: #e8f8ee;
+            color: #11998e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin: 0 auto 12px;
+        }
+
+        .upload-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 10px;
+            display: none;
+            margin: 14px auto 0;
+            object-fit: cover;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .1);
+            border: 1px solid #ebebeb;
+        }
+
+        /* ── Error Alert ── */
+        .error-alert {
+            background: #fff0f0;
+            border: 1px solid #ffd0d0;
+            border-radius: 10px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+        }
+
+        .error-alert .error-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #c0392b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .error-alert ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .error-alert ul li {
+            font-size: 13px;
+            color: #c0392b;
+        }
+
+        /* ── Submit Button ── */
+        .btn-submit {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 13px 32px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all .25s;
+            box-shadow: 0 4px 14px rgba(17, 153, 142, .35);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(17, 153, 142, .45);
+        }
+
+        .btn-back {
+            background: white;
+            color: #555;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all .2s;
+            text-decoration: none !important;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn-back:hover {
+            background: #f5f5f5;
+            color: #333;
+            text-decoration: none !important;
+        }
+
+        .form-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 576px) {
+            .form-grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 
 <body>
     <?php include '../includes/nav.php'; ?>
 
-    <div class="container mt-5">
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h2>Create New Post</h2>
+    <div class="main-container">
+        <div class="container py-4" style="max-width: 800px;">
+
+            <!-- Page Hero -->
+            <div class="page-hero">
+                <div class="page-hero-icon"><i class="fas fa-plus"></i></div>
+                <div>
+                    <div class="hero-label"><i class="fas fa-tractor me-1"></i> Farmer Dashboard</div>
+                    <h1>Create New Listing</h1>
+                    <p>Fill in the details below to list your product for auction.</p>
+                </div>
             </div>
-            <div class="card-body">
-                <?php if (!empty($errors)): ?>
-                    <div class="alert alert-danger">
-                        <?php foreach ($errors as $error) {
-                            echo "<p>$error</p>";
-                        } ?>
-                    </div>
-                <?php endif; ?>
 
+            <!-- Error Messages -->
+            <?php if (!empty($errors)): ?>
+                <div class="error-alert">
+                    <div class="error-title"><i class="fas fa-exclamation-circle"></i> Please fix the following errors:</div>
+                    <ul>
+                        <?php foreach ($errors as $error): ?>
+                            <li><?php echo htmlspecialchars($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+
+            <!-- Form Panel -->
+            <div class="form-panel">
                 <form action="create_post.php" method="POST" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label for="product_name">Product Name</label>
-                        <input type="text" name="product_name" id="product_name" class="form-control" placeholder="Enter product name" required>
-                    </div>
 
-
-                    <div class="form-group">
-                        <label for="category">Category</label>
-                        <select name="category" class="form-control" required>
-                            <option value="Vegetables">Vegetables</option>
-                            <option value="Fruits">Fruits</option>
-                            <option value="Dairy">Dairy</option>
-                            <option value="Grains">Grains</option>
-                            <option value="Meat">Meat</option>
-                            <option value="Fish">Fish</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="description">Description</label>
-                        <textarea name="description" id="description" class="form-control" rows="5" placeholder="Enter product description" required></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="price">Price (৳)</label>
-                        <input type="number" name="price" id="price" class="form-control" step="0.01" placeholder="Enter price" required>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="quantity">Quantity</label>
-                                <input type="number" name="quantity" id="quantity" class="form-control" step="0.01" placeholder="Enter quantity" required>
+                    <!-- Product Info -->
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-seedling"></i> Product Information</div>
+                        <div class="mb-3">
+                            <label class="form-label-custom" for="product_name">Product Name</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-box input-icon"></i>
+                                <input type="text" name="product_name" id="product_name" class="form-input"
+                                    placeholder="e.g. Fresh Organic Tomatoes"
+                                    value="<?php echo htmlspecialchars($product_name); ?>" required>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="unit">Unit</label>
-                                <select name="unit" id="unit" class="form-control" required>
-                                    <option value="kg">Kilogram (kg)</option>
-                                    <option value="g">Gram (g)</option>
-                                    <option value="L">Liter (L)</option>
-                                    <option value="ml">Milliliter (ml)</option>
-                                    <option value="pcs">Pieces (pcs)</option>
-                                    <option value="dozen">Dozen</option>
-                                    <option value="bundle">Bundle</option>
-                                    <option value="box">Box</option>
+                        <div class="mb-3">
+                            <label class="form-label-custom" for="category">Category</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-th-large input-icon"></i>
+                                <select name="category" id="category" class="form-input" required>
+                                    <?php
+                                    $cats = ['Vegetables', 'Fruits', 'Dairy', 'Grains', 'Meat', 'Fish', 'Eggs', 'Honey', 'Herbs', 'Root Vegetables'];
+                                    foreach ($cats as $c):
+                                    ?>
+                                        <option value="<?php echo $c; ?>" <?php echo $category === $c ? 'selected' : ''; ?>><?php echo $c; ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="auction_start_date">Auction Start Date & Time</label>
-                                <input type="datetime-local" name="auction_start_date" id="auction_start_date" class="form-control" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="auction_end_date">Auction End Date & Time</label>
-                                <input type="datetime-local" name="auction_end_date" id="auction_end_date" class="form-control" required>
-                            </div>
+                        <div>
+                            <label class="form-label-custom" for="description">Description</label>
+                            <textarea name="description" id="description" class="form-input"
+                                placeholder="Describe your product — quality, origin, freshness..."
+                                required><?php echo htmlspecialchars($description); ?></textarea>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="image">Product Image</label>
-                        <input type="file" name="image" id="image" class="form-control-file">
+                    <!-- Pricing & Quantity -->
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-tag"></i> Pricing & Quantity</div>
+                        <div class="form-grid-2 mb-0">
+                            <div>
+                                <label class="form-label-custom" for="price">Starting Price (৳)</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-taka-sign input-icon" style="font-size:13px;font-weight:700;">৳</i>
+                                    <input type="number" name="price" id="price" class="form-input"
+                                        step="0.01" min="0" placeholder="0.00"
+                                        value="<?php echo $price ?: ''; ?>" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label-custom">Quantity &amp; Unit</label>
+                                <div style="display:flex;gap:8px;">
+                                    <input type="number" name="quantity" id="quantity" class="form-input"
+                                        style="flex:1;" step="0.01" min="0" placeholder="0"
+                                        value="<?php echo $quantity ?: ''; ?>" required>
+                                    <select name="unit" id="unit" class="form-input" style="width:130px;" required>
+                                        <?php
+                                        $units = ['kg' => 'kg', 'g' => 'g', 'L' => 'L', 'ml' => 'ml', 'pcs' => 'pcs', 'dozen' => 'dozen', 'bundle' => 'bundle', 'box' => 'box'];
+                                        foreach ($units as $val => $label):
+                                        ?>
+                                            <option value="<?php echo $val; ?>" <?php echo $unit === $val ? 'selected' : ''; ?>><?php echo $label; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Submit for Approval</button>
+                    <!-- Auction Schedule -->
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-calendar-alt"></i> Auction Schedule</div>
+                        <div class="form-grid-2">
+                            <div>
+                                <label class="form-label-custom" for="auction_start_date">Start Date & Time</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-play-circle input-icon"></i>
+                                    <input type="datetime-local" name="auction_start_date" id="auction_start_date"
+                                        class="form-input"
+                                        value="<?php echo htmlspecialchars($auction_start_date); ?>" required>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="form-label-custom" for="auction_end_date">End Date & Time</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fas fa-stop-circle input-icon"></i>
+                                    <input type="datetime-local" name="auction_end_date" id="auction_end_date"
+                                        class="form-input"
+                                        value="<?php echo htmlspecialchars($auction_end_date); ?>" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Image -->
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-image"></i> Product Photo</div>
+                        <div class="image-upload-area" id="uploadArea">
+                            <input type="file" name="image" id="image" accept="image/jpg,image/jpeg,image/png,image/gif"
+                                onchange="previewImage(this)">
+                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="upload-label">Click or drag &amp; drop to upload</div>
+                            <div class="upload-hint">Supported: JPG, JPEG, PNG, GIF — optional but recommended</div>
+                            <img id="imagePreview" src="" alt="Preview">
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="form-section" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-paper-plane"></i> Submit for Approval
+                        </button>
+                        <a href="dashboard.php" class="btn-back">
+                            <i class="fas fa-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+
                 </form>
             </div>
+
         </div>
     </div>
 
     <?php include '../includes/footer.php'; ?>
 
-    <!-- Include Bootstrap JS and Popper.js -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            const label = document.querySelector('.upload-label');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    label.textContent = input.files[0].name;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Drag & drop highlight
+        const area = document.getElementById('uploadArea');
+        area.addEventListener('dragover', e => {
+            e.preventDefault();
+            area.classList.add('dragover');
+        });
+        area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+        area.addEventListener('drop', e => {
+            e.preventDefault();
+            area.classList.remove('dragover');
+        });
+    </script>
 </body>
 
 </html>
