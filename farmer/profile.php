@@ -63,18 +63,27 @@ $avg_stmt->bind_result($avg_rating, $review_count);
 $avg_stmt->fetch();
 $avg_stmt->close();
 
+// Per-star rating counts for distribution bars
+$star_counts = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+$star_dist_stmt = $conn->prepare("SELECT r.rating, COUNT(*) as cnt FROM reviews r JOIN posts p ON p.id = r.product_id WHERE p.farmer_id = ? GROUP BY r.rating");
+$star_dist_stmt->bind_param("i", $farmerId);
+$star_dist_stmt->execute();
+$star_dist_result = $star_dist_stmt->get_result();
+while ($row = $star_dist_result->fetch_assoc()) {
+    $star_counts[(int)$row['rating']] = (int)$row['cnt'];
+}
+$star_dist_stmt->close();
+
 // Get automatic rating (Fairness Rating)
 $fairness_rating = get_user_automatic_rating($farmerId);
 if ($fairness_rating === null) {
-    $fairness_rating = 5.0; // Default if not found
+    $fairness_rating = 5.0;
 }
 
 // Determine seller label from average rating
 $avg_rating_value = $avg_rating !== null ? (float)$avg_rating : 0.0;
 $seller_stars = (int)round($avg_rating_value);
-if ($seller_stars < 1 && $review_count > 0) {
-    $seller_stars = 1; // If there are reviews but rounds to 0, show at least 1 star seller
-}
+if ($seller_stars < 1 && $review_count > 0) $seller_stars = 1;
 $seller_label = $seller_stars > 0 ? $seller_stars . ' Star Seller' : 'New Seller';
 
 // Fetch latest reviews across farmer's products
@@ -98,6 +107,9 @@ $list_stmt->bind_param("i", $farmerId);
 $list_stmt->execute();
 $listings = $list_stmt->get_result();
 
+// Avatar initials
+$avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -105,15 +117,12 @@ $listings = $list_stmt->get_result();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmer Profile &ndash; <?php echo htmlspecialchars($farmer['username']); ?></title>
+    <title><?php echo htmlspecialchars($farmer['username']); ?> &ndash; Farmer Profile</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* =======================================================
-           BASE
-        ======================================================= */
         *,
         *::before,
         *::after {
@@ -121,281 +130,341 @@ $listings = $list_stmt->get_result();
         }
 
         body {
-            background: #f0f4f1;
+            background: #f1f5f9;
             font-family: 'Inter', sans-serif;
         }
 
-        /* =======================================================
-           COVER + PROFILE HEADER
-        ======================================================= */
-        .fp-cover {
-            height: 200px;
-            background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 40%, #52b788 100%);
-            border-radius: 20px 20px 0 0;
+        /* ── Page wrapper ── */
+        .fp-page {
+            padding: 0 0 60px;
+        }
+
+        /* ── HERO ── */
+        .fp-hero {
             position: relative;
+            height: 220px;
+            background: linear-gradient(135deg, #065f46 0%, #059669 55%, #10b981 100%);
             overflow: hidden;
         }
 
-        .fp-cover .cover-pattern {
+        .fp-hero-pattern {
             position: absolute;
             inset: 0;
-            background-image: radial-gradient(circle at 20% 80%, rgba(255, 255, 255, .07) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, .05) 0%, transparent 50%),
-                repeating-linear-gradient(45deg, transparent, transparent 30px, rgba(255, 255, 255, .02) 30px, rgba(255, 255, 255, .02) 31px);
+            background-image:
+                radial-gradient(circle at 15% 85%, rgba(255, 255, 255, .07) 0%, transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(255, 255, 255, .05) 0%, transparent 45%),
+                repeating-linear-gradient(45deg, transparent, transparent 28px, rgba(255, 255, 255, .025) 28px, rgba(255, 255, 255, .025) 29px);
         }
 
-        .fp-cover .cover-leaves {
+        .fp-hero-emoji {
             position: absolute;
-            right: 32px;
-            bottom: -10px;
-            font-size: 7rem;
-            opacity: .10;
+            right: 48px;
+            bottom: -8px;
+            font-size: 9rem;
+            opacity: .08;
             line-height: 1;
+            pointer-events: none;
         }
 
+        /* wave cut at bottom */
+        .fp-hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #f1f5f9;
+            clip-path: ellipse(55% 100% at 50% 100%);
+        }
+
+        /* ── PROFILE CARD ── */
         .fp-profile-card {
             background: #fff;
-            border-radius: 0 0 20px 20px;
-            padding: 0 36px 28px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, .08);
-            margin-bottom: 28px;
+            border-radius: 24px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, .09);
+            margin: -80px auto 28px;
+            max-width: 900px;
+            padding: 28px 32px 26px;
             position: relative;
+            z-index: 2;
         }
 
-        /* avatar */
+        /* Avatar */
         .fp-avatar-wrap {
             position: relative;
-            display: inline-block;
-            margin-top: -52px;
-            margin-bottom: 14px;
+            flex-shrink: 0;
         }
 
         .fp-avatar {
-            width: 104px;
-            height: 104px;
-            background: linear-gradient(135deg, #2d6a4f, #52b788);
+            width: 96px;
+            height: 96px;
+            background: linear-gradient(135deg, #059669, #065f46);
             border: 4px solid #fff;
-            border-radius: 50%;
+            border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.8rem;
+            font-size: 2rem;
+            font-weight: 800;
             color: #fff;
-            box-shadow: 0 4px 20px rgba(44, 106, 79, .30);
+            box-shadow: 0 8px 24px rgba(5, 150, 105, .30);
+            letter-spacing: 1px;
         }
 
         .fp-avatar-badge {
             position: absolute;
-            bottom: 4px;
-            right: 4px;
-            width: 24px;
-            height: 24px;
-            background: #52b788;
-            border: 2px solid #fff;
+            bottom: -4px;
+            right: -4px;
+            width: 26px;
+            height: 26px;
+            background: #059669;
+            border: 3px solid #fff;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: .55rem;
+            font-size: .52rem;
             color: #fff;
         }
 
-        /* name row */
+        /* Name row */
         .fp-name {
-            font-size: 1.6rem;
+            font-size: 1.55rem;
             font-weight: 800;
-            color: #1a1a2e;
+            color: #0f172a;
             margin-bottom: 2px;
-        }
-
-        .fp-joined {
-            font-size: .82rem;
-            color: #9a9a9a;
+            line-height: 1.2;
         }
 
         .fp-seller-badge {
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            background: linear-gradient(135deg, #fff8e1, #fff3cd);
-            border: 1.5px solid #ffc107;
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border: 1.5px solid #fbbf24;
             border-radius: 20px;
-            padding: 3px 12px;
-            font-size: .78rem;
+            padding: 3px 11px;
+            font-size: .72rem;
             font-weight: 700;
-            color: #856404;
-            margin-left: 10px;
-            vertical-align: middle;
+            color: #92400e;
         }
 
         .fp-seller-badge i {
-            color: #ffc107;
+            color: #f59e0b;
         }
 
-        /* inline star display */
-        .fp-inline-stars {
+        .fp-joined {
+            font-size: .78rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .fp-joined i {
+            color: #10b981;
+            margin-right: 4px;
+        }
+
+        /* Inline stars */
+        .fp-stars {
             display: inline-flex;
             gap: 2px;
         }
 
-        .fp-inline-stars .s-fill {
-            color: #ffc107;
+        .fp-stars .sf {
+            color: #f59e0b;
         }
 
-        .fp-inline-stars .s-half {
-            color: #ffc107;
+        .fp-stars .sh {
+            color: #f59e0b;
         }
 
-        .fp-inline-stars .s-empty {
-            color: #e0e0e0;
+        .fp-stars .se {
+            color: #e2e8f0;
         }
 
-        /* quick-stats in header */
-        .fp-quick-stats {
+        /* ── STAT PILLS (inline below name) ── */
+        .fp-stat-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
-            padding-top: 18px;
-            border-top: 1px solid #f0f0f0;
+            gap: 10px;
             margin-top: 18px;
-            align-items: center;
+            padding-top: 18px;
+            border-top: 1px solid #f1f5f9;
         }
 
-        .fp-qs-item {
+        .fp-stat-pill {
             display: flex;
             align-items: center;
-            gap: 12px;
-            background: #f7faf8;
-            border: 1.5px solid #e2ede6;
+            gap: 10px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
             border-radius: 14px;
-            padding: 12px 18px;
-            transition: box-shadow .2s, transform .2s;
+            padding: 12px 16px;
+            transition: box-shadow .2s, transform .18s;
+            flex: 1;
+            min-width: 120px;
         }
 
-        .fp-qs-item:hover {
-            box-shadow: 0 4px 16px rgba(44, 106, 79, .10);
+        .fp-stat-pill:hover {
+            box-shadow: 0 6px 20px rgba(5, 150, 105, .10);
             transform: translateY(-2px);
         }
 
-        .fp-qs-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
+        .fp-stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 11px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1rem;
+            font-size: .95rem;
             flex-shrink: 0;
         }
 
-        .fp-qs-icon.blue {
-            background: #e8f4fd;
-            color: #0076ce;
+        .fp-stat-icon.g {
+            background: #d1fae5;
+            color: #059669;
         }
 
-        .fp-qs-icon.green {
-            background: #e6f4ea;
-            color: #2d6a4f;
+        .fp-stat-icon.b {
+            background: #dbeafe;
+            color: #2563eb;
         }
 
-        .fp-qs-icon.amber {
-            background: #fff8e1;
+        .fp-stat-icon.a {
+            background: #fef3c7;
             color: #d97706;
         }
 
-        .fp-qs-item .qs-val {
-            font-size: 1.4rem;
+        .fp-stat-icon.p {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .fp-stat-icon.t {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+
+        .stat-val {
+            font-size: 1.3rem;
             font-weight: 800;
-            color: #1a1a2e;
+            color: #0f172a;
             line-height: 1;
         }
 
-        .fp-qs-item .qs-lbl {
-            font-size: .68rem;
-            color: #9a9a9a;
+        .stat-lbl {
+            font-size: .65rem;
             text-transform: uppercase;
-            letter-spacing: .05em;
+            letter-spacing: .06em;
+            color: #94a3b8;
             margin-top: 2px;
         }
 
-        .fp-qs-divider {
-            display: none;
-        }
-
-        /* rating pill pair */
+        /* Rating pair */
         .fp-rating-pair {
             display: flex;
+            gap: 10px;
             flex-wrap: wrap;
-            gap: 12px;
             margin-left: auto;
         }
 
         .fp-rpill {
-            background: #f7faf8;
-            border: 1.5px solid #d0eada;
+            background: #f0fdf4;
+            border: 1.5px solid #bbf7d0;
             border-radius: 14px;
             padding: 12px 18px;
-            min-width: 148px;
             text-align: center;
+            min-width: 140px;
+            transition: box-shadow .2s, transform .18s;
+        }
+
+        .fp-rpill:hover {
+            box-shadow: 0 4px 16px rgba(5, 150, 105, .12);
+            transform: translateY(-2px);
         }
 
         .fp-rpill .rp-lbl {
-            font-size: .68rem;
+            font-size: .65rem;
             text-transform: uppercase;
-            letter-spacing: .06em;
-            color: #86a898;
+            letter-spacing: .07em;
+            color: #6b9080;
             margin-bottom: 4px;
         }
 
         .fp-rpill .rp-val {
             font-size: 1.4rem;
             font-weight: 800;
-            color: #2d6a4f;
+            color: #059669;
             line-height: 1;
         }
 
         .fp-rpill .rp-sub {
-            font-size: .72rem;
-            color: #9a9a9a;
+            font-size: .7rem;
+            color: #94a3b8;
             margin-top: 3px;
         }
 
-        /* =======================================================
-           TABS
-        ======================================================= */
+        /* ── TABS ── */
         .fp-tabs {
             display: flex;
             gap: 4px;
             background: #fff;
-            border-radius: 14px;
+            border-radius: 16px;
             padding: 6px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+            margin: 0 auto 24px;
+            max-width: 900px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .07);
         }
 
         .fp-tab-btn {
             flex: 1;
             text-align: center;
-            padding: 10px 16px;
+            padding: 10px 14px;
             border: none;
             background: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-family: 'Inter', sans-serif;
-            font-size: .88rem;
+            font-size: .85rem;
             font-weight: 600;
-            color: #7a8a7d;
+            color: #64748b;
             cursor: pointer;
             transition: all .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
 
         .fp-tab-btn.active {
-            background: #2d6a4f;
+            background: linear-gradient(135deg, #059669, #065f46);
             color: #fff;
-            box-shadow: 0 3px 12px rgba(44, 106, 79, .25);
+            box-shadow: 0 4px 14px rgba(5, 150, 105, .30);
         }
 
-        .fp-tab-btn i {
-            margin-right: 6px;
+        .fp-tab-btn:not(.active):hover {
+            background: #f1f5f9;
+            color: #374151;
+        }
+
+        .tab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            font-size: .65rem;
+            font-weight: 700;
+            padding: 0 5px;
+            background: rgba(5, 150, 105, .12);
+            color: #059669;
+        }
+
+        .fp-tab-btn.active .tab-badge {
+            background: rgba(255, 255, 255, .25);
+            color: #fff;
         }
 
         .fp-tab-pane {
@@ -406,139 +475,41 @@ $listings = $list_stmt->get_result();
             display: block;
         }
 
-        /* =======================================================
-           LAYOUT &ndash; main + sidebar
-        ======================================================= */
-        .fp-layout {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 24px;
+        /* ── MAIN CONTENT CONTAINER ── */
+        .fp-content {
+            max-width: 900px;
+            margin: 0 auto;
         }
 
-        @media(max-width:900px) {
-            .fp-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* =======================================================
-           SIDEBAR WIDGETS
-        ======================================================= */
-        .fp-widget {
-            background: #fff;
-            border-radius: 16px;
-            padding: 22px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
-        }
-
-        .fp-widget-title {
-            font-size: .78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .07em;
-            color: #2d6a4f;
-            margin-bottom: 16px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e8f5ea;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* contact rows */
-        .contact-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 9px 0;
-            border-bottom: 1px solid #f5f5f5;
-        }
-
-        .contact-row:last-child {
-            border-bottom: none;
-        }
-
-        .contact-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 9px;
-            background: #e6f4ea;
-            color: #2d6a4f;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: .85rem;
-        }
-
-        .contact-label {
-            font-size: .7rem;
-            color: #b0b0b0;
-        }
-
-        .contact-value {
-            font-size: .88rem;
-            font-weight: 600;
-            color: #333;
-        }
-
-        /* success rate bar */
-        .fp-rate-bar-wrap {
-            margin-top: 8px;
-        }
-
-        .fp-rate-bar-wrap .bar-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: .76rem;
-            color: #9a9a9a;
-            margin-bottom: 6px;
-        }
-
-        .fp-rate-bar {
-            height: 8px;
-            background: #e8f5ea;
-            border-radius: 99px;
-            overflow: hidden;
-        }
-
-        .fp-rate-bar .bar-fill {
-            height: 100%;
-            border-radius: 99px;
-            background: linear-gradient(90deg, #52b788, #2d6a4f);
-            transition: width .8s ease;
-        }
-
-        /* =======================================================
-           PRODUCT GRID
-        ======================================================= */
+        /* ── PRODUCT GRID ── */
         .fp-product-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(246px, 1fr));
             gap: 18px;
         }
 
         .fp-product-card {
             background: #fff;
-            border-radius: 14px;
+            border-radius: 18px;
             overflow: hidden;
             box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
             transition: transform .22s, box-shadow .22s;
             display: flex;
             flex-direction: column;
             cursor: pointer;
+            border: 1.5px solid transparent;
         }
 
         .fp-product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, .11);
+            transform: translateY(-6px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, .12);
+            border-color: #bbf7d0;
         }
 
         .fp-img-wrap {
-            height: 170px;
+            height: 178px;
             overflow: hidden;
-            background: linear-gradient(135deg, #e8f5ea, #d0eada);
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -549,35 +520,60 @@ $listings = $list_stmt->get_result();
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform .35s;
+            transition: transform .38s;
         }
 
         .fp-product-card:hover .fp-img-wrap img {
-            transform: scale(1.07);
+            transform: scale(1.08);
         }
 
         .fp-img-placeholder {
             font-size: 3rem;
-            color: rgba(44, 106, 79, .20);
+            color: rgba(5, 150, 105, .18);
+        }
+
+        .fp-img-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(6, 95, 70, .45) 0%, transparent 55%);
+            opacity: 0;
+            transition: opacity .3s;
+            display: flex;
+            align-items: flex-end;
+            padding: 14px;
+        }
+
+        .fp-product-card:hover .fp-img-overlay {
+            opacity: 1;
+        }
+
+        .fp-img-overlay span {
+            color: #fff;
+            font-size: .78rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, .2);
+            border-radius: 20px;
+            padding: 3px 12px;
+            backdrop-filter: blur(4px);
         }
 
         .fp-card-body {
-            padding: 14px 16px;
+            padding: 15px 16px;
             flex: 1;
             display: flex;
             flex-direction: column;
         }
 
         .fp-card-title {
-            font-size: .95rem;
+            font-size: .94rem;
             font-weight: 700;
-            color: #1a1a2e;
+            color: #0f172a;
             margin-bottom: 5px;
         }
 
         .fp-card-desc {
-            font-size: .8rem;
-            color: #7a7a7a;
+            font-size: .79rem;
+            color: #64748b;
             flex: 1;
             line-height: 1.5;
         }
@@ -586,168 +582,418 @@ $listings = $list_stmt->get_result();
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 12px;
-            padding-top: 11px;
-            border-top: 1px solid #f4f4f4;
+            margin-top: 13px;
+            padding-top: 13px;
+            border-top: 1px solid #f1f5f9;
         }
 
         .fp-price {
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 800;
-            color: #2d6a4f;
+            color: #059669;
         }
 
-        .fp-date {
-            font-size: .73rem;
-            color: #bbb;
-        }
-
-        /* =======================================================
-           REVIEW CARDS
-        ======================================================= */
-        .fp-review-card {
-            background: #fff;
-            border-radius: 18px;
-            padding: 22px 24px;
-            margin-bottom: 18px;
-            box-shadow: 0 4px 20px rgba(82, 183, 136, .10), 0 1px 4px rgba(0, 0, 0, .04);
-            transition: transform .22s, box-shadow .22s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .fp-review-card::before {
-            content: '\201C';
-            position: absolute;
-            top: -14px;
-            right: 20px;
-            font-size: 7rem;
-            color: rgba(82, 183, 136, .07);
-            font-family: Georgia, serif;
-            line-height: 1;
-            pointer-events: none;
-            user-select: none;
-        }
-
-        .fp-review-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 36px rgba(82, 183, 136, .16), 0 2px 8px rgba(0, 0, 0, .06);
-        }
-
-        .rv-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #52b788, #2d6a4f);
+        .fp-price-date {
+            font-size: .71rem;
+            color: #cbd5e1;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: #fff;
-            flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(82, 183, 136, .38);
+            gap: 4px;
         }
 
-        .rv-name {
-            font-size: .93rem;
-            font-weight: 700;
-            color: #1a1a2e;
-        }
-
-        .rv-stars .s-fill {
-            color: #ffc107;
-            font-size: .92rem;
-        }
-
-        .rv-stars .s-empty {
-            color: #dde;
-            font-size: .92rem;
-        }
-
-        .rv-product {
-            font-size: .74rem;
-            color: #52b788;
-            margin-top: 3px;
-            font-weight: 600;
-        }
-
-        .rv-meta {
-            font-size: .72rem;
-            color: #8fa89a;
-            background: #f0f7f3;
+        /* ── REVIEW SECTION ── */
+        .fp-review-summary {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 1.5px solid #bbf7d0;
             border-radius: 20px;
-            padding: 4px 11px;
-            white-space: nowrap;
-        }
-
-        .rv-text {
-            font-size: .87rem;
-            color: #4a5568;
-            margin-top: 13px;
-            line-height: 1.68;
-            background: linear-gradient(135deg, #f6fbf8, #edf7f2);
-            border-radius: 10px;
-            padding: 12px 16px;
-            font-style: italic;
-        }
-
-        /* rating summary in review tab */
-        .fp-rating-summary {
-            background: linear-gradient(135deg, #f0faf4, #e6f4ea);
-            border-radius: 14px;
-            padding: 20px 24px;
+            padding: 24px 28px;
             display: flex;
+            gap: 32px;
             align-items: center;
-            gap: 24px;
             margin-bottom: 24px;
             flex-wrap: wrap;
         }
 
+        .rsum-score {
+            text-align: center;
+            flex-shrink: 0;
+        }
+
         .rsum-big {
-            font-size: 3.5rem;
+            font-size: 4rem;
             font-weight: 800;
-            color: #2d6a4f;
+            color: #065f46;
             line-height: 1;
         }
 
         .rsum-stars {
             display: flex;
             gap: 4px;
-            margin: 4px 0;
+            justify-content: center;
+            margin: 6px 0 4px;
         }
 
         .rsum-stars i {
-            color: #ffc107;
-            font-size: 1.1rem;
+            color: #f59e0b;
+            font-size: 1rem;
         }
 
         .rsum-count {
-            font-size: .82rem;
-            color: #72987f;
+            font-size: .78rem;
+            color: #6b9080;
         }
 
-        /* =======================================================
-           EMPTY STATES
-        ======================================================= */
+        .rsum-bars {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .rsum-bar-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 7px;
+        }
+
+        .rsum-bar-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .rsum-bar-lbl {
+            font-size: .72rem;
+            color: #6b9080;
+            width: 12px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .rsum-bar-track {
+            flex: 1;
+            height: 7px;
+            background: #d1fae5;
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .rsum-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            transition: width .8s ease;
+        }
+
+        .rsum-bar-cnt {
+            font-size: .7rem;
+            color: #94a3b8;
+            width: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Review cards */
+        .fp-review-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+            transition: transform .2s, box-shadow .2s;
+            position: relative;
+            overflow: hidden;
+            border: 1.5px solid transparent;
+        }
+
+        .fp-review-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(5, 150, 105, .10);
+            border-color: #d1fae5;
+        }
+
+        .fp-review-card::before {
+            content: '\201C';
+            position: absolute;
+            top: -18px;
+            right: 18px;
+            font-size: 8rem;
+            color: rgba(5, 150, 105, .05);
+            font-family: Georgia, serif;
+            line-height: 1;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .rv-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #059669, #065f46);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, .28);
+        }
+
+        .rv-name {
+            font-size: .9rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .rv-stars i.sf {
+            color: #f59e0b;
+            font-size: .85rem;
+        }
+
+        .rv-stars i.se {
+            color: #e2e8f0;
+            font-size: .85rem;
+        }
+
+        .rv-product {
+            font-size: .72rem;
+            color: #059669;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .rv-date {
+            font-size: .71rem;
+            color: #94a3b8;
+            background: #f8fafc;
+            border-radius: 20px;
+            padding: 4px 11px;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .rv-text {
+            font-size: .86rem;
+            color: #475569;
+            margin-top: 12px;
+            line-height: 1.65;
+            font-style: italic;
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 12px 16px;
+            border-left: 3px solid #10b981;
+        }
+
+        /* ── ABOUT / SIDEBAR ── */
+        .fp-about-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+        }
+
+        @media(max-width:768px) {
+            .fp-about-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .fp-widget {
+            background: #fff;
+            border-radius: 18px;
+            padding: 22px 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+        }
+
+        .fp-widget-title {
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #059669;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #d1fae5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Bar rows */
+        .fp-perf-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .perf-label {
+            font-size: .83rem;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .perf-value {
+            font-size: .88rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .fp-bar-track {
+            height: 8px;
+            background: #f1f5f9;
+            border-radius: 99px;
+            overflow: hidden;
+            margin-bottom: 18px;
+        }
+
+        .fp-bar-fill {
+            height: 100%;
+            border-radius: 99px;
+            transition: width .8s ease;
+        }
+
+        /* Contact rows */
+        .contact-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f8fafc;
+        }
+
+        .contact-row:last-child {
+            border-bottom: none;
+        }
+
+        .contact-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #f0fdf4;
+            color: #059669;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: .85rem;
+        }
+
+        .contact-lbl {
+            font-size: .67rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .contact-val {
+            font-size: .86rem;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .contact-val.na {
+            color: #cbd5e1;
+            font-style: italic;
+            font-weight: 400;
+        }
+
+        /* Trust score widget */
+        .fp-trust {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 1.5px solid #bbf7d0;
+            border-radius: 18px;
+            padding: 20px 24px;
+            text-align: center;
+        }
+
+        .trust-score {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #065f46;
+            line-height: 1;
+        }
+
+        .trust-label {
+            font-size: .75rem;
+            color: #6b9080;
+            margin-top: 4px;
+        }
+
+        .trust-meter {
+            height: 10px;
+            background: #d1fae5;
+            border-radius: 99px;
+            overflow: hidden;
+            margin: 14px 0 8px;
+        }
+
+        .trust-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width .9s ease;
+        }
+
+        /* ── EMPTY STATE ── */
         .fp-empty {
             text-align: center;
-            padding: 50px 20px;
-            color: #c0c0c0;
+            padding: 56px 20px;
             background: #fff;
-            border-radius: 14px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .04);
+            border-radius: 18px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
         }
 
-        .fp-empty i {
-            font-size: 2.8rem;
-            margin-bottom: 14px;
-            display: block;
+        .fp-empty-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            background: #f0fdf4;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin: 0 auto 16px;
         }
 
-        .fp-empty p {
-            font-size: .9rem;
-            margin: 0;
+        .fp-empty-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .fp-empty-sub {
+            font-size: .83rem;
+            color: #94a3b8;
+        }
+
+        @media(max-width:600px) {
+            .fp-profile-card {
+                padding: 20px 18px 18px;
+                margin: -60px 12px 20px;
+            }
+
+            .fp-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 1.6rem;
+                border-radius: 18px;
+            }
+
+            .fp-name {
+                font-size: 1.25rem;
+            }
+
+            .fp-tabs {
+                margin: 0 12px 20px;
+            }
+
+            .fp-content {
+                padding: 0 12px;
+            }
         }
     </style>
 </head>
@@ -755,137 +1001,140 @@ $listings = $list_stmt->get_result();
 <body>
     <?php include '../includes/nav.php'; ?>
 
-    <div class="main-container">
-        <div class="container" style="max-width:1160px;">
+    <div class="fp-page">
 
-            <!-- ==============================================
-                 PROFILE HEADER CARD
-            ============================================== -->
-            <div class="fp-cover">
-                <div class="cover-pattern"></div>
-                <div class="cover-leaves"><i class="fas fa-leaf"></i></div>
-            </div>
+        <!-- ══ HERO ══ -->
+        <div class="fp-hero">
+            <div class="fp-hero-pattern"></div>
+            <div class="fp-hero-emoji"><i class="fas fa-seedling"></i></div>
+        </div>
 
-            <div class="fp-profile-card">
-                <div class="d-flex align-items-start flex-wrap" style="gap:20px;">
+        <!-- ══ PROFILE CARD ══ -->
+        <div class="fp-profile-card">
+            <div class="d-flex align-items-start flex-wrap" style="gap:20px;">
 
-                    <!-- Avatar -->
-                    <div class="fp-avatar-wrap">
-                        <div class="fp-avatar"><i class="fas fa-seedling"></i></div>
-                        <div class="fp-avatar-badge"><i class="fas fa-check"></i></div>
+                <!-- Avatar -->
+                <div class="fp-avatar-wrap">
+                    <div class="fp-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
+                    <div class="fp-avatar-badge"><i class="fas fa-check"></i></div>
+                </div>
+
+                <!-- Info -->
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center flex-wrap" style="gap:8px; margin-bottom:6px;">
+                        <span class="fp-name"><?php echo htmlspecialchars($farmer['username']); ?></span>
+                        <?php if ($seller_stars > 0): ?>
+                            <span class="fp-seller-badge">
+                                <i class="fas fa-star"></i>
+                                <?php echo htmlspecialchars($seller_label); ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="fp-seller-badge" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#86efac;color:#166534;">
+                                <i class="fas fa-leaf" style="color:#22c55e;"></i> New Seller
+                            </span>
+                        <?php endif; ?>
                     </div>
 
-                    <!-- Name + ratings -->
-                    <div class="flex-grow-1" style="padding-top:18px;">
-                        <div class="d-flex align-items-center flex-wrap" style="gap:8px; margin-bottom:4px;">
-                            <span class="fp-name"><?php echo htmlspecialchars($farmer['username']); ?></span>
-                            <?php if ($seller_stars > 0): ?>
-                                <span class="fp-seller-badge">
-                                    <i class="fas fa-star"></i>
-                                    <?php echo htmlspecialchars($seller_label); ?>
-                                </span>
-                            <?php endif; ?>
+                    <div class="fp-joined">
+                        <i class="fas fa-calendar-alt"></i>
+                        Member since <?php echo date('F Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?>
+                    </div>
+
+                    <?php if ($review_count > 0): ?>
+                        <div class="d-flex align-items-center" style="gap:7px; margin-top:10px;">
+                            <div class="fp-stars">
+                                <?php
+                                $full  = floor($avg_rating_value);
+                                $half  = ($avg_rating_value - $full) >= 0.5 ? 1 : 0;
+                                $empty = 5 - $full - $half;
+                                for ($i = 0; $i < $full; $i++)  echo '<i class="fas fa-star sf"></i>';
+                                if ($half)                echo '<i class="fas fa-star-half-alt sh"></i>';
+                                for ($i = 0; $i < $empty; $i++) echo '<i class="far fa-star se"></i>';
+                                ?>
+                            </div>
+                            <span style="font-size:.8rem;color:#64748b;">
+                                <?php echo number_format($avg_rating_value, 1); ?>
+                                &middot;
+                                <?php echo (int)$review_count; ?> review<?php echo $review_count != 1 ? 's' : ''; ?>
+                            </span>
                         </div>
-                        <div class="fp-joined">
-                            <i class="fas fa-calendar-alt" style="color:#52b788;margin-right:4px;"></i>
-                            Member since <?php echo date('F j, Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?>
+                    <?php endif; ?>
+
+                    <!-- Stat pills -->
+                    <div class="fp-stat-row">
+                        <div class="fp-stat-pill">
+                            <div class="fp-stat-icon b"><i class="fas fa-list-ul"></i></div>
+                            <div>
+                                <div class="stat-val"><?php echo (int)$total_listings; ?></div>
+                                <div class="stat-lbl">Listings</div>
+                            </div>
+                        </div>
+                        <div class="fp-stat-pill">
+                            <div class="fp-stat-icon g"><i class="fas fa-hand-holding-usd"></i></div>
+                            <div>
+                                <div class="stat-val"><?php echo (int)$sold_count; ?></div>
+                                <div class="stat-lbl">Sold</div>
+                            </div>
+                        </div>
+                        <div class="fp-stat-pill">
+                            <div class="fp-stat-icon a"><i class="fas fa-chart-line"></i></div>
+                            <div>
+                                <div class="stat-val"><?php echo $success_rate; ?>%</div>
+                                <div class="stat-lbl">Success</div>
+                            </div>
                         </div>
 
-                        <!-- Star display -->
-                        <?php if ($review_count > 0): ?>
-                            <div class="d-flex align-items-center" style="gap:6px; margin-top:10px;">
-                                <div class="fp-inline-stars">
-                                    <?php
-                                    $full = floor($avg_rating_value);
-                                    $half = ($avg_rating_value - $full) >= 0.5 ? 1 : 0;
-                                    $empty = 5 - $full - $half;
-                                    for ($i = 0; $i < $full; $i++)  echo '<i class="fas fa-star s-fill"></i>';
-                                    if ($half)               echo '<i class="fas fa-star-half-alt s-half"></i>';
-                                    for ($i = 0; $i < $empty; $i++) echo '<i class="far fa-star s-empty"></i>';
-                                    ?>
-                                </div>
-                                <span style="font-size:.82rem;color:#7a7a7a;"><?php echo number_format($avg_rating_value, 1); ?> Â· <?php echo (int)$review_count; ?> review<?php echo $review_count == 1 ? '' : 's'; ?></span>
+                        <div class="fp-rating-pair">
+                            <div class="fp-rpill">
+                                <div class="rp-lbl">Customer Rating</div>
+                                <?php if ($review_count > 0): ?>
+                                    <div class="rp-val"><?php echo number_format($avg_rating_value, 1); ?><span style="font-size:.7rem;font-weight:500;color:#94a3b8;">/5</span></div>
+                                    <div class="rp-sub"><?php echo (int)$review_count; ?> review<?php echo $review_count != 1 ? 's' : ''; ?></div>
+                                <?php else: ?>
+                                    <div class="rp-val" style="font-size:.88rem;color:#94a3b8;">No reviews</div>
+                                <?php endif; ?>
                             </div>
-                        <?php endif; ?>
-
-                        <!-- Quick stats -->
-                        <div class="fp-quick-stats">
-                            <div class="fp-qs-item">
-                                <div class="fp-qs-icon blue"><i class="fas fa-list-ul"></i></div>
-                                <div>
-                                    <div class="qs-val"><?php echo (int)$total_listings; ?></div>
-                                    <div class="qs-lbl">Listings</div>
+                            <div class="fp-rpill">
+                                <div class="rp-lbl">
+                                    Fairness Rating
+                                    <span title="Automatically adjusted based on how fairly your prices compare to the market." style="cursor:help;font-size:.7rem;">&#x2139;</span>
                                 </div>
-                            </div>
-                            <div class="fp-qs-item">
-                                <div class="fp-qs-icon green"><i class="fas fa-hand-holding-usd"></i></div>
-                                <div>
-                                    <div class="qs-val"><?php echo (int)$sold_count; ?></div>
-                                    <div class="qs-lbl">Sold</div>
-                                </div>
-                            </div>
-                            <div class="fp-qs-item">
-                                <div class="fp-qs-icon amber"><i class="fas fa-chart-line"></i></div>
-                                <div>
-                                    <div class="qs-val"><?php echo $success_rate; ?>%</div>
-                                    <div class="qs-lbl">Success Rate</div>
-                                </div>
-                            </div>
-
-                            <!-- Rating pills -->
-                            <div class="fp-rating-pair ml-auto">
-                                <div class="fp-rpill">
-                                    <div class="rp-lbl">Customer Rating</div>
-                                    <?php if ($review_count > 0): ?>
-                                        <div class="rp-val"><?php echo number_format($avg_rating_value, 1); ?><span style="font-size:.75rem;font-weight:500;color:#9a9a9a;">/5</span></div>
-                                        <div class="rp-sub"><?php echo (int)$review_count; ?> review<?php echo $review_count == 1 ? '' : 's'; ?></div>
-                                    <?php else: ?>
-                                        <div class="rp-val" style="font-size:.9rem;">No reviews</div>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="fp-rpill">
-                                    <div class="rp-lbl">
-                                        Fairness Rating
-                                        <span title="Adjusts automatically based on how fair your prices are compared to the market." style="cursor:help;">&#8505;</span>
-                                    </div>
-                                    <div class="rp-val"><?php echo number_format($fairness_rating, 1); ?><span style="font-size:.75rem;font-weight:500;color:#9a9a9a;">/10</span></div>
-                                    <div class="rp-sub">Market fairness</div>
-                                </div>
+                                <div class="rp-val"><?php echo number_format($fairness_rating, 1); ?><span style="font-size:.7rem;font-weight:500;color:#94a3b8;">/10</span></div>
+                                <div class="rp-sub">Market fairness</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- ==============================================
-                 TABS
-            ============================================== -->
-            <div class="fp-tabs">
-                <button class="fp-tab-btn active" onclick="switchTab('listings',this)">
-                    <i class="fas fa-store"></i>Listings
-                    <?php if ($total_listings > 0): ?>
-                        <span style="background:rgba(44,106,79,.12);color:#2d6a4f;font-size:.72rem;padding:1px 7px;border-radius:10px;margin-left:4px;"><?php echo (int)$total_listings; ?></span>
-                    <?php endif; ?>
-                </button>
-                <button class="fp-tab-btn" onclick="switchTab('reviews',this)">
-                    <i class="fas fa-star"></i>Reviews
-                    <?php if ($review_count > 0): ?>
-                        <span style="background:rgba(44,106,79,.12);color:#2d6a4f;font-size:.72rem;padding:1px 7px;border-radius:10px;margin-left:4px;"><?php echo (int)$review_count; ?></span>
-                    <?php endif; ?>
-                </button>
-                <button class="fp-tab-btn" onclick="switchTab('about',this)">
-                    <i class="fas fa-info-circle"></i>About
-                </button>
-            </div>
+        <!-- ══ TABS ══ -->
+        <div class="fp-tabs">
+            <button class="fp-tab-btn active" onclick="switchTab('listings',this)">
+                <i class="fas fa-store"></i> Listings
+                <?php if ($total_listings > 0): ?>
+                    <span class="tab-badge"><?php echo (int)$total_listings; ?></span>
+                <?php endif; ?>
+            </button>
+            <button class="fp-tab-btn" onclick="switchTab('reviews',this)">
+                <i class="fas fa-star"></i> Reviews
+                <?php if ($review_count > 0): ?>
+                    <span class="tab-badge"><?php echo (int)$review_count; ?></span>
+                <?php endif; ?>
+            </button>
+            <button class="fp-tab-btn" onclick="switchTab('about',this)">
+                <i class="fas fa-info-circle"></i> About
+            </button>
+        </div>
 
-            <!-- ==============================================
-                 LISTINGS TAB
-            ============================================== -->
+        <div class="fp-content">
+
+            <!-- ══ LISTINGS TAB ══ -->
             <div id="tab-listings" class="fp-tab-pane active">
                 <?php if ($listings->num_rows > 0): ?>
                     <div class="fp-product-grid">
                         <?php while ($p = $listings->fetch_assoc()): ?>
-                            <div class="fp-product-card">
+                            <div class="fp-product-card" onclick="window.location='<?php echo $base_url; ?>product_detail.php?id=<?php echo $p['id']; ?>'">
                                 <div class="fp-img-wrap">
                                     <?php if (!empty($p['image'])): ?>
                                         <img src="../assets/images/<?php echo htmlspecialchars($p['image']); ?>"
@@ -893,13 +1142,17 @@ $listings = $list_stmt->get_result();
                                     <?php else: ?>
                                         <span class="fp-img-placeholder"><i class="fas fa-leaf"></i></span>
                                     <?php endif; ?>
+                                    <div class="fp-img-overlay"><span>View Details</span></div>
                                 </div>
                                 <div class="fp-card-body">
                                     <div class="fp-card-title"><?php echo htmlspecialchars($p['product_name']); ?></div>
-                                    <div class="fp-card-desc"><?php echo htmlspecialchars(mb_strimwidth($p['description'], 0, 90, '...')); ?></div>
+                                    <div class="fp-card-desc"><?php echo htmlspecialchars(mb_strimwidth($p['description'], 0, 88, '...')); ?></div>
                                     <div class="fp-price-row">
                                         <div class="fp-price">&#x09F3;<?php echo number_format($p['price'], 2); ?></div>
-                                        <div class="fp-date"><i class="fas fa-clock" style="margin-right:3px;"></i><?php echo date('d M Y', strtotime($p['created_at'])); ?></div>
+                                        <div class="fp-price-date">
+                                            <i class="far fa-calendar"></i>
+                                            <?php echo date('d M Y', strtotime($p['created_at'])); ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -907,47 +1160,45 @@ $listings = $list_stmt->get_result();
                     </div>
                 <?php else: ?>
                     <div class="fp-empty">
-                        <i class="fas fa-box-open"></i>
-                        <p>No active listings yet.</p>
+                        <div class="fp-empty-icon"><i class="fas fa-box-open"></i></div>
+                        <div class="fp-empty-title">No listings yet</div>
+                        <div class="fp-empty-sub">This farmer hasn't published any products yet.</div>
                     </div>
                 <?php endif; ?>
             </div>
 
-            <!-- ==============================================
-                 REVIEWS TAB
-            ============================================== -->
+            <!-- ══ REVIEWS TAB ══ -->
             <div id="tab-reviews" class="fp-tab-pane">
 
                 <?php if ($review_count > 0): ?>
-                    <!-- Rating summary bar -->
-                    <div class="fp-rating-summary">
-                        <div>
+                    <!-- Rating Summary -->
+                    <div class="fp-review-summary">
+                        <div class="rsum-score">
                             <div class="rsum-big"><?php echo number_format($avg_rating_value, 1); ?></div>
                             <div class="rsum-stars">
                                 <?php
-                                $full  = floor($avg_rating_value);
-                                $half  = ($avg_rating_value - $full) >= 0.5 ? 1 : 0;
-                                $empty = 5 - $full - $half;
-                                for ($i = 0; $i < $full; $i++)  echo '<i class="fas fa-star"></i>';
-                                if ($half)               echo '<i class="fas fa-star-half-alt"></i>';
-                                for ($i = 0; $i < $empty; $i++) echo '<i class="far fa-star"></i>';
+                                $f = floor($avg_rating_value);
+                                $h = ($avg_rating_value - $f) >= .5 ? 1 : 0;
+                                $e = 5 - $f - $h;
+                                for ($i = 0; $i < $f; $i++) echo '<i class="fas fa-star"></i>';
+                                if ($h) echo '<i class="fas fa-star-half-alt"></i>';
+                                for ($i = 0; $i < $e; $i++) echo '<i class="far fa-star" style="color:#d1fae5;"></i>';
                                 ?>
                             </div>
-                            <div class="rsum-count"><?php echo (int)$review_count; ?> review<?php echo $review_count == 1 ? '' : 's'; ?></div>
+                            <div class="rsum-count"><?php echo (int)$review_count; ?> review<?php echo $review_count != 1 ? 's' : ''; ?></div>
                         </div>
-                        <div style="flex:1;">
-                            <?php
-                            // Build per-star counts from already-fetched data â€” we'll show overview bars
-                            $star_labels = [5, 4, 3, 2, 1];
-                            foreach ($star_labels as $s):
-                                $pct = 0; // simplified; requires separate query for exact counts
+                        <div class="rsum-bars">
+                            <?php foreach ([5, 4, 3, 2, 1] as $s):
+                                $cnt = $star_counts[$s] ?? 0;
+                                $pct = $review_count > 0 ? round($cnt / $review_count * 100) : 0;
                             ?>
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
-                                    <span style="font-size:.72rem;color:#72987f;width:14px;"><?php echo $s; ?></span>
-                                    <i class="fas fa-star" style="color:#ffc107;font-size:.72rem;"></i>
-                                    <div style="flex:1;height:6px;background:#e8f5ea;border-radius:99px;overflow:hidden;">
-                                        <div style="height:100%;background:linear-gradient(90deg,#ffc107,#ff9800);border-radius:99px;width:<?php echo $pct; ?>%;"></div>
+                                <div class="rsum-bar-row">
+                                    <span class="rsum-bar-lbl"><?php echo $s; ?></span>
+                                    <i class="fas fa-star" style="color:#f59e0b;font-size:.65rem;flex-shrink:0;"></i>
+                                    <div class="rsum-bar-track">
+                                        <div class="rsum-bar-fill" style="width:<?php echo $pct; ?>%;"></div>
                                     </div>
+                                    <span class="rsum-bar-cnt"><?php echo $cnt; ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -955,28 +1206,32 @@ $listings = $list_stmt->get_result();
                 <?php endif; ?>
 
                 <?php if ($farmer_reviews && $farmer_reviews->num_rows > 0): ?>
-                    <?php while ($r = $farmer_reviews->fetch_assoc()):
-                        $rf = (int)$r['rating'];
-                    ?>
+                    <?php while ($r = $farmer_reviews->fetch_assoc()): $rf = (int)$r['rating']; ?>
                         <div class="fp-review-card">
-                            <div class="d-flex align-items-start" style="gap:12px;">
+                            <div class="d-flex align-items-start" style="gap:14px;">
                                 <div class="rv-avatar"><?php echo strtoupper(substr($r['reviewer_name'], 0, 1)); ?></div>
                                 <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:6px;">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap" style="gap:8px;">
                                         <div>
                                             <div class="rv-name"><?php echo htmlspecialchars($r['reviewer_name']); ?></div>
-                                            <div class="rv-stars">
+                                            <div class="rv-stars" style="margin:3px 0;">
                                                 <?php
-                                                for ($i = 0; $i < $rf; $i++)   echo '<i class="fas fa-star s-fill"></i>';
-                                                for ($i = $rf; $i < 5; $i++)   echo '<i class="far fa-star s-empty"></i>';
+                                                for ($i = 0; $i < $rf; $i++)   echo '<i class="fas fa-star sf"></i>';
+                                                for ($i = $rf; $i < 5; $i++)   echo '<i class="far fa-star se"></i>';
                                                 ?>
                                             </div>
-                                            <div class="rv-product"><i class="fas fa-tag" style="margin-right:4px;"></i><?php echo htmlspecialchars($r['product_name']); ?></div>
+                                            <div class="rv-product">
+                                                <i class="fas fa-seedling" style="margin-right:4px;font-size:.65rem;"></i>
+                                                <?php echo htmlspecialchars($r['product_name']); ?>
+                                            </div>
                                         </div>
-                                        <div class="rv-meta"><i class="fas fa-calendar-alt" style="margin-right:4px;"></i><?php echo date('d M Y', strtotime($r['created_at'])); ?></div>
+                                        <div class="rv-date">
+                                            <i class="far fa-calendar"></i>
+                                            <?php echo date('d M Y', strtotime($r['created_at'])); ?>
+                                        </div>
                                     </div>
                                     <?php if (!empty($r['review_text'])): ?>
-                                        <div class="rv-text">"<?php echo htmlspecialchars($r['review_text']); ?>"</div>
+                                        <div class="rv-text">&ldquo;<?php echo htmlspecialchars($r['review_text']); ?>&rdquo;</div>
                                     <?php endif; ?>
                                 </div>
                             </div>
@@ -984,106 +1239,150 @@ $listings = $list_stmt->get_result();
                     <?php endwhile; ?>
                 <?php else: ?>
                     <div class="fp-empty">
-                        <i class="fas fa-comment-slash"></i>
-                        <p>No reviews yet for this farmer.</p>
+                        <div class="fp-empty-icon"><i class="fas fa-comment-slash"></i></div>
+                        <div class="fp-empty-title">No reviews yet</div>
+                        <div class="fp-empty-sub">Be the first to review a product from this farmer.</div>
                     </div>
                 <?php endif; ?>
             </div>
 
-            <!-- ==============================================
-                 ABOUT TAB
-            ============================================== -->
+            <!-- ══ ABOUT TAB ══ -->
             <div id="tab-about" class="fp-tab-pane">
-                <div class="fp-layout">
-                    <!-- Left: stats breakdown -->
+                <div class="fp-about-grid">
+                    <!-- Left: Performance -->
                     <div>
                         <div class="fp-widget">
                             <div class="fp-widget-title"><i class="fas fa-chart-bar"></i> Performance</div>
 
-                            <div style="margin-bottom:18px;">
-                                <div style="display:flex;justify-content:space-between;font-size:.82rem;color:#555;margin-bottom:6px;">
-                                    <span><i class="fas fa-list-ul" style="color:#0076ce;margin-right:6px;"></i>Total Listings</span>
-                                    <span style="font-weight:700;"><?php echo (int)$total_listings; ?></span>
-                                </div>
-                                <div style="display:flex;justify-content:space-between;font-size:.82rem;color:#555;margin-bottom:6px;">
-                                    <span><i class="fas fa-hand-holding-usd" style="color:#2d6a4f;margin-right:6px;"></i>Products Sold</span>
-                                    <span style="font-weight:700;"><?php echo (int)$sold_count; ?></span>
-                                </div>
-                                <div style="margin-top:16px;">
-                                    <div class="fp-rate-bar-wrap">
-                                        <div class="bar-labels">
-                                            <span>Success Rate</span>
-                                            <span style="font-weight:700;color:#2d6a4f;"><?php echo $success_rate; ?>%</span>
-                                        </div>
-                                        <div class="fp-rate-bar">
-                                            <div class="bar-fill" style="width:<?php echo $success_rate; ?>%;"></div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="fp-perf-row">
+                                <div class="perf-label"><i class="fas fa-list-ul" style="color:#2563eb;"></i> Total Listings</div>
+                                <div class="perf-value"><?php echo (int)$total_listings; ?></div>
+                            </div>
+                            <div class="fp-perf-row">
+                                <div class="perf-label"><i class="fas fa-hand-holding-usd" style="color:#059669;"></i> Products Sold</div>
+                                <div class="perf-value"><?php echo (int)$sold_count; ?></div>
                             </div>
 
-                            <div style="margin-top:8px;">
-                                <div class="fp-rate-bar-wrap">
-                                    <div class="bar-labels">
-                                        <span>Customer Rating</span>
-                                        <span style="font-weight:700;color:#2d6a4f;"><?php echo $review_count > 0 ? number_format($avg_rating_value, 1) . '/5' : 'N/A'; ?></span>
-                                    </div>
-                                    <div class="fp-rate-bar">
-                                        <div class="bar-fill" style="width:<?php echo $review_count > 0 ? ($avg_rating_value / 5 * 100) : 0; ?>%;background:linear-gradient(90deg,#ffc107,#ff9800);"></div>
-                                    </div>
-                                </div>
-                                <div class="fp-rate-bar-wrap" style="margin-top:12px;">
-                                    <div class="bar-labels">
-                                        <span>Fairness Rating</span>
-                                        <span style="font-weight:700;color:#2d6a4f;"><?php echo number_format($fairness_rating, 1); ?>/10</span>
-                                    </div>
-                                    <div class="fp-rate-bar">
-                                        <div class="bar-fill" style="width:<?php echo ($fairness_rating / 10 * 100); ?>%;background:linear-gradient(90deg,#52b788,#2d6a4f);"></div>
-                                    </div>
-                                </div>
+                            <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:.78rem;color:#64748b;">
+                                <span>Success Rate</span><span style="font-weight:700;color:#059669;"><?php echo $success_rate; ?>%</span>
                             </div>
+                            <div class="fp-bar-track">
+                                <div class="fp-bar-fill" style="width:<?php echo $success_rate; ?>%;background:linear-gradient(90deg,#10b981,#059669);"></div>
+                            </div>
+
+                            <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:.78rem;color:#64748b;">
+                                <span>Customer Rating</span>
+                                <span style="font-weight:700;color:#f59e0b;"><?php echo $review_count > 0 ? number_format($avg_rating_value, 1) . '/5' : 'N/A'; ?></span>
+                            </div>
+                            <div class="fp-bar-track">
+                                <div class="fp-bar-fill" style="width:<?php echo $review_count > 0 ? ($avg_rating_value / 5 * 100) : 0; ?>%;background:linear-gradient(90deg,#fbbf24,#f97316);"></div>
+                            </div>
+
+                            <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:.78rem;color:#64748b;">
+                                <span>Fairness Rating</span>
+                                <span style="font-weight:700;color:#059669;"><?php echo number_format($fairness_rating, 1); ?>/10</span>
+                            </div>
+                            <div class="fp-bar-track" style="margin-bottom:0;">
+                                <div class="fp-bar-fill" style="width:<?php echo $fairness_rating / 10 * 100; ?>%;background:linear-gradient(90deg,#10b981,#059669);"></div>
+                            </div>
+                        </div>
+
+                        <!-- Trust score -->
+                        <div class="fp-trust">
+                            <div class="trust-label" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#6b9080;margin-bottom:4px;">Overall Trust Score</div>
+                            <?php
+                            $trust = round(($success_rate * 0.4) + ($avg_rating_value / 5 * 100 * 0.4) + ($fairness_rating / 10 * 100 * 0.2));
+                            $trust = max(0, min(100, $trust));
+                            ?>
+                            <div class="trust-score"><?php echo $trust; ?><span style="font-size:1.2rem;font-weight:500;color:#6b9080;">/100</span></div>
+                            <div class="trust-meter">
+                                <div class="trust-fill" style="width:<?php echo $trust; ?>%;"></div>
+                            </div>
+                            <div style="font-size:.75rem;color:#6b9080;">Based on sales, ratings &amp; fairness</div>
                         </div>
                     </div>
 
-                    <!-- Right: contact -->
+                    <!-- Right: Contact -->
                     <div>
                         <div class="fp-widget">
-                            <div class="fp-widget-title"><i class="fas fa-address-card"></i> Contact</div>
+                            <div class="fp-widget-title"><i class="fas fa-address-card"></i> Farmer Info</div>
                             <div class="contact-row">
                                 <div class="contact-icon"><i class="fas fa-user"></i></div>
                                 <div>
-                                    <div class="contact-label">Farmer Name</div>
-                                    <div class="contact-value"><?php echo htmlspecialchars($farmer['username']); ?></div>
+                                    <div class="contact-lbl">Name</div>
+                                    <div class="contact-val"><?php echo htmlspecialchars($farmer['username']); ?></div>
                                 </div>
                             </div>
                             <div class="contact-row">
                                 <div class="contact-icon"><i class="fas fa-calendar-check"></i></div>
                                 <div>
-                                    <div class="contact-label">Member Since</div>
-                                    <div class="contact-value"><?php echo date('d M Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?></div>
+                                    <div class="contact-lbl">Member Since</div>
+                                    <div class="contact-val"><?php echo date('d M Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?></div>
+                                </div>
+                            </div>
+                            <div class="contact-row">
+                                <div class="contact-icon"><i class="fas fa-store"></i></div>
+                                <div>
+                                    <div class="contact-lbl">Active Listings</div>
+                                    <div class="contact-val"><?php echo (int)$total_listings; ?> product<?php echo $total_listings != 1 ? 's' : ''; ?></div>
                                 </div>
                             </div>
                             <div class="contact-row">
                                 <div class="contact-icon"><i class="fas fa-phone"></i></div>
                                 <div>
-                                    <div class="contact-label">Phone</div>
-                                    <div class="contact-value" style="color:#c0c0c0;font-style:italic;">Not provided</div>
+                                    <div class="contact-lbl">Phone</div>
+                                    <div class="contact-val na">Not provided</div>
                                 </div>
                             </div>
                             <div class="contact-row">
                                 <div class="contact-icon"><i class="fas fa-map-marker-alt"></i></div>
                                 <div>
-                                    <div class="contact-label">Location</div>
-                                    <div class="contact-value" style="color:#c0c0c0;font-style:italic;">Not provided</div>
+                                    <div class="contact-lbl">Location</div>
+                                    <div class="contact-val na">Not provided</div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Badges widget -->
+                        <div class="fp-widget">
+                            <div class="fp-widget-title"><i class="fas fa-award"></i> Achievements</div>
+                            <?php if ($total_listings >= 1): ?>
+                                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f8fafc;">
+                                    <span style="width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;"><i class="fas fa-seedling"></i></span>
+                                    <div>
+                                        <div style="font-size:.85rem;font-weight:600;color:#0f172a;">First Listing</div>
+                                        <div style="font-size:.72rem;color:#94a3b8;">Posted their first product</div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ($sold_count >= 1): ?>
+                                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f8fafc;">
+                                    <span style="width:34px;height:34px;border-radius:9px;background:#d1fae5;color:#059669;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;"><i class="fas fa-handshake"></i></span>
+                                    <div>
+                                        <div style="font-size:.85rem;font-weight:600;color:#0f172a;">First Sale</div>
+                                        <div style="font-size:.72rem;color:#94a3b8;">Completed their first transaction</div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ($review_count >= 5 && $avg_rating_value >= 4.0): ?>
+                                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f8fafc;">
+                                    <span style="width:34px;height:34px;border-radius:9px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;"><i class="fas fa-star"></i></span>
+                                    <div>
+                                        <div style="font-size:.85rem;font-weight:600;color:#0f172a;">Top Rated</div>
+                                        <div style="font-size:.72rem;color:#94a3b8;"><?php echo number_format($avg_rating_value, 1); ?>+ rating from <?php echo (int)$review_count; ?> reviews</div>
+                                    </div>
+                                </div>
+                            <?php endif; ?>
+                            <?php if ($total_listings < 1 && $sold_count < 1): ?>
+                                <div style="font-size:.83rem;color:#cbd5e1;text-align:center;padding:12px 0;">No achievements yet</div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
             </div>
 
-        </div><!-- /container -->
-    </div><!-- /main-container -->
+        </div><!-- /fp-content -->
+    </div><!-- /fp-page -->
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
@@ -1096,6 +1395,8 @@ $listings = $list_stmt->get_result();
             btn.classList.add('active');
         }
     </script>
+
+    <?php include '../includes/footer.php'; ?>
 </body>
 
 </html>

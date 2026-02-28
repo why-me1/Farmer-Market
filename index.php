@@ -204,7 +204,7 @@ check_login();
 
 
         <!-- 2. LIVE AUCTIONS - ENDING SOON SECTION -->
-        <div class="live-auctions-section mb-5">
+        <div id="live-auctions" class="live-auctions-section mb-5">
             <div class="section-header">
                 <h2 class="section-title"><i class="fas fa-fire me-2"></i>Live Auctions - Ending Soon</h2>
                 <p class="section-subtitle">Products ending in the next 24 hours</p>
@@ -686,6 +686,7 @@ check_login();
         });
     </script>
 
+    <?php include 'includes/footer.php'; ?>
 </body>
 
 </html>

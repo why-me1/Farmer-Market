@@ -266,15 +266,20 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
         }
 
         .hero-body {
-            padding: 0 32px 32px;
+            padding: 0 32px 28px;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
         .avatar-wrap {
             position: relative;
             display: inline-block;
-            margin-top: -56px;
-            margin-bottom: 12px;
+            margin-top: -52px;
+            flex-shrink: 0;
         }
 
         .avatar-circle {
@@ -791,28 +796,28 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
                 </div>
             </div>
             <div class="hero-body">
-                <div class="avatar-wrap">
-                    <div class="avatar-ring"></div>
-                    <div class="avatar-circle" style="background:<?php echo $avatar_bg; ?>">
-                        <?php echo $initials; ?>
+                <div style="display:flex;align-items:center;gap:20px;">
+                    <div class="avatar-wrap">
+                        <div class="avatar-ring"></div>
+                        <div class="avatar-circle" style="background:<?php echo $avatar_bg; ?>">
+                            <?php echo $initials; ?>
+                        </div>
                     </div>
-                </div>
-                <div class="username-row">
-                    <div>
+                    <div style="padding-top:6px;">
                         <h1 class="username-title"><?php echo htmlspecialchars($user['username']); ?></h1>
                         <div class="member-since">
                             <i class="bi bi-calendar3"></i> Member since <?php echo $member_since; ?>
                         </div>
                     </div>
-                    <div class="rating-pill">
-                        <div class="rating-score" style="color:<?php echo $rating_color; ?>">
-                            <?php echo number_format($fairness_rating, 1); ?>
-                            <span style="font-size:.9rem;color:#94a3b8;font-weight:500;">/10</span>
-                        </div>
-                        <div class="rating-label-sm">Bidding Fairness</div>
-                        <div class="rating-tag" style="background:<?php echo $rating_color; ?>18;color:<?php echo $rating_color; ?>">
-                            <?php echo $rating_label; ?>
-                        </div>
+                </div>
+                <div class="rating-pill">
+                    <div class="rating-score" style="color:<?php echo $rating_color; ?>">
+                        <?php echo number_format($fairness_rating, 1); ?>
+                        <span style="font-size:.9rem;color:#94a3b8;font-weight:500;">/10</span>
+                    </div>
+                    <div class="rating-label-sm">Bidding Fairness</div>
+                    <div class="rating-tag" style="background:<?php echo $rating_color; ?>18;color:<?php echo $rating_color; ?>">
+                        <?php echo $rating_label; ?>
                     </div>
                 </div>
             </div>
@@ -880,9 +885,9 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
                 </div>
             </div>
             <div class="bar-labels">
-                <span>0 � Poor</span>
-                <span>5 � Average</span>
-                <span>10 � Excellent</span>
+                <span>0 &mdash; Poor</span>
+                <span>5 &mdash; Average</span>
+                <span>10 &mdash; Excellent</span>
             </div>
         </div>
 
@@ -929,8 +934,8 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
                                             <?php echo htmlspecialchars($p['farmer_username']); ?>
                                         </div>
                                     </td>
-                                    <td class="price-ask">?<?php echo number_format($p['asking_price'], 2); ?></td>
-                                    <td class="price-bid">?<?php echo number_format($p['bid_amount'], 2); ?></td>
+                                    <td class="price-ask">৳<?php echo number_format($p['asking_price'], 2); ?></td>
+                                    <td class="price-bid">৳<?php echo number_format($p['bid_amount'], 2); ?></td>
                                     <td style="font-size:.78rem;color:#94a3b8;">
                                         <?php echo date('M j, Y', strtotime($p['purchase_date'])); ?>
                                     </td>
