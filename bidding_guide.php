@@ -8,8 +8,20 @@
         padding: 64px 0 52px;
         text-align: center;
     }
-    .hiw-hero h1 { font-size: 2.4rem; font-weight: 800; margin-bottom: 12px; color: #fff; }
-    .hiw-hero p  { font-size: 1.05rem; color: #d1fae5; max-width: 560px; margin: 0 auto; }
+
+    .hiw-hero h1 {
+        font-size: 2.4rem;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: #fff;
+    }
+
+    .hiw-hero p {
+        font-size: 1.05rem;
+        color: #d1fae5;
+        max-width: 560px;
+        margin: 0 auto;
+    }
 
     /* ── Tabs ── */
     .hiw-tabs {
@@ -24,6 +36,7 @@
         top: 64px;
         z-index: 100;
     }
+
     .hiw-tab-btn {
         padding: 10px 26px;
         border-radius: 50px;
@@ -38,19 +51,36 @@
         align-items: center;
         gap: 7px;
     }
-    .hiw-tab-btn.active, .hiw-tab-btn:hover { background: #10b981; color: #fff; }
+
+    .hiw-tab-btn.active,
+    .hiw-tab-btn:hover {
+        background: #10b981;
+        color: #fff;
+    }
 
     /* ── Panels ── */
-    .hiw-panel { display: none; padding: 50px 0; }
-    .hiw-panel.active { display: block; }
+    .hiw-panel {
+        display: none;
+        padding: 50px 0;
+    }
+
+    .hiw-panel.active {
+        display: block;
+    }
 
     /* ── Section heading ── */
     .hiw-section-title {
-        font-size: 1.7rem; font-weight: 800; color: #065f46;
-        margin-bottom: 8px; text-align: center;
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: #065f46;
+        margin-bottom: 8px;
+        text-align: center;
     }
+
     .hiw-section-sub {
-        color: #6b7280; margin-bottom: 32px; text-align: center;
+        color: #6b7280;
+        margin-bottom: 32px;
+        text-align: center;
     }
 
     /* ── Card grid (shared by all 3 panels) ── */
@@ -60,30 +90,38 @@
         gap: 20px;
         margin-top: 8px;
     }
+
     .hiw-card {
         background: #fff;
         border: 1px solid #d1fae5;
         border-radius: 16px;
         padding: 26px 22px;
-        box-shadow: 0 2px 10px rgba(16,185,129,0.07);
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.07);
         text-align: left;
         transition: box-shadow 0.22s, transform 0.22s;
         display: flex;
         flex-direction: column;
     }
+
     .hiw-card:hover {
-        box-shadow: 0 8px 28px rgba(16,185,129,0.16);
+        box-shadow: 0 8px 28px rgba(16, 185, 129, 0.16);
         transform: translateY(-3px);
     }
+
     .hiw-card .card-icon {
-        width: 48px; height: 48px;
+        width: 48px;
+        height: 48px;
         background: linear-gradient(135deg, #059669, #10b981);
         border-radius: 13px;
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 1.15rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.15rem;
         margin-bottom: 16px;
         flex-shrink: 0;
     }
+
     .hiw-card .card-step {
         font-size: 0.7rem;
         font-weight: 700;
@@ -92,19 +130,44 @@
         color: #10b981;
         margin-bottom: 4px;
     }
+
     .hiw-card h5 {
-        font-size: 1rem; font-weight: 700; color: #065f46; margin-bottom: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #065f46;
+        margin-bottom: 8px;
     }
+
     .hiw-card p {
-        color: #4b5563; font-size: 0.88rem; margin: 0; line-height: 1.65; flex: 1;
+        color: #4b5563;
+        font-size: 0.88rem;
+        margin: 0;
+        line-height: 1.65;
+        flex: 1;
     }
+
     .hiw-card ul {
-        color: #4b5563; font-size: 0.88rem; margin: 0;
-        padding-left: 16px; line-height: 1.65; flex: 1;
+        color: #4b5563;
+        font-size: 0.88rem;
+        margin: 0;
+        padding-left: 16px;
+        line-height: 1.65;
+        flex: 1;
     }
-    .hiw-card ul li { margin-bottom: 4px; }
-    .hiw-card a { color: #059669; font-weight: 600; }
-    .hiw-card a:hover { color: #065f46; }
+
+    .hiw-card ul li {
+        margin-bottom: 4px;
+    }
+
+    .hiw-card a {
+        color: #059669;
+        font-weight: 600;
+    }
+
+    .hiw-card a:hover {
+        color: #065f46;
+    }
+
     .hiw-card .hiw-note {
         background: #f0fdf4;
         border-left: 3px solid #10b981;
@@ -118,20 +181,64 @@
     /* ── CTA ── */
     .hiw-cta {
         background: linear-gradient(135deg, #065f46, #10b981);
-        border-radius: 18px; padding: 40px 32px;
-        text-align: center; color: #fff; margin-top: 32px;
+        border-radius: 18px;
+        padding: 40px 32px;
+        text-align: center;
+        color: #fff;
+        margin-top: 32px;
     }
-    .hiw-cta h3 { font-size: 1.45rem; font-weight: 800; margin-bottom: 10px; color: #fff; }
-    .hiw-cta p  { color: #d1fae5; margin-bottom: 22px; }
-    .hiw-cta-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .hiw-cta h3 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        margin-bottom: 10px;
+        color: #fff;
+    }
+
+    .hiw-cta p {
+        color: #d1fae5;
+        margin-bottom: 22px;
+    }
+
+    .hiw-cta-btns {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
     .hiw-cta-btns a {
-        padding: 11px 26px; border-radius: 50px; font-weight: 600;
-        text-decoration: none; font-size: 0.93rem; transition: all 0.2s; display: inline-block;
+        padding: 11px 26px;
+        border-radius: 50px;
+        font-weight: 600;
+        text-decoration: none;
+        font-size: 0.93rem;
+        transition: all 0.2s;
+        display: inline-block;
     }
-    .hiw-btn-primary { background: #fff; color: #065f46; }
-    .hiw-btn-primary:hover { background: #ecfdf5; color: #065f46; text-decoration: none; }
-    .hiw-btn-secondary { background: rgba(255,255,255,0.15); color: #fff; border: 2px solid rgba(255,255,255,0.4); }
-    .hiw-btn-secondary:hover { background: rgba(255,255,255,0.28); color: #fff; text-decoration: none; }
+
+    .hiw-btn-primary {
+        background: #fff;
+        color: #065f46;
+    }
+
+    .hiw-btn-primary:hover {
+        background: #ecfdf5;
+        color: #065f46;
+        text-decoration: none;
+    }
+
+    .hiw-btn-secondary {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .hiw-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.28);
+        color: #fff;
+        text-decoration: none;
+    }
 </style>
 
 <!-- Hero -->
@@ -167,8 +274,8 @@
                 <div class="card-step">Step 1</div>
                 <h5>Create an Account &amp; Log In</h5>
                 <ul>
-                    <li><a href="register.php">Register here</a> if you&rsquo;re new.</li>
-                    <li><a href="login.php">Log in</a> if you already have an account.</li>
+                    <li><a href="#" data-auth-modal="signup">Register here</a> if you&rsquo;re new.</li>
+                    <li><a href="#" data-auth-modal="login">Log in</a> if you already have an account.</li>
                 </ul>
             </div>
             <div class="hiw-card">
@@ -223,8 +330,8 @@
                 <div class="card-step">Step 1</div>
                 <h5>Register as a Farmer</h5>
                 <ul>
-                    <li><a href="register.php">Register here</a> and choose the <strong>Farmer</strong> role.</li>
-                    <li><a href="login.php">Log in</a> if you already have an account.</li>
+                    <li><a href="#" data-auth-modal="signup">Register here</a> and choose the <strong>Farmer</strong> role.</li>
+                    <li><a href="#" data-auth-modal="login">Log in</a> if you already have an account.</li>
                 </ul>
             </div>
             <div class="hiw-card">
@@ -309,12 +416,16 @@
 </div>
 
 <script>
-function showTab(name, btn) {
-    document.querySelectorAll('.hiw-panel').forEach(function(p) { p.classList.remove('active'); });
-    document.querySelectorAll('.hiw-tab-btn').forEach(function(b) { b.classList.remove('active'); });
-    document.getElementById('panel-' + name).classList.add('active');
-    btn.classList.add('active');
-}
+    function showTab(name, btn) {
+        document.querySelectorAll('.hiw-panel').forEach(function(p) {
+            p.classList.remove('active');
+        });
+        document.querySelectorAll('.hiw-tab-btn').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        document.getElementById('panel-' + name).classList.add('active');
+        btn.classList.add('active');
+    }
 </script>
 
 <?php include 'includes/footer.php'; ?>

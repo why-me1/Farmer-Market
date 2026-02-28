@@ -3,7 +3,7 @@ session_start();
 require_once 'includes/notification_functions.php';
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
-    header('Location: login.php');
+    header('Location: ' . BASE_URL . 'index.php?auth=login');
     exit;
 }
 

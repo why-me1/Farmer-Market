@@ -6,7 +6,6 @@ require_once 'includes/config.php';
 require_once 'includes/functions.php';
 require_once 'includes/ratings.php';
 require_once 'includes/notification_functions.php';
-check_login();
 
 if (!isset($_GET['id'])) {
     header("Location: index.php");
@@ -369,7 +368,7 @@ $min_bid += 0.01;
                         <?php else: ?>
                             <div class="pd-login-prompt">
                                 <i class="fas fa-lock fa-2x"></i>
-                                <p>Please <a href="login.php">login</a> to place a bid</p>
+                                <p>Please <a href="#" data-auth-modal="login">login</a> or <a href="#" data-auth-modal="signup">register</a> to place a bid</p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -543,6 +542,11 @@ $min_bid += 0.01;
                                     <i class="fas fa-paper-plane"></i> Submit Review
                                 </button>
                             </form>
+                        </div>
+                    <?php elseif ($is_sold && !isset($_SESSION['user_id'])): ?>
+                        <div class="pd-login-prompt" style="margin-top:1rem;">
+                            <i class="fas fa-lock fa-2x"></i>
+                            <p><a href="#" data-auth-modal="login">Login</a> or <a href="#" data-auth-modal="signup">register</a> to leave a review</p>
                         </div>
                     <?php endif; ?>
                 </div>

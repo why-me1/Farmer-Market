@@ -124,6 +124,10 @@ $stmt->close();
             gap: 14px;
             margin-bottom: 22px;
             flex-wrap: wrap;
+            padding: 20px;
+            background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+            border-radius: 16px;
+            box-shadow: 0 4px 18px rgba(5, 100, 70, .25);
         }
 
         .stat-chip {
@@ -425,6 +429,7 @@ $stmt->close();
 
             .stats-strip {
                 gap: 10px;
+                padding: 16px;
             }
         }
     </style>
@@ -570,8 +575,6 @@ $stmt->close();
 
     <?php include '../includes/footer.php'; ?>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 
 </html>

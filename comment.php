@@ -6,7 +6,11 @@ require_once 'includes/notification_functions.php';
 require_once 'includes/ratings.php';
 session_start();
 
-
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_SESSION['user_id'])) {
+    $post_id = isset($_POST['post_id']) ? (int)$_POST['post_id'] : 0;
+    header('Location: ' . BASE_URL . 'index.php?auth=login');
+    exit();
+}
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
     $post_id = intval($_POST['post_id']);
@@ -80,6 +84,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_SESSION['user_id'])) {
     }
     $stmt->close();
 } else {
-    header("Location: login.php");
+    header('Location: ' . BASE_URL . 'index.php?auth=login');
     exit();
 }

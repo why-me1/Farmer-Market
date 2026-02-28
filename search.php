@@ -4,7 +4,6 @@ include 'includes/db.php'; // Database connection
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
-check_login();
 
 // Get search parameters
 $search_query = isset($_GET['q']) ? sanitize($_GET['q']) : '';

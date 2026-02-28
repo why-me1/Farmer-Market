@@ -31,6 +31,9 @@ elseif ($role === 'admin')   $dashboard_url = $base_url . 'admin/dashboard.php';
 
 // User avatar initials
 $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
+
+// Display label: show "Buyer" for role "user"
+$display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
 ?>
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -68,9 +71,15 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
         display: flex;
         align-items: center;
         gap: 10px;
-        text-decoration: none;
+        text-decoration: none !important;
         flex-shrink: 0;
         margin-right: 28px;
+    }
+
+    .fm-brand:hover,
+    .fm-brand:focus,
+    .fm-brand:active {
+        text-decoration: none !important;
     }
 
     .fm-brand-icon {
@@ -871,14 +880,14 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
                         <div class="fm-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
                         <div>
                             <div class="fm-user-name"><?php echo htmlspecialchars($username); ?></div>
-                            <div class="fm-user-role-tag"><?php echo htmlspecialchars($role); ?></div>
+                            <div class="fm-user-role-tag"><?php echo htmlspecialchars($display_role); ?></div>
                         </div>
                         <i class="fas fa-chevron-down fm-caret"></i>
                     </div>
                     <div class="fm-dropdown-menu" id="userDropdownMenu">
                         <div class="fm-dropdown-header">
                             <div class="dh-name"><?php echo htmlspecialchars($username); ?></div>
-                            <div class="dh-role"><?php echo htmlspecialchars($role); ?></div>
+                            <div class="dh-role"><?php echo htmlspecialchars($display_role); ?></div>
                         </div>
                         <?php if ($role !== 'guest'): ?>
                             <a class="fm-dropdown-item" href="<?php echo $dashboard_url; ?>">
@@ -912,8 +921,8 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
 
             <?php else: ?>
                 <div class="fm-divider"></div>
-                <a class="fm-btn-login" href="<?php echo $base_url; ?>login.php">Login</a>
-                <a class="fm-btn-register" href="<?php echo $base_url; ?>register.php">Sign Up</a>
+                <a class="fm-btn-login" href="#" data-auth-modal="login">Login</a>
+                <a class="fm-btn-register" href="#" data-auth-modal="signup">Sign Up</a>
             <?php endif; ?>
         </div>
 
@@ -931,7 +940,7 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
             <div class="fm-mobile-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
             <div class="fm-mobile-user-info">
                 <div class="mu-name"><?php echo htmlspecialchars($username); ?></div>
-                <div class="mu-role"><?php echo htmlspecialchars($role); ?></div>
+                <div class="mu-role"><?php echo htmlspecialchars($display_role); ?></div>
             </div>
         </div>
     <?php endif; ?>
@@ -959,8 +968,8 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
     <?php else: ?>
         <div class="fm-mobile-divider"></div>
         <div class="fm-mobile-auth">
-            <a class="m-login" href="<?php echo $base_url; ?>login.php">Login</a>
-            <a class="m-register" href="<?php echo $base_url; ?>register.php">Sign Up</a>
+            <a class="m-login" href="#" data-auth-modal="login">Login</a>
+            <a class="m-register" href="#" data-auth-modal="signup">Sign Up</a>
         </div>
     <?php endif; ?>
 </div>
@@ -1116,3 +1125,5 @@ $avatar_initials = $username ? strtoupper(substr($username, 0, 2)) : '';
 
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<?php require_once __DIR__ . '/auth_modal.php'; ?>

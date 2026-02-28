@@ -4,7 +4,6 @@ include 'includes/db.php'; // Database connection
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
-check_login();
 ?>
 
 <!DOCTYPE html>
@@ -418,7 +417,11 @@ check_login();
                 </div>
                 <div class="seller-cta-actions">
                     <a href="how_to_sell.php" class="btn seller-cta-btn-outline">Learn More</a>
-                    <a href="register.php" class="btn seller-cta-btn-primary"><i class="fas fa-plus me-2"></i>Start Selling</a>
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                        <a href="#" data-auth-modal="signup" class="btn seller-cta-btn-primary"><i class="fas fa-plus me-2"></i>Start Selling</a>
+                    <?php else: ?>
+                        <a href="farmer/create_post.php" class="btn seller-cta-btn-primary"><i class="fas fa-plus me-2"></i>Start Selling</a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
