@@ -178,324 +178,411 @@ $min_bid += 0.01;
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
-    <!-- browser cache problem solution --- add version number for production and add echo time for development -->
 </head>
 
 <body>
     <?php include 'includes/nav.php'; ?>
 
-    <!-- <div style="background: yellow; padding: 10px; margin: 10px;">
-        <strong>Debug Base URL:</strong> <?php echo $base_url; ?><br>
-        <strong>CSS Path:</strong> <?php echo $base_url; ?>assets/css/styles.css
-    </div> -->
+    <div class="pd-page-wrapper">
 
-    <div class="main-container">
-        <div class="product-detail-page">
-            <!-- Main Content: Image Left, Bidding Right -->
-            <div class="row mb-5">
-                <!-- Left Column: Product Image (Fixed Size) -->
-                <div class="col-lg-5 col-md-12 mb-4 mb-lg-0">
-                    <div class="product-image-wrapper">
-                        <?php if ($post['image']): ?>
-                            <div class="product-image-fixed">
-                                <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>"
-                                    class="product-main-image"
-                                    alt="<?php echo htmlspecialchars($post['product_name']); ?>">
-                                <?php if ($is_sold): ?>
-                                    <img src="assets/images/sold.png" class="sold-stamp" alt="Sold">
-                                <?php elseif ($is_unsold): ?>
-                                    <img src="assets/images/unsold.png" class="unsold-stamp" alt="Unsold">
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
+        <!-- Breadcrumb -->
+        <div class="pd-breadcrumb">
+            <a href="index.php"><i class="fas fa-home"></i> Home</a>
+            <span class="pd-breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+            <a href="browse.php">Browse</a>
+            <span class="pd-breadcrumb-sep"><i class="fas fa-chevron-right"></i></span>
+            <span><?php echo htmlspecialchars($post['product_name']); ?></span>
+        </div>
 
-                        <!-- Product Basic Info Below Image -->
-                        <div class="product-basic-info">
-                            <h1 class="product-title-small"><?php echo htmlspecialchars($post['product_name']); ?></h1>
-                            <p class="product-description-small"><?php echo htmlspecialchars($post['description']); ?></p>
-                            <div class="product-meta-list">
-                                <div class="meta-item">
-                                    <i class="fas fa-tag"></i>
-                                    <span>Category: <strong><?php echo htmlspecialchars($post['category']); ?></strong></span>
+        <!-- Main two-column grid -->
+        <div class="pd-main-grid">
+
+            <!-- ===== LEFT COLUMN ===== -->
+            <div class="pd-left-col">
+
+                <!-- Image Card -->
+                <div class="pd-image-card">
+                    <?php if ($post['image']): ?>
+                        <div class="pd-image-container">
+                            <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>"
+                                alt="<?php echo htmlspecialchars($post['product_name']); ?>"
+                                class="pd-main-img">
+                            <!-- Status overlays -->
+                            <?php if ($is_live): ?>
+                                <div class="pd-float-badge live-badge">
+                                    <span class="live-dot"></span> LIVE
                                 </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-dollar-sign"></i>
-                                    <span>Starting Price: <strong class="text-primary"><?php echo number_format($post['price'], 2); ?>৳</strong></span>
+                            <?php elseif (!$is_live && !$is_ended): ?>
+                                <div class="pd-float-badge upcoming-badge">
+                                    <i class="fas fa-hourglass-start"></i> UPCOMING
                                 </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-balance-scale"></i>
-                                    <span>Quantity: <strong><?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?></strong></span>
+                            <?php elseif ($is_sold): ?>
+                                <div class="pd-float-badge sold-badge">
+                                    <i class="fas fa-check-circle"></i> SOLD
                                 </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-user"></i>
-                                    <span>Farmer: <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-link"><?php echo htmlspecialchars($post['username']); ?> <i class="fas fa-external-link-alt"></i></a></span>
-                                    <span style="margin-left:10px; color:#444;">Fairness rating: <strong><?php echo number_format($farmer_auto_rating, 1); ?></strong>/10</span>
+                            <?php elseif ($is_unsold): ?>
+                                <div class="pd-float-badge unsold-badge">
+                                    <i class="fas fa-times-circle"></i> UNSOLD
                                 </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-calendar"></i>
-                                    <span>Posted: <?php echo date("d M Y, h:i A", strtotime($post['created_at'])); ?></span>
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-history"></i>
-                                    <span>Auction Start: <strong><?php echo date("d M Y, h:i A", $auction_start_time); ?></strong></span>
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-clock"></i>
-                                    <span>Auction End: <strong><?php echo date("d M Y, h:i A", $auction_end_time); ?></strong></span>
-                                </div>
-                            </div>
+                            <?php endif; ?>
                         </div>
-                    </div>
+                    <?php else: ?>
+                        <div class="pd-image-placeholder">
+                            <i class="fas fa-seedling fa-4x"></i>
+                            <p>No image available</p>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
-                <!-- Right Column: Bidding Section (Sticky Sidebar) -->
-                <div class="col-lg-7 col-md-12">
-                    <div class="bidding-sidebar-wrapper">
-                        <!-- Place Bids Card -->
-                        <?php if ($is_live): ?>
-                            <div class="bidding-card-right place-bid-card">
-                                <h3 class="card-title-right"><i class="fas fa-circle-notch fa-spin me-2" style="color: #f77f00;"></i>LIVE Auction</h3>
-                                <?php if (isset($_SESSION['user_id'])): ?>
-                                    <form action="comment.php" method="POST">
-                                        <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
-                                        <div class="bid-input-group">
-                                            <label class="bid-label">Your Bid Amount (৳)</label>
-                                            <input type="number" name="comment_text"
-                                                class="bid-input"
-                                                placeholder="Enter bid amount"
-                                                required step="0.01" min="0.01"
-                                                value="<?php echo $min_bid; ?>">
-                                        </div>
-                                        <div class="bid-info-small mb-3">
-                                            <small>
-                                                <i class="fas fa-info-circle"></i>
-                                                <?php if ($max_bid): ?>
-                                                    Current highest bid: <strong><?php echo number_format($max_bid, 2); ?>৳</strong>
-                                                <?php else: ?>
-                                                    No bids yet. Be the first to bid!
-                                                <?php endif; ?>
-                                            </small>
-                                        </div>
-                                        <div class="time-remaining-small mb-3" id="detail-countdown-small" data-end-time="<?php echo $auction_end_time; ?>">
-                                            <i class="fas fa-clock"></i>
-                                            <span class="countdown-text-small">Time Remaining: </span>
-                                        </div>
-                                        <button type="submit" class="btn btn-primary btn-block btn-bid">
-                                            <i class="fas fa-gavel"></i> Place Bid
-                                        </button>
-                                    </form>
-                                <?php else: ?>
-                                    <div class="login-prompt-small">
-                                        <p>Please <a href="login.php">login</a> to place a bid</p>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php elseif (!$is_live && !$is_ended): ?>
-                            <div class="bidding-card-right place-bid-card">
-                                <h3 class="card-title-right"><i class="fas fa-hourglass-start me-2"></i>Upcoming Auction</h3>
-                                <div class="status-badge-large pending mb-3">
-                                    <i class="fas fa-hourglass-start"></i> Auction starts on
-                                </div>
-                                <p class="auction-date-text"><strong><?php echo date("d M Y, h:i A", $auction_start_time); ?></strong></p>
-                                <div class="alert alert-info">
-                                    <small>Auction will go live at the scheduled start date and time.</small>
-                                </div>
-                            </div>
-                        <?php else: ?>
-                            <!-- Status Card for Sold/Unsold -->
-                            <div class="bidding-card-right">
-                                <?php if ($is_sold): ?>
-                                    <div class="status-message-large sold">
-                                        <i class="fas fa-check-circle fa-3x mb-3"></i>
-                                        <h4>Product Sold!</h4>
-                                        <p>Congratulations to the winning bidder!</p>
-                                    </div>
-                                <?php elseif ($is_unsold): ?>
-                                    <div class="status-message-large unsold">
-                                        <i class="fas fa-times-circle fa-3x mb-3"></i>
-                                        <h4>Product Unsold</h4>
-                                        <p>Minimum price not met</p>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
+                <!-- Product Info Card -->
+                <div class="pd-info-card">
+                    <div class="pd-info-header">
+                        <span class="pd-category-pill">
+                            <i class="fas fa-tag"></i> <?php echo htmlspecialchars($post['category']); ?>
+                        </span>
+                        <?php if ($avg_rating > 0): ?>
+                            <span class="pd-rating-pill">
+                                <i class="fas fa-star"></i> <?php echo $avg_rating; ?> / 5
+                            </span>
                         <?php endif; ?>
+                    </div>
 
-                        <!-- Recent Top Bids Card -->
-                        <div class="bidding-card-right bids-card-only">
-                            <h3 class="card-title-right">Recent Top Bids</h3>
-                            <div class="recent-bids-list">
-                                <?php if ($bids_result->num_rows > 0): ?>
-                                    <?php
-                                    $bid_count = 0;
-                                    while ($bid = $bids_result->fetch_assoc()):
-                                        $bid_count++;
-                                    ?>
-                                        <div class="bid-item-single-line <?php echo $bid['is_approved'] ? 'winning-bid-line' : ''; ?>">
-                                            <span class="bid-name-single">
-                                                <a href="<?php echo $base_url; ?>user/profile.php?id=<?php echo (int)$bid['bidder_id']; ?>" class="text-dark">
-                                                    <?php echo htmlspecialchars($bid['username']); ?>
-                                                </a>
-                                                <?php if ($bid['is_approved']): ?>
-                                                    <i class="fas fa-crown winning-icon-small"></i>
-                                                <?php endif; ?>
-                                            </span>
-                                            <span class="bid-price-single"><?php echo number_format($bid['comment_text'], 2); ?>৳</span>
-                                            <span class="bid-date-single"><?php echo date("h:i A", strtotime($bid['created_at'])); ?></span>
-                                        </div>
-                                    <?php
-                                    endwhile;
-                                    if ($bid_count >= 10):
-                                    ?>
-                                        <div class="text-center mt-2">
-                                            <small class="text-muted">Showing top 10 bids</small>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <div class="no-bids-message-small">
-                                        <i class="fas fa-gavel"></i>
-                                        <p>No bids yet. Be the first!</p>
-                                    </div>
-                                <?php endif; ?>
+                    <h1 class="pd-product-title"><?php echo htmlspecialchars($post['product_name']); ?></h1>
+
+                    <?php if (!empty($post['description'])): ?>
+                        <p class="pd-description"><?php echo nl2br(htmlspecialchars($post['description'])); ?></p>
+                    <?php endif; ?>
+
+                    <!-- Key stats row -->
+                    <div class="pd-stats-strip">
+                        <div class="pd-stat-item">
+                            <div class="pd-stat-label">Starting Price</div>
+                            <div class="pd-stat-value price-val"><?php echo number_format($post['price'], 2); ?>৳</div>
+                        </div>
+                        <div class="pd-stat-divider"></div>
+                        <div class="pd-stat-item">
+                            <div class="pd-stat-label">Quantity</div>
+                            <div class="pd-stat-value"><?php echo htmlspecialchars($post['quantity']); ?> <small><?php echo htmlspecialchars($post['unit']); ?></small></div>
+                        </div>
+                        <div class="pd-stat-divider"></div>
+                        <div class="pd-stat-item">
+                            <div class="pd-stat-label">Total Bids</div>
+                            <div class="pd-stat-value"><?php echo $total_bids; ?></div>
+                        </div>
+                    </div>
+
+                    <!-- Meta rows -->
+                    <div class="pd-meta-grid">
+                        <div class="pd-meta-row">
+                            <div class="pd-meta-icon"><i class="fas fa-user-tie"></i></div>
+                            <div class="pd-meta-content">
+                                <span class="pd-meta-label">Farmer</span>
+                                <span class="pd-meta-val">
+                                    <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="pd-farmer-link">
+                                        <?php echo htmlspecialchars($post['username']); ?>
+                                        <i class="fas fa-external-link-alt pd-ext-icon"></i>
+                                    </a>
+                                    <span class="pd-fairness-badge">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <?php echo number_format($farmer_auto_rating, 1); ?>/10 fairness
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="pd-meta-row">
+                            <div class="pd-meta-icon"><i class="fas fa-calendar-alt"></i></div>
+                            <div class="pd-meta-content">
+                                <span class="pd-meta-label">Posted</span>
+                                <span class="pd-meta-val"><?php echo date("d M Y, h:i A", strtotime($post['created_at'])); ?></span>
+                            </div>
+                        </div>
+                        <div class="pd-meta-row">
+                            <div class="pd-meta-icon"><i class="fas fa-play-circle"></i></div>
+                            <div class="pd-meta-content">
+                                <span class="pd-meta-label">Auction Start</span>
+                                <span class="pd-meta-val"><?php echo date("d M Y, h:i A", $auction_start_time); ?></span>
+                            </div>
+                        </div>
+                        <div class="pd-meta-row">
+                            <div class="pd-meta-icon"><i class="fas fa-stop-circle"></i></div>
+                            <div class="pd-meta-content">
+                                <span class="pd-meta-label">Auction End</span>
+                                <span class="pd-meta-val"><?php echo date("d M Y, h:i A", $auction_end_time); ?></span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Reviews Section (At the bottom) -->
+            <!-- ===== RIGHT COLUMN ===== -->
+            <div class="pd-right-col">
 
-
-
-            <section class="reviews-section-full">
-                <div class="section-header">
-                    <h2><i class="fas fa-star me-2"></i>Customer Reviews</h2>
-                </div>
-
-                <!-- Average Rating Summary at Top -->
-                <div class="rating-summary-top mb-4">
-                    <div class="rating-display-large">
-                        <div class="avg-rating-box">
-                            <div class="avg-rating-big"><?php echo $avg_rating > 0 ? $avg_rating : '0.0'; ?></div>
-                            <div class="avg-rating-stars-top">
-                                <?php
-                                if ($avg_rating > 0) {
-                                    $starsFilled = (int)round($avg_rating);
-                                    echo str_repeat('★', $starsFilled) . str_repeat('☆', 5 - $starsFilled);
-                                } else {
-                                    echo '☆☆☆☆☆';
-                                }
-                                ?>
+                <!-- Bidding / Status Card -->
+                <?php if ($is_live): ?>
+                    <div class="pd-bid-card pd-bid-live">
+                        <div class="pd-bid-card-header">
+                            <div class="pd-live-label">
+                                <span class="live-pulse-dot"></span>
+                                LIVE AUCTION
                             </div>
-                            <div class="total-reviews-count">
-                                <?php echo $total_reviews; ?> Review<?php echo $total_reviews != 1 ? 's' : ''; ?>
+                            <div class="pd-countdown-badge" id="pd-countdown">
+                                <i class="fas fa-clock"></i>
+                                <span id="pd-countdown-text">Loading…</span>
                             </div>
                         </div>
+
+                        <div class="pd-current-bid-box">
+                            <?php if ($max_bid): ?>
+                                <div class="pd-bid-highlight">
+                                    <span class="pd-bid-highlight-label">Current Highest Bid</span>
+                                    <span class="pd-bid-highlight-amount"><?php echo number_format($max_bid, 2); ?>৳</span>
+                                </div>
+                            <?php else: ?>
+                                <div class="pd-no-bid-msg">
+                                    <i class="fas fa-gavel fa-2x"></i>
+                                    <p>No bids yet — be the first!</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if (isset($_SESSION['user_id'])): ?>
+                            <form action="comment.php" method="POST" class="pd-bid-form">
+                                <input type="hidden" name="post_id" value="<?php echo $post_id; ?>">
+                                <label class="pd-bid-input-label">Your Bid Amount</label>
+                                <div class="pd-bid-input-wrap">
+                                    <span class="pd-currency-sym">৳</span>
+                                    <input type="number" name="comment_text"
+                                        class="pd-bid-input"
+                                        placeholder="0.00"
+                                        required step="0.01" min="0.01"
+                                        value="<?php echo $min_bid; ?>">
+                                </div>
+                                <p class="pd-min-bid-hint">
+                                    <i class="fas fa-info-circle"></i>
+                                    Minimum bid: <strong><?php echo number_format($min_bid, 2); ?>৳</strong>
+                                </p>
+                                <button type="submit" class="pd-place-bid-btn">
+                                    <i class="fas fa-gavel"></i> Place Bid
+                                </button>
+                            </form>
+                        <?php else: ?>
+                            <div class="pd-login-prompt">
+                                <i class="fas fa-lock fa-2x"></i>
+                                <p>Please <a href="login.php">login</a> to place a bid</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                <?php elseif (!$is_live && !$is_ended): ?>
+                    <div class="pd-bid-card pd-bid-upcoming">
+                        <div class="pd-upcoming-icon"><i class="fas fa-hourglass-half fa-2x"></i></div>
+                        <h3 class="pd-upcoming-title">Upcoming Auction</h3>
+                        <p class="pd-upcoming-desc">This auction has not started yet.</p>
+                        <div class="pd-upcoming-date-box">
+                            <span class="pd-upcoming-date-label">Starts on</span>
+                            <span class="pd-upcoming-date-val"><?php echo date("d M Y", $auction_start_time); ?></span>
+                            <span class="pd-upcoming-time-val"><?php echo date("h:i A", $auction_start_time); ?></span>
+                        </div>
+                    </div>
+
+                <?php else: ?>
+                    <?php if ($is_sold): ?>
+                        <div class="pd-bid-card pd-bid-sold">
+                            <div class="pd-sold-icon"><i class="fas fa-trophy fa-3x"></i></div>
+                            <h3>Auction Closed</h3>
+                            <p class="pd-sold-sub">This product was sold!</p>
+                            <?php if ($max_bid): ?>
+                                <div class="pd-sold-final-price">
+                                    Final Price: <strong><?php echo number_format($max_bid, 2); ?>৳</strong>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="pd-bid-card pd-bid-unsold">
+                            <div class="pd-unsold-icon"><i class="fas fa-times-circle fa-3x"></i></div>
+                            <h3>Auction Ended</h3>
+                            <p class="pd-unsold-sub">This product did not meet the reserve price.</p>
+                            <div class="pd-unsold-detail">
+                                <small>Minimum 5 bids required &bull; <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?> received</small>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- Bid History Card -->
+                <div class="pd-bids-card">
+                    <div class="pd-bids-card-header">
+                        <h3 class="pd-bids-title"><i class="fas fa-list-ol"></i> Bid History</h3>
+                        <span class="pd-bids-count-pill"><?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?></span>
+                    </div>
+
+                    <div class="pd-bids-list">
+                        <?php if ($bids_result->num_rows > 0): ?>
+                            <?php
+                            $bid_rank = 0;
+                            while ($bid = $bids_result->fetch_assoc()):
+                                $bid_rank++;
+                                $initials = strtoupper(substr($bid['username'], 0, 2));
+                            ?>
+                                <div class="pd-bid-row <?php echo $bid['is_approved'] ? 'pd-bid-winner' : ''; ?>">
+                                    <span class="pd-bid-rank-num"><?php echo $bid_rank; ?></span>
+                                    <span class="pd-bidder-avatar-sm"><?php echo $initials; ?></span>
+                                    <span class="pd-bidder-name">
+                                        <a href="<?php echo $base_url; ?>user/profile.php?id=<?php echo (int)$bid['bidder_id']; ?>">
+                                            <?php echo htmlspecialchars($bid['username']); ?>
+                                        </a>
+                                        <?php if ($bid['is_approved']): ?>
+                                            <i class="fas fa-crown pd-winner-crown" title="Winner"></i>
+                                        <?php endif; ?>
+                                    </span>
+                                    <span class="pd-bid-amount-col"><?php echo number_format($bid['comment_text'], 2); ?>৳</span>
+                                    <span class="pd-bid-time-col"><?php echo date("h:i A", strtotime($bid['created_at'])); ?></span>
+                                </div>
+                            <?php
+                            endwhile;
+                            if ($bid_rank >= 10):
+                            ?>
+                                <p class="pd-bids-note">Showing latest 10 bids</p>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="pd-no-bids-placeholder">
+                                <i class="fas fa-gavel fa-2x"></i>
+                                <p>No bids placed yet</p>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <!-- All Reviews List -->
-                <div class="reviews-list-full mb-4">
+            </div><!-- /pd-right-col -->
+        </div><!-- /pd-main-grid -->
+
+        <!-- ===== REVIEWS SECTION ===== -->
+        <div class="pd-reviews-section">
+            <div class="pd-reviews-header">
+                <h2><i class="fas fa-star"></i> Customer Reviews</h2>
+            </div>
+
+            <div class="pd-reviews-body">
+                <!-- Rating Summary -->
+                <div class="pd-rating-summary">
+                    <div class="pd-rating-big-num"><?php echo $avg_rating > 0 ? $avg_rating : '—'; ?></div>
+                    <div class="pd-rating-stars-display">
+                        <?php
+                        if ($avg_rating > 0) {
+                            $starsFilled = (int)round($avg_rating);
+                            for ($s = 1; $s <= 5; $s++) {
+                                echo '<i class="fas fa-star' . ($s <= $starsFilled ? '' : '-o') . '"></i>';
+                            }
+                        } else {
+                            for ($s = 0; $s < 5; $s++) echo '<i class="far fa-star"></i>';
+                        }
+                        ?>
+                    </div>
+                    <div class="pd-rating-total-label"><?php echo $total_reviews; ?> review<?php echo $total_reviews != 1 ? 's' : ''; ?></div>
+                </div>
+
+                <!-- Review cards -->
+                <div class="pd-review-cards-col">
                     <?php if ($reviews_result->num_rows > 0): ?>
-                        <?php while ($review = $reviews_result->fetch_assoc()): ?>
-                            <div class="review-box">
-                                <div class="review-box-header">
-                                    <div class="reviewer-info">
-                                        <strong class="reviewer-name"><?php echo htmlspecialchars($review['username']); ?></strong>
-                                        <div class="rating-stars-small mt-1">
-                                            <?php
-                                            $reviewStars = (int)$review['rating'];
-                                            echo str_repeat('★', $reviewStars) . str_repeat('☆', 5 - $reviewStars);
-                                            ?>
+                        <?php while ($review = $reviews_result->fetch_assoc()):
+                            $rInitials = strtoupper(substr($review['username'], 0, 2));
+                            $rStars    = (int)$review['rating'];
+                        ?>
+                            <div class="pd-review-card">
+                                <div class="pd-review-top">
+                                    <div class="pd-reviewer-left">
+                                        <span class="pd-reviewer-avatar"><?php echo $rInitials; ?></span>
+                                        <div>
+                                            <strong class="pd-reviewer-name"><?php echo htmlspecialchars($review['username']); ?></strong>
+                                            <div class="pd-review-stars">
+                                                <?php for ($s = 1; $s <= 5; $s++): ?>
+                                                    <i class="fas fa-star <?php echo $s <= $rStars ? 'star-filled' : 'star-empty'; ?>"></i>
+                                                <?php endfor; ?>
+                                            </div>
                                         </div>
                                     </div>
-                                    <small class="review-date-text"><?php echo date("d M Y", strtotime($review['created_at'])); ?></small>
+                                    <span class="pd-review-date"><?php echo date("d M Y", strtotime($review['created_at'])); ?></span>
                                 </div>
-                                <div class="review-box-content">
-                                    <p class="review-text"><?php echo htmlspecialchars($review['review_text']); ?></p>
-                                </div>
+                                <p class="pd-review-text"><?php echo htmlspecialchars($review['review_text']); ?></p>
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <div class="no-reviews-message">
-                            <i class="fas fa-comments fa-2x text-muted mb-2"></i>
-                            <p class="text-muted">No reviews yet for this product.</p>
+                        <div class="pd-no-reviews">
+                            <i class="far fa-comment-dots fa-3x"></i>
+                            <p>No reviews yet for this product.</p>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Leave a Review -->
+                    <?php if ($is_sold && isset($_SESSION['user_id'])): ?>
+                        <div class="pd-leave-review-card" id="review-section">
+                            <h5><i class="fas fa-pen"></i> Leave a Review</h5>
+                            <form id="reviewForm" method="POST" action="submit_review.php">
+                                <div class="pd-review-form-row">
+                                    <div class="pd-form-group">
+                                        <label for="rating">Rating</label>
+                                        <select name="rating" id="rating" class="pd-form-select" required>
+                                            <option value="">Select…</option>
+                                            <option value="5">★★★★★ Excellent</option>
+                                            <option value="4">★★★★☆ Good</option>
+                                            <option value="3">★★★☆☆ Average</option>
+                                            <option value="2">★★☆☆☆ Poor</option>
+                                            <option value="1">★☆☆☆☆ Very Poor</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="pd-form-group">
+                                    <label for="review_text">Your Review</label>
+                                    <textarea name="review_text" id="review_text" class="pd-form-textarea"
+                                        rows="3" required
+                                        placeholder="Share your experience with this product…"></textarea>
+                                </div>
+                                <input type="hidden" name="product_id" value="<?php echo $post_id; ?>">
+                                <button type="submit" class="pd-submit-review-btn">
+                                    <i class="fas fa-paper-plane"></i> Submit Review
+                                </button>
+                            </form>
                         </div>
                     <?php endif; ?>
                 </div>
-
-                <!-- Leave a Review Form (At the very bottom) -->
-                <?php if ($is_sold && isset($_SESSION['user_id'])): ?>
-                    <div class="review-form-card" id="review-section">
-                        <h5><i class="fas fa-edit me-2"></i>Leave a Review</h5>
-                        <form id="reviewForm" method="POST" action="submit_review.php">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="rating" class="form-label">Rating:</label>
-                                    <select name="rating" id="rating" class="form-control" required>
-                                        <option value="">Select Rating</option>
-                                        <option value="5">★★★★★ Excellent</option>
-                                        <option value="4">★★★★☆ Good</option>
-                                        <option value="3">★★★☆☆ Average</option>
-                                        <option value="2">★★☆☆☆ Poor</option>
-                                        <option value="1">★☆☆☆☆ Very Poor</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-12 mb-3">
-                                    <label for="review_text" class="form-label">Review:</label>
-                                    <textarea name="review_text" id="review_text" class="form-control" rows="3" required placeholder="Write your review here..."></textarea>
-                                </div>
-                            </div>
-                            <input type="hidden" name="product_id" value="<?php echo $post_id; ?>">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-paper-plane me-2"></i>Submit Review
-                            </button>
-                        </form>
-                    </div>
-                <?php endif; ?>
-            </section>
+            </div>
         </div>
-    </div>
+
+    </div><!-- /pd-page-wrapper -->
 
     <script>
-        // Countdown timer for detail page
-        <?php if ($bidding_end_time && $bidding_end_time > $current_time): ?>
-            document.addEventListener('DOMContentLoaded', function() {
-                const countdownElement = document.getElementById('detail-countdown-small');
-                const timeDisplay = countdownElement.querySelector('.countdown-text-small');
-                const endTime = <?php echo $bidding_end_time; ?>;
+        // Live countdown timer
+        <?php if ($is_live && $auction_end_time > $current_time): ?>
+                (function() {
+                    const endTime = <?php echo $auction_end_time; ?>;
+                    const textEl = document.getElementById('pd-countdown-text');
 
-                function updateCountdown() {
-                    const currentTime = Math.floor(Date.now() / 1000);
-                    const remainingTime = endTime - currentTime;
-
-                    if (remainingTime <= 0) {
-                        timeDisplay.textContent = 'Bidding Closed!';
-                        timeDisplay.style.color = '#e63946';
-                    } else {
-                        const days = Math.floor(remainingTime / 86400);
-                        const hours = Math.floor((remainingTime % 86400) / 3600);
-                        const minutes = Math.floor((remainingTime % 3600) / 60);
-                        const seconds = remainingTime % 60;
-
-                        let timeString = '';
-                        if (days > 0) {
-                            timeString = `${days}d ${hours}h ${minutes}m`;
-                        } else if (hours > 0) {
-                            timeString = `${hours}h ${minutes}m ${seconds}s`;
-                        } else {
-                            timeString = `${minutes}m ${seconds}s`;
-                        }
-
-                        timeDisplay.textContent = timeString;
-                        timeDisplay.style.color = '#046307';
+                    function pad(n) {
+                        return String(n).padStart(2, '0');
                     }
-                }
 
-                updateCountdown();
-                setInterval(updateCountdown, 1000);
-            });
+                    function tick() {
+                        const now = Math.floor(Date.now() / 1000);
+                        const diff = endTime - now;
+                        if (!textEl) return;
+                        if (diff <= 0) {
+                            textEl.textContent = 'Ended';
+                            textEl.style.color = '#e63946';
+                            return;
+                        }
+                        const d = Math.floor(diff / 86400);
+                        const h = Math.floor((diff % 86400) / 3600);
+                        const m = Math.floor((diff % 3600) / 60);
+                        const s = diff % 60;
+                        textEl.textContent = d > 0 ?
+                            `${d}d ${pad(h)}h ${pad(m)}m` :
+                            `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+                    }
+
+                    tick();
+                    setInterval(tick, 1000);
+                })();
         <?php endif; ?>
     </script>
 

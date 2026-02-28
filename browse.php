@@ -1,19 +1,33 @@
 <?php
 session_start();
-include 'includes/db.php'; // Database connection
+include 'includes/db.php';
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
 check_login();
 
-// Get category from URL
 $category = isset($_GET['category']) ? sanitize($_GET['category']) : 'Vegetables';
 
-// Verify category exists
 $valid_categories = ['Vegetables', 'Fruits', 'Grains', 'Dairy', 'Eggs', 'Honey', 'Herbs', 'Root Vegetables'];
 if (!in_array($category, $valid_categories)) {
     $category = 'Vegetables';
 }
+
+// Category meta: icon + gradient colours
+$cat_meta = [
+    'Vegetables'      => ['icon' => 'fa-leaf',        'grad' => 'linear-gradient(135deg,#16a34a,#4ade80)', 'light' => '#dcfce7'],
+    'Fruits'          => ['icon' => 'fa-apple-alt',   'grad' => 'linear-gradient(135deg,#dc2626,#f87171)', 'light' => '#fee2e2'],
+    'Grains'          => ['icon' => 'fa-seedling',    'grad' => 'linear-gradient(135deg,#d97706,#fbbf24)', 'light' => '#fef3c7'],
+    'Dairy'           => ['icon' => 'fa-droplet',     'grad' => 'linear-gradient(135deg,#2563eb,#60a5fa)', 'light' => '#dbeafe'],
+    'Eggs'            => ['icon' => 'fa-egg',         'grad' => 'linear-gradient(135deg,#ca8a04,#fde047)', 'light' => '#fefce8'],
+    'Honey'           => ['icon' => 'fa-fill-drip',   'grad' => 'linear-gradient(135deg,#b45309,#fb923c)', 'light' => '#fff7ed'],
+    'Herbs'           => ['icon' => 'fa-spa',         'grad' => 'linear-gradient(135deg,#059669,#34d399)', 'light' => '#ecfdf5'],
+    'Root Vegetables' => ['icon' => 'fa-carrot',      'grad' => 'linear-gradient(135deg,#ea580c,#fb923c)', 'light' => '#fff7ed'],
+];
+$meta  = $cat_meta[$category];
+$icon  = $meta['icon'];
+$grad  = $meta['grad'];
+$light = $meta['light'];
 ?>
 
 <!DOCTYPE html>
@@ -22,7 +36,7 @@ if (!in_array($category, $valid_categories)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $category; ?> - Farmers' Marketplace</title>
+    <title><?php echo $category; ?> – Farmers' Marketplace</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,171 +48,294 @@ if (!in_array($category, $valid_categories)) {
 <body>
     <?php include 'includes/nav.php'; ?>
 
-    <div class="main-container">
-        <!-- Category Header -->
-        <div class="category-header-section mb-5">
-            <div class="category-header-content">
-                <h1 class="category-title"><?php echo $category; ?></h1>
-                <p class="category-description">Browse all fresh <?php echo strtolower($category); ?> from trusted farmers</p>
+    <div class="br-wrapper">
+
+        <!-- ===== HERO HEADER ===== -->
+        <div class="br-hero" style="background:<?php echo $grad; ?>">
+            <div class="br-hero-shapes"></div>
+            <div class="br-hero-content">
+                <div class="br-hero-icon">
+                    <i class="fas <?php echo $icon; ?>"></i>
+                </div>
+                <div>
+                    <h1 class="br-hero-title"><?php echo $category; ?></h1>
+                    <p class="br-hero-sub">Browse fresh <?php echo strtolower($category); ?> from trusted local farmers</p>
+                </div>
             </div>
         </div>
 
-        <!-- Category Navigation Tabs -->
-        <div class="category-nav-tabs mb-5">
-            <div class="category-tabs-scroll">
-                <?php foreach ($valid_categories as $cat): ?>
-                    <a href="browse.php?category=<?php echo urlencode($cat); ?>" class="category-tab <?php echo $cat === $category ? 'active' : ''; ?>">
-                        <?php echo $cat; ?>
+        <!-- ===== CATEGORY TABS ===== -->
+        <div class="br-tabs-bar">
+            <div class="br-tabs-scroll">
+                <?php foreach ($valid_categories as $cat):
+                    $c = $cat_meta[$cat];
+                    $isActive = $cat === $category;
+                ?>
+                    <a href="browse.php?category=<?php echo urlencode($cat); ?>"
+                        class="br-tab <?php echo $isActive ? 'br-tab-active' : ''; ?>"
+                        title="<?php echo $cat; ?>">
+                        <i class="fas <?php echo $c['icon']; ?> br-tab-icon"></i>
+                        <span><?php echo $cat; ?></span>
                     </a>
                 <?php endforeach; ?>
             </div>
         </div>
 
-        <!-- Products Grid -->
-        <div class="category-products-section">
-            <div class="row">
-                <?php
-                // Get all active products in this category, sorted by price
-                $products_stmt = $conn->prepare("SELECT posts.*, users.username,
-                                               (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
-                                               (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
-                                               FROM posts 
-                                               JOIN users ON posts.farmer_id = users.id 
-                                               WHERE posts.is_approved = 1 AND posts.status = 'active'
-                                               AND posts.category = ?
-                                               ORDER BY posts.price ASC");
-                $products_stmt->bind_param("s", $category);
-                $products_stmt->execute();
-                $products_result = $products_stmt->get_result();
+        <!-- ===== PRODUCTS AREA ===== -->
+        <div class="br-content">
 
-                if ($products_result->num_rows > 0):
-                    while ($post = $products_result->fetch_assoc()):
-                        $post_id = $post['id'];
-                        $current_time = time();
-                        $auction_start_time = strtotime($post['auction_start_date']);
-                        $auction_end_time = strtotime($post['auction_end_date']);
+            <?php
+            $products_stmt = $conn->prepare("SELECT posts.*, users.username,
+                                           (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
+                                           (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
+                                           FROM posts
+                                           JOIN users ON posts.farmer_id = users.id
+                                           WHERE posts.is_approved = 1 AND posts.status = 'active'
+                                           AND posts.category = ?
+                                           ORDER BY posts.price ASC");
+            $products_stmt->bind_param("s", $category);
+            $products_stmt->execute();
+            $products_result = $products_stmt->get_result();
+            $total_products  = $products_result->num_rows;
+            ?>
 
-                        $is_live = false;
-                        if ($current_time >= $auction_start_time && $current_time < $auction_end_time) {
-                            $is_live = true;
-                        }
+            <!-- Toolbar -->
+            <div class="br-toolbar">
+                <span class="br-product-count">
+                    <strong><?php echo $total_products; ?></strong>
+                    product<?php echo $total_products != 1 ? 's' : ''; ?> found
+                </span>
+                <div class="br-search-inline">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="br-search" placeholder="Search <?php echo strtolower($category); ?>…">
+                </div>
+            </div>
 
-                        $total_bids = $post['total_bids'];
-                ?>
-                        <div class="col-lg-3 col-md-6 product-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
-                            <a href="product_detail.php?id=<?php echo $post_id; ?>" class="product-card-link">
-                                <div class="card h-100 bidding-card">
-                                    <?php if ($post['image']): ?>
-                                        <div class="product-image">
-                                            <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($post['product_name']); ?>">
+            <?php if ($total_products > 0): ?>
+
+                <div class="br-grid" id="br-grid">
+                    <?php while ($post = $products_result->fetch_assoc()):
+                        $post_id          = $post['id'];
+                        $current_time     = time();
+                        $auction_start    = strtotime($post['auction_start_date']);
+                        $auction_end      = strtotime($post['auction_end_date']);
+                        $is_ended         = ($current_time >= $auction_end);
+                        $is_live          = (!$is_ended && $current_time >= $auction_start);
+                        $total_bids       = (int)$post['total_bids'];
+                        $max_bid          = $post['max_bid'];
+                        $initials         = strtoupper(substr($post['username'], 0, 2));
+                    ?>
+                        <a href="product_detail.php?id=<?php echo $post_id; ?>"
+                            class="br-card"
+                            data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
+
+                            <!-- Image -->
+                            <div class="br-card-img-wrap">
+                                <?php if ($post['image']): ?>
+                                    <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>"
+                                        alt="<?php echo htmlspecialchars($post['product_name']); ?>"
+                                        class="br-card-img">
+                                <?php else: ?>
+                                    <div class="br-card-img-placeholder">
+                                        <i class="fas <?php echo $icon; ?>"></i>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- View overlay on hover -->
+                                <div class="br-view-overlay">
+                                    <span class="br-view-btn"><i class="fas fa-eye"></i> View Details</span>
+                                </div>
+
+                                <!-- Status overlay badge -->
+                                <?php if ($is_ended): ?>
+                                    <div class="br-status-badge br-ended">
+                                        <i class="fas fa-flag-checkered"></i> Ended
+                                    </div>
+                                <?php elseif ($is_live): ?>
+                                    <div class="br-status-badge br-live">
+                                        <span class="br-live-dot"></span> LIVE
+                                    </div>
+                                <?php else: ?>
+                                    <div class="br-status-badge br-upcoming">
+                                        <i class="fas fa-hourglass-start"></i> Upcoming
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Bid count pill on image -->
+                                <div class="br-bids-pill">
+                                    <i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?>
+                                </div>
+                            </div>
+
+                            <!-- Body -->
+                            <div class="br-card-body">
+                                <h3 class="br-card-title"><?php echo htmlspecialchars($post['product_name']); ?></h3>
+
+                                <div class="br-card-price-row">
+                                    <div>
+                                        <span class="br-price-label">Starting at</span>
+                                        <span class="br-price-val">৳<?php echo number_format($post['price'], 2); ?></span>
+                                    </div>
+                                    <?php if ($max_bid && $max_bid > $post['price']): ?>
+                                        <div class="br-current-bid">
+                                            <span class="br-cb-label">Current</span>
+                                            <span class="br-cb-val">৳<?php echo number_format($max_bid, 2); ?></span>
                                         </div>
                                     <?php endif; ?>
-                                    <div class="card-body">
-                                        <h5 class="card-title"><?php echo htmlspecialchars($post['product_name']); ?></h5>
-
-                                        <div class="product-price mb-3">
-                                            <h6 class="price-label">Price: <span class="price-value">৳ <?php echo number_format($post['price'], 2); ?></span></h6>
-                                            <p class="quantity-label">Quantity: <span class="quantity-value"><?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?></span></p>
-                                        </div>
-
-                                        <div class="countdown-section mb-3">
-                                            <?php if ($is_live): ?>
-                                                <div class="status-badge live-badge">
-                                                    <i class="fas fa-circle-notch fa-spin me-1"></i>LIVE
-                                                </div>
-                                                <div class="countdown-timer" id="countdown-<?php echo $post_id; ?>" data-end-time="<?php echo $auction_end_time; ?>">
-                                                    <i class="fas fa-clock me-1"></i>
-                                                    <span class="countdown-text">Ending in: </span>
-                                                    <span class="countdown-time"></span>
-                                                </div>
-                                            <?php else: ?>
-                                                <div class="status-badge pending-badge">
-                                                    <i class="fas fa-hourglass-start me-1"></i>Upcoming
-                                                </div>
-                                                <p class="auction-date-text"><small>Starts: <?php echo date("d M, h:i A", $auction_start_time); ?></small></p>
-                                            <?php endif; ?>
-                                        </div>
-
-                                        <div class="product-meta mb-3">
-                                            <div class="d-flex justify-content-between align-items-center text-muted small">
-                                                <span class="d-flex align-items-center">
-                                                    <i class="fas fa-gavel mr-1"></i>
-                                                    <?php echo $total_bids; ?> bid<?php echo $total_bids !== 1 ? 's' : ''; ?>
-                                                </span>
-                                                <span class="d-flex align-items-center">
-                                                    <i class="fas fa-user mr-1"></i>
-                                                    <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>" class="farmer-name-link" onclick="event.stopPropagation();">
-                                                        <?php echo htmlspecialchars($post['username']); ?>
-                                                    </a>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
-                            </a>
-                        </div>
+
+                                <div class="br-card-qty">
+                                    <i class="fas fa-balance-scale"></i>
+                                    <?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?>
+                                </div>
+                            </div>
+
+                            <!-- Footer -->
+                            <div class="br-card-footer">
+                                <div class="br-farmer-info" onclick="event.preventDefault();event.stopPropagation();window.location.href='farmer/profile.php?id=<?php echo $post['farmer_id']; ?>'" title="View <?php echo htmlspecialchars($post['username']); ?>'s profile">
+                                    <span class="br-farmer-avatar"><?php echo $initials; ?></span>
+                                    <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
+                                    <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
+                                </div>
+                                <?php if ($is_ended): ?>
+                                    <div class="br-ended-pill">
+                                        <i class="fas fa-gavel"></i>
+                                        <span>Auction Ended</span>
+                                    </div>
+                                <?php elseif ($is_live): ?>
+                                    <div class="br-countdown" data-end="<?php echo $auction_end; ?>">
+                                        <i class="fas fa-clock"></i>
+                                        <span class="br-cd-label">Ends in</span>
+                                        <span class="br-cd-text">–</span>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="br-starts-on" data-start="<?php echo $auction_start; ?>">
+                                        <i class="fas fa-hourglass-start"></i>
+                                        <span class="br-starts-label">Starts in</span>
+                                        <span class="br-cd-text">–</span>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </a>
                     <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle me-2"></i>No <?php echo strtolower($category); ?> available at the moment. Check back later!
-                        </div>
+                </div>
+
+                <!-- Empty search state (hidden by default) -->
+                <div class="br-no-results" id="br-no-results" style="display:none;">
+                    <i class="fas fa-search-minus fa-3x"></i>
+                    <p>No products match your search.</p>
+                </div>
+
+            <?php else: ?>
+                <div class="br-empty-state">
+                    <div class="br-empty-icon" style="background:<?php echo $light; ?>">
+                        <i class="fas <?php echo $icon; ?> fa-3x" style="color:<?php echo 'var(--primary-color)'; ?>"></i>
                     </div>
-                <?php endif; ?>
-                <?php $products_stmt->close(); ?>
-            </div>
-        </div>
-    </div>
+                    <h3>No <?php echo $category; ?> listed yet</h3>
+                    <p>Check back soon — farmers are adding new products every day!</p>
+                    <a href="index.php" class="br-back-btn">
+                        <i class="fas fa-home"></i> Back to Home
+                    </a>
+                </div>
+            <?php endif; ?>
+
+            <?php $products_stmt->close(); ?>
+
+        </div><!-- /br-content -->
+    </div><!-- /br-wrapper -->
 
     <script>
-        // Initialize countdown timers
-        document.addEventListener('DOMContentLoaded', function() {
-            const countdownElements = document.querySelectorAll('.countdown-timer');
+        (function() {
+            // ── Live countdowns ──────────────────────────────────────────
+            function pad(n) {
+                return String(n).padStart(2, '0');
+            }
 
-            countdownElements.forEach(function(element) {
-                const endTime = parseInt(element.getAttribute('data-end-time'));
-                const timeDisplay = element.querySelector('.countdown-time');
+            document.querySelectorAll('.br-countdown').forEach(function(el) {
+                const end = parseInt(el.dataset.end, 10);
+                const textEl = el.querySelector('.br-cd-text');
 
-                function updateCountdown() {
-                    const currentTime = Math.floor(Date.now() / 1000);
-                    const remainingTime = endTime - currentTime;
-
-                    if (remainingTime <= 0) {
-                        timeDisplay.textContent = 'Auction Closed!';
-                        timeDisplay.style.color = '#e63946';
-                        element.classList.add('closed');
-                    } else {
-                        const days = Math.floor(remainingTime / 86400);
-                        const hours = Math.floor((remainingTime % 86400) / 3600);
-                        const minutes = Math.floor((remainingTime % 3600) / 60);
-                        const seconds = remainingTime % 60;
-
-                        let timeString = '';
-                        if (days > 0) {
-                            timeString = `${days}d ${hours}h ${minutes}m`;
-                        } else if (hours > 0) {
-                            timeString = `${hours}h ${minutes}m ${seconds}s`;
-                        } else {
-                            timeString = `${minutes}m ${seconds}s`;
+                function tick() {
+                    const diff = end - Math.floor(Date.now() / 1000);
+                    if (diff <= 0) {
+                        // swap badge to Ended
+                        const card = el.closest('.br-card');
+                        if (card) {
+                            const badge = card.querySelector('.br-status-badge');
+                            if (badge) {
+                                badge.className = 'br-status-badge br-ended';
+                                badge.innerHTML = '<i class="fas fa-flag-checkered"></i> Ended';
+                            }
                         }
-
-                        timeDisplay.textContent = timeString;
-                        timeDisplay.style.color = '#046307';
-                        timeDisplay.style.fontWeight = 'bold';
+                        // swap footer pill to Ended
+                        el.outerHTML = '<div class="br-ended-pill"><i class="fas fa-gavel"></i><span>Auction Ended</span></div>';
+                        return;
                     }
+                    const d = Math.floor(diff / 86400);
+                    const h = Math.floor((diff % 86400) / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const s = diff % 60;
+                    textEl.textContent = d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m` :
+                        h > 0 ? `${pad(h)}h ${pad(m)}m ${pad(s)}s` :
+                        `${pad(m)}m ${pad(s)}s`;
                 }
-
-                updateCountdown();
-                setInterval(updateCountdown, 1000);
+                tick();
+                setInterval(tick, 1000);
             });
 
-            // Animate product cards
-            const productCards = document.querySelectorAll('.product-card');
-            productCards.forEach((card, index) => {
-                card.style.animationDelay = (index * 0.1) + 's';
-                card.classList.add('fade-in-up');
+            // br-starts-on countdown (data-start)
+            document.querySelectorAll('.br-starts-on[data-start]').forEach(function(el) {
+                const start = parseInt(el.dataset.start, 10);
+                const textEl = el.querySelector('.br-cd-text');
+
+                function tick() {
+                    const diff = start - Math.floor(Date.now() / 1000);
+                    if (diff <= 0) {
+                        textEl.textContent = 'Starting...';
+                        return;
+                    }
+                    const d = Math.floor(diff / 86400);
+                    const h = Math.floor((diff % 86400) / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const s = diff % 60;
+                    textEl.textContent = d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m` :
+                        h > 0 ? `${pad(h)}h ${pad(m)}m ${pad(s)}s` :
+                        `${pad(m)}m ${pad(s)}s`;
+                }
+                tick();
+                setInterval(tick, 1000);
             });
-        });
+
+            // ── Inline search filter ─────────────────────────────────────
+            const searchInput = document.getElementById('br-search');
+            const grid = document.getElementById('br-grid');
+            const noResults = document.getElementById('br-no-results');
+
+            if (searchInput && grid) {
+                searchInput.addEventListener('input', function() {
+                    const q = this.value.trim().toLowerCase();
+                    const cards = grid.querySelectorAll('.br-card');
+                    let visible = 0;
+                    cards.forEach(function(card) {
+                        const match = card.dataset.name.includes(q);
+                        card.style.display = match ? '' : 'none';
+                        if (match) visible++;
+                    });
+                    if (noResults) noResults.style.display = visible === 0 ? 'flex' : 'none';
+                });
+            }
+
+            // ── Staggered card entrance animation ────────────────────────
+            document.querySelectorAll('.br-card').forEach(function(card, i) {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(function() {
+                    card.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 60 + i * 60);
+            });
+        })();
     </script>
 
     <?php include 'includes/footer.php'; ?>
