@@ -4,6 +4,25 @@ include 'includes/db.php'; // Database connection
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+
+// Pre-load wishlist post IDs for logged-in buyer
+$wishlist_post_ids = [];
+if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
+    $conn->query("CREATE TABLE IF NOT EXISTS `wishlist` (
+        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `user_id` INT NOT NULL, `post_id` INT NOT NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY `unique_wishlist` (`user_id`, `post_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $wl_pre = $conn->prepare("SELECT post_id FROM wishlist WHERE user_id = ?");
+    $wl_pre->bind_param("i", $_SESSION['user_id']);
+    $wl_pre->execute();
+    $wl_res = $wl_pre->get_result();
+    while ($wl_row = $wl_res->fetch_assoc()) {
+        $wishlist_post_ids[] = $wl_row['post_id'];
+    }
+    $wl_pre->close();
+}
 ?>
 
 <!DOCTYPE html>
@@ -20,7 +39,40 @@ require_once 'includes/functions.php';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css"> -->
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
-    <!-- browser cache problem solution --- add version number for production and add echo time for development -->
+    <style>
+        .wl-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 5;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .9rem;
+            color: #94a3b8;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: color .2s, transform .2s, background .2s;
+        }
+
+        .wl-btn:hover {
+            transform: scale(1.15);
+            background: #fff;
+        }
+
+        .wl-btn.saved {
+            color: #ef4444;
+        }
+
+        .wl-btn .fa-heart {
+            pointer-events: none;
+        }
+    </style>
 </head>
 
 <body>
@@ -66,7 +118,11 @@ require_once 'includes/functions.php';
 
                     <div class="hero-cta mt-4">
                         <a href="browse.php" class="btn btn-hero-primary btn-lg"><i class="fas fa-store me-2"></i>Explore Marketplace</a>
-                        <a href="how_to_sell.php" class="btn btn-hero-secondary btn-lg"><i class="fas fa-seedling me-2"></i>Start Selling</a>
+                        <?php if (!isset($_SESSION['user_id'])): ?>
+                            <a href="#" data-auth-modal="signup" class="btn btn-hero-secondary btn-lg"><i class="fas fa-seedling me-2"></i>Start Selling</a>
+                        <?php else: ?>
+                            <a href="farmer/create_post.php" class="btn btn-hero-secondary btn-lg"><i class="fas fa-seedling me-2"></i>Start Selling</a>
+                        <?php endif; ?>
                     </div>
 
                     <div class="hero-trust-row mt-4">
@@ -273,6 +329,14 @@ require_once 'includes/functions.php';
                                     <div class="br-bids-pill">
                                         <i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?>
                                     </div>
+                                    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user'): ?>
+                                        <button class="wl-btn <?php echo in_array($post_id, $wishlist_post_ids) ? 'saved' : ''; ?>"
+                                            data-post-id="<?php echo $post_id; ?>"
+                                            title="<?php echo in_array($post_id, $wishlist_post_ids) ? 'Remove from wishlist' : 'Save to wishlist'; ?>"
+                                            onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this);">
+                                            <i class="fas fa-heart"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="br-card-body">
@@ -416,7 +480,7 @@ require_once 'includes/functions.php';
                     </div>
                 </div>
                 <div class="seller-cta-actions">
-                    <a href="how_to_sell.php" class="btn seller-cta-btn-outline">Learn More</a>
+                    <a href="register.php" class="btn seller-cta-btn-outline">Learn More</a>
                     <?php if (!isset($_SESSION['user_id'])): ?>
                         <a href="#" data-auth-modal="signup" class="btn seller-cta-btn-primary"><i class="fas fa-plus me-2"></i>Start Selling</a>
                     <?php else: ?>
@@ -487,6 +551,14 @@ require_once 'includes/functions.php';
                                     <div class="br-bids-pill">
                                         <i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?>
                                     </div>
+                                    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user' && !$is_ended): ?>
+                                        <button class="wl-btn <?php echo in_array($post_id, $wishlist_post_ids) ? 'saved' : ''; ?>"
+                                            data-post-id="<?php echo $post_id; ?>"
+                                            title="<?php echo in_array($post_id, $wishlist_post_ids) ? 'Remove from wishlist' : 'Save to wishlist'; ?>"
+                                            onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this);">
+                                            <i class="fas fa-heart"></i>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
 
                                 <div class="br-card-body">
@@ -687,6 +759,56 @@ require_once 'includes/functions.php';
                 card.classList.add('fade-in-up');
             });
         });
+
+        // Wishlist toggle
+        function toggleWishlist(btn) {
+            var postId = btn.dataset.postId;
+            fetch('wishlist_handler.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'action=toggle&post_id=' + postId
+                })
+                .then(function(r) {
+                    return r.json();
+                })
+                .then(function(data) {
+                    if (data.login_required) {
+                        window.location.href = 'index.php?auth=login';
+                        return;
+                    }
+                    if (data.success) {
+                        if (data.saved) {
+                            btn.classList.add('saved');
+                            btn.title = 'Remove from wishlist';
+                            showWlToast('♥ Saved to wishlist');
+                        } else {
+                            btn.classList.remove('saved');
+                            btn.title = 'Save to wishlist';
+                            showWlToast('Removed from wishlist');
+                        }
+                    }
+                });
+        }
+
+        function showWlToast(msg) {
+            var t = document.getElementById('wlToast');
+            if (!t) {
+                t = document.createElement('div');
+                t.id = 'wlToast';
+                t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:10px 20px;border-radius:50px;font-size:.82rem;font-weight:600;z-index:9999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;';
+                document.body.appendChild(t);
+            }
+            t.textContent = msg;
+            t.style.opacity = '1';
+            t.style.transform = 'translateX(-50%) translateY(0)';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(function() {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(-50%) translateY(20px)';
+            }, 2200);
+        }
     </script>
 
     <?php include 'includes/footer.php'; ?>

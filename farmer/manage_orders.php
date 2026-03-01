@@ -119,7 +119,7 @@ $stmt->close();
         }
 
         /* ── Stats Strip ── */
-        .stats-strip {
+        .mo-stats-strip {
             display: flex;
             gap: 14px;
             margin-bottom: 22px;
@@ -130,7 +130,7 @@ $stmt->close();
             box-shadow: 0 4px 18px rgba(5, 100, 70, .25);
         }
 
-        .stat-chip {
+        .mo-stat-chip {
             background: white;
             border: 1px solid #ebebeb;
             border-radius: 12px;
@@ -143,7 +143,7 @@ $stmt->close();
             min-width: 130px;
         }
 
-        .stat-chip-icon {
+        .mo-stat-chip-icon {
             width: 40px;
             height: 40px;
             border-radius: 10px;
@@ -154,17 +154,17 @@ $stmt->close();
             flex-shrink: 0;
         }
 
-        .stat-chip-icon.teal {
+        .mo-stat-chip-icon.teal {
             background: #e8f8ee;
             color: #11998e;
         }
 
-        .stat-chip-icon.yellow {
+        .mo-stat-chip-icon.yellow {
             background: #fff8e1;
             color: #e6a817;
         }
 
-        .stat-chip-val {
+        .mo-stat-chip-val {
             font-family: 'Poppins', sans-serif;
             font-size: 22px;
             font-weight: 700;
@@ -172,7 +172,7 @@ $stmt->close();
             line-height: 1;
         }
 
-        .stat-chip-label {
+        .mo-stat-chip-label {
             font-size: 11px;
             color: #999;
             font-weight: 500;
@@ -427,7 +427,7 @@ $stmt->close();
                 padding: 24px 18px;
             }
 
-            .stats-strip {
+            .mo-stats-strip {
                 gap: 10px;
                 padding: 16px;
             }
@@ -458,33 +458,33 @@ $stmt->close();
             <div class="page-hero">
                 <div class="page-hero-icon"><i class="fas fa-truck"></i></div>
                 <div>
-                    <div class="hero-label"><i class="fas fa-tractor me-1"></i> Farmer Dashboard</div>
+                    <div class="hero-label"><i class="fas fa-tractor mr-1"></i> Farmer Dashboard</div>
                     <h1>Manage Orders</h1>
                     <p>Track and update delivery status for your completed sales.</p>
                 </div>
             </div>
 
             <!-- Stats Strip -->
-            <div class="stats-strip">
-                <div class="stat-chip">
-                    <div class="stat-chip-icon teal"><i class="fas fa-box"></i></div>
+            <div class="mo-stats-strip">
+                <div class="mo-stat-chip">
+                    <div class="mo-stat-chip-icon teal"><i class="fas fa-box"></i></div>
                     <div>
-                        <div class="stat-chip-val"><?php echo $total_orders; ?></div>
-                        <div class="stat-chip-label">Total Orders</div>
+                        <div class="mo-stat-chip-val"><?php echo $total_orders; ?></div>
+                        <div class="mo-stat-chip-label">Total Orders</div>
                     </div>
                 </div>
-                <div class="stat-chip">
-                    <div class="stat-chip-icon yellow"><i class="fas fa-hourglass-half"></i></div>
+                <div class="mo-stat-chip">
+                    <div class="mo-stat-chip-icon yellow"><i class="fas fa-hourglass-half"></i></div>
                     <div>
-                        <div class="stat-chip-val"><?php echo $pending_count; ?></div>
-                        <div class="stat-chip-label">Pending Delivery</div>
+                        <div class="mo-stat-chip-val"><?php echo $pending_count; ?></div>
+                        <div class="mo-stat-chip-label">Pending Delivery</div>
                     </div>
                 </div>
-                <div class="stat-chip">
-                    <div class="stat-chip-icon teal"><i class="fas fa-check-circle"></i></div>
+                <div class="mo-stat-chip">
+                    <div class="mo-stat-chip-icon teal"><i class="fas fa-check-circle"></i></div>
                     <div>
-                        <div class="stat-chip-val"><?php echo $delivered_count; ?></div>
-                        <div class="stat-chip-label">Delivered</div>
+                        <div class="mo-stat-chip-val"><?php echo $delivered_count; ?></div>
+                        <div class="mo-stat-chip-label">Delivered</div>
                     </div>
                 </div>
             </div>

@@ -157,7 +157,7 @@ include 'includes/nav.php';
         box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
     }
 
-    .stat-icon {
+    .notif-stat-icon {
         width: 40px;
         height: 40px;
         border-radius: 10px;
@@ -168,14 +168,14 @@ include 'includes/nav.php';
         flex-shrink: 0;
     }
 
-    .stat-value {
+    .notif-stat-value {
         font-size: 1.4rem;
         font-weight: 700;
         color: #1e293b;
         line-height: 1;
     }
 
-    .stat-label {
+    .notif-stat-label {
         font-size: 0.72rem;
         color: #94a3b8;
         font-weight: 500;
@@ -478,24 +478,24 @@ include 'includes/nav.php';
         <!-- Stats Row -->
         <div class="notif-stats">
             <div class="notif-stat-card">
-                <div class="stat-icon" style="background:#f0fdf4;color:#059669;"><i class="fas fa-bell"></i></div>
+                <div class="notif-stat-icon" style="background:#f0fdf4;color:#059669;"><i class="fas fa-bell"></i></div>
                 <div>
-                    <div class="stat-value"><?php echo $total_count; ?></div>
-                    <div class="stat-label">Total</div>
+                    <div class="notif-stat-value"><?php echo $total_count; ?></div>
+                    <div class="notif-stat-label">Total</div>
                 </div>
             </div>
             <div class="notif-stat-card">
-                <div class="stat-icon" style="background:#fef3c7;color:#f59e0b;"><i class="fas fa-circle"></i></div>
+                <div class="notif-stat-icon" style="background:#fef3c7;color:#f59e0b;"><i class="fas fa-circle"></i></div>
                 <div>
-                    <div class="stat-value"><?php echo $unread_count; ?></div>
-                    <div class="stat-label">Unread</div>
+                    <div class="notif-stat-value"><?php echo $unread_count; ?></div>
+                    <div class="notif-stat-label">Unread</div>
                 </div>
             </div>
             <div class="notif-stat-card">
-                <div class="stat-icon" style="background:#e0f2fe;color:#0ea5e9;"><i class="fas fa-check-circle"></i></div>
+                <div class="notif-stat-icon" style="background:#e0f2fe;color:#0ea5e9;"><i class="fas fa-check-circle"></i></div>
                 <div>
-                    <div class="stat-value"><?php echo $read_count; ?></div>
-                    <div class="stat-label">Read</div>
+                    <div class="notif-stat-value"><?php echo $read_count; ?></div>
+                    <div class="notif-stat-label">Read</div>
                 </div>
             </div>
         </div>

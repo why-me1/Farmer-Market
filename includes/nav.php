@@ -41,6 +41,33 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <style>
+    /* ── Live Dot ── */
+    .live-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #ef4444;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        animation: livePulse 1.5s infinite;
+    }
+
+    @keyframes livePulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+        }
+
+        70% {
+            box-shadow: 0 0 0 7px rgba(239, 68, 68, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+
     /* ── Navbar Core ── */
     .fm-navbar {
         background: linear-gradient(135deg, #065f46 0%, #059669 60%, #10b981 100%);
@@ -848,7 +875,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
         <!-- Center Nav Links -->
         <ul class="fm-nav-links">
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a></li>
-            <li><a class="fm-nav-link" href="<?php echo $base_url; ?>index.php#live-auctions"><i class="fas fa-gavel"></i> Live Auctions</a></li>
+            <li><a class="fm-nav-link" href="<?php echo $base_url; ?>index.php#live-auctions"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a></li>
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a></li>
         </ul>
 
@@ -894,14 +921,14 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
                                 <i class="fas fa-tachometer-alt"></i> Dashboard
                             </a>
                             <?php if ($role === 'farmer'): ?>
-                                <a class="fm-dropdown-item" href="<?php echo $base_url; ?>farmer/profile.php">
+                                <a class="fm-dropdown-item" href="<?php echo $base_url; ?>farmer/profile.php?id=<?php echo $_SESSION['user_id']; ?>">
                                     <i class="fas fa-user"></i> My Profile
                                 </a>
                                 <a class="fm-dropdown-item" href="<?php echo $base_url; ?>farmer/view_posts.php">
                                     <i class="fas fa-list"></i> My Listings
                                 </a>
                             <?php elseif ($role === 'user'): ?>
-                                <a class="fm-dropdown-item" href="<?php echo $base_url; ?>user/profile.php">
+                                <a class="fm-dropdown-item" href="<?php echo $base_url; ?>user/profile.php?id=<?php echo $_SESSION['user_id']; ?>">
                                     <i class="fas fa-user"></i> My Profile
                                 </a>
                             <?php endif; ?>
@@ -946,7 +973,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
     <?php endif; ?>
 
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a>
-    <a class="fm-mobile-link" href="<?php echo $base_url; ?>index.php#live-auctions"><i class="fas fa-gavel"></i> Live Auctions</a>
+    <a class="fm-mobile-link" href="<?php echo $base_url; ?>index.php#live-auctions"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a>
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a>
 
     <?php if ($role !== 'guest'): ?>

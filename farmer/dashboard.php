@@ -10,7 +10,7 @@ if ($_SESSION['role'] !== 'farmer') {
 
 $farmer_id = $_SESSION['user_id'];
 
-// Farmer username
+// Farmer info
 $u_stmt = $conn->prepare("SELECT username, created_at FROM users WHERE id = ? LIMIT 1");
 $u_stmt->bind_param("i", $farmer_id);
 $u_stmt->execute();
@@ -33,283 +33,502 @@ $sold_stmt->bind_result($total_sold);
 $sold_stmt->fetch();
 $sold_stmt->close();
 
-// Total posts (all)
+// Total posts
 $total_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ?");
 $total_stmt->bind_param("i", $farmer_id);
 $total_stmt->execute();
 $total_stmt->bind_result($total_posts);
 $total_stmt->fetch();
 $total_stmt->close();
-?>
 
+// Pending (awaiting approval)
+$pending_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND is_approved = 0");
+$pending_stmt->bind_param("i", $farmer_id);
+$pending_stmt->execute();
+$pending_stmt->bind_result($pending_posts);
+$pending_stmt->fetch();
+$pending_stmt->close();
+
+// Recent listings (last 4)
+$recent_stmt = $conn->prepare(
+    "SELECT id, product_name AS title, status, is_approved, created_at FROM posts WHERE farmer_id = ? ORDER BY created_at DESC LIMIT 4"
+);
+$recent_stmt->bind_param("i", $farmer_id);
+$recent_stmt->execute();
+$recent_posts = $recent_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$recent_stmt->close();
+
+// Greeting based on hour
+$hour = (int)date('H');
+if ($hour < 12)        $greeting = "Good morning";
+elseif ($hour < 17)    $greeting = "Good afternoon";
+else                   $greeting = "Good evening";
+
+$initials = strtoupper(substr($farmer['username'], 0, 1));
+?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Farmer Dashboard – Farmers' Marketplace</title>
+    <title>Farmer Dashboard - Farmers' Marketplace</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
     <style>
-        /* ── Base ── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: #f4f6fb;
+            background: #f0f4f8;
+            color: #1e2d3d;
         }
 
-        /* ── Hero ── */
-        .farm-hero {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            border-radius: 16px;
-            padding: 36px 36px 80px;
-            color: white;
-            box-shadow: 0 8px 30px rgba(17, 153, 142, .3);
+        /* HERO */
+        .fd-hero {
+            background: linear-gradient(135deg, #0d6e5e 0%, #11998e 45%, #38ef7d 100%);
+            border-radius: 20px;
+            padding: 44px 40px 96px;
+            color: #fff;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 12px 40px rgba(17, 153, 142, .35);
         }
 
-        .farm-hero::after {
-            content: "\f06c";
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
+        .fd-hero::before {
+            content: '';
             position: absolute;
-            right: -10px;
-            bottom: -20px;
-            font-size: 160px;
-            opacity: .08;
-            line-height: 1;
+            width: 340px;
+            height: 340px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .07);
+            top: -80px;
+            right: -60px;
         }
 
-        .farm-hero .hero-label {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.8px;
+        .fd-hero::after {
+            content: '';
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .05);
+            bottom: -70px;
+            left: 30%;
+        }
+
+        .fd-hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(255, 255, 255, .18);
+            border: 1px solid rgba(255, 255, 255, .3);
+            border-radius: 30px;
+            padding: 5px 14px;
+            font-size: 11.5px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
-            opacity: .8;
-            margin-bottom: 6px;
+            margin-bottom: 14px;
+            backdrop-filter: blur(4px);
         }
 
-        .farm-hero h1 {
+        .fd-hero h1 {
             font-family: 'Poppins', sans-serif;
-            font-size: 26px;
-            font-weight: 700;
+            font-size: clamp(22px, 3.5vw, 32px);
+            font-weight: 800;
+            margin: 0 0 8px;
+            letter-spacing: -.5px;
+        }
+
+        .fd-hero .sub {
+            font-size: 14px;
+            opacity: .82;
             margin: 0;
+            max-width: 460px;
         }
 
-        /* ── Profile Strip ── */
-        .profile-strip {
-            background: white;
-            border-radius: 16px;
-            padding: 0 28px 24px;
-            margin-top: -58px;
-            position: relative;
+        .fd-hero-actions {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            display: flex;
+            gap: 10px;
             z-index: 2;
-            box-shadow: 0 4px 18px rgba(0, 0, 0, .08);
-            margin-bottom: 24px;
         }
 
-        .profile-avatar {
-            width: 88px;
-            height: 88px;
+        .fd-hero-actions a {
+            background: rgba(255, 255, 255, .2);
+            border: 1px solid rgba(255, 255, 255, .3);
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            backdrop-filter: blur(6px);
+            transition: background .2s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .fd-hero-actions a:hover {
+            background: rgba(255, 255, 255, .32);
+        }
+
+        @media(max-width:576px) {
+            .fd-hero {
+                padding: 30px 20px 80px;
+            }
+
+            .fd-hero-actions {
+                position: static;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }
+        }
+
+        /* PROFILE CARD */
+        .fd-profile-card {
+            background: #fff;
+            border-radius: 18px;
+            padding: 0 28px 24px;
+            margin-top: -56px;
+            position: relative;
+            z-index: 5;
+            box-shadow: 0 6px 30px rgba(0, 0, 0, .1);
+            margin-bottom: 28px;
+        }
+
+        .fd-profile-inner {
+            display: flex;
+            align-items: flex-end;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+
+        .fd-avatar {
+            width: 86px;
+            height: 86px;
             border-radius: 50%;
             background: linear-gradient(135deg, #11998e, #38ef7d);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
-            color: white;
-            font-weight: 700;
-            border: 4px solid white;
-            box-shadow: 0 4px 14px rgba(17, 153, 142, .4);
-            margin-top: -18px;
+            font-size: 30px;
+            color: #fff;
+            font-weight: 800;
+            border: 4px solid #fff;
+            box-shadow: 0 4px 18px rgba(17, 153, 142, .4);
+            margin-top: -20px;
             flex-shrink: 0;
         }
 
-        .profile-strip-inner {
+        .fd-profile-info {
+            padding-top: 14px;
+        }
+
+        .fd-profile-info h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 19px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0 0 4px;
+        }
+
+        .fd-profile-info .meta {
+            font-size: 12.5px;
+            color: #8b98a6;
             display: flex;
-            align-items: flex-end;
-            gap: 20px;
+            align-items: center;
+            gap: 14px;
             flex-wrap: wrap;
         }
 
-        .profile-name-block {
-            padding-top: 16px;
+        .fd-profile-info .meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
-        .profile-name-block h2 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 20px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 0 0 3px;
-        }
-
-        .profile-name-block .meta {
-            font-size: 13px;
-            color: #888;
-        }
-
-        .farmer-badge {
+        .fd-profile-right {
             margin-left: auto;
             align-self: flex-end;
             margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fd-verified-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: linear-gradient(135deg, #d4f7ee, #c3eedd);
-            color: #0d6b5e;
+            background: linear-gradient(135deg, #d0f5e8, #b8efdb);
+            color: #0b6e52;
             border-radius: 30px;
-            padding: 6px 14px;
+            padding: 6px 15px;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .btn-edit {
+            background: #f4f6fb;
+            border: 1px solid #e4e8f0;
+            color: #4a5568;
+            border-radius: 10px;
+            padding: 7px 15px;
             font-size: 13px;
             font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background .2s, transform .2s;
         }
 
-        .farmer-badge i {
-            color: #11998e;
+        .btn-edit:hover {
+            background: #e8ecf4;
+            transform: translateY(-1px);
+            color: #4a5568;
         }
 
-        /* ── Stat Cards ── */
-        .stats-row {
-            margin-bottom: 28px;
+        @media(max-width:576px) {
+            .fd-profile-card {
+                padding: 0 16px 18px;
+            }
+
+            .fd-profile-right {
+                margin-left: 0;
+            }
         }
 
-        .stat-box {
-            background: white;
-            border-radius: 14px;
-            padding: 20px 22px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, .07);
+        /* STAT CARDS */
+        .fd-stats-grid {
+            margin-bottom: 30px;
+        }
+
+        .fd-stat {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px 22px 18px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .07);
+            border: 1px solid #edf0f6;
             display: flex;
             align-items: center;
             gap: 16px;
-            border: 1px solid #ebebeb;
             height: 100%;
             transition: transform .2s, box-shadow .2s;
+            position: relative;
+            overflow: hidden;
         }
 
-        .stat-box:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, .11);
+        .fd-stat::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
         }
 
-        .stat-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
+        .fd-stat.s-green::before {
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+        }
+
+        .fd-stat.s-amber::before {
+            background: linear-gradient(90deg, #f7971e, #ffd200);
+        }
+
+        .fd-stat.s-blue::before {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .fd-stat.s-rose::before {
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+        }
+
+        .fd-stat:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .11);
+        }
+
+        .fd-stat-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 21px;
+            font-size: 22px;
             flex-shrink: 0;
         }
 
-        .stat-icon.green {
-            background: #e8f8ee;
+        .fd-stat-icon.s-green {
+            background: linear-gradient(135deg, #e8faf3, #d0f5e8);
             color: #11998e;
         }
 
-        .stat-icon.yellow {
-            background: #fff8e1;
-            color: #e6a817;
+        .fd-stat-icon.s-amber {
+            background: linear-gradient(135deg, #fff8e1, #ffefc0);
+            color: #d4900a;
         }
 
-        .stat-icon.teal {
-            background: #e0f7fa;
-            color: #17a2b8;
-        }
-
-        .stat-icon.purple {
-            background: #eef0ff;
+        .fd-stat-icon.s-blue {
+            background: linear-gradient(135deg, #eef0ff, #dce0ff);
             color: #667eea;
         }
 
-        .stat-value {
+        .fd-stat-icon.s-rose {
+            background: linear-gradient(135deg, #fde8ff, #fcd0e0);
+            color: #d63384;
+        }
+
+        .fd-stat-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fd-stat-value {
             font-family: 'Poppins', sans-serif;
-            font-size: 26px;
-            font-weight: 700;
+            font-size: 28px;
+            font-weight: 800;
             color: #1a1a2e;
             line-height: 1;
             margin-bottom: 3px;
         }
 
-        .stat-label {
+        .fd-stat-label {
             font-size: 12px;
-            color: #888;
+            color: #8b98a6;
             font-weight: 500;
         }
 
-        /* ── Section Title ── */
-        .section-title {
+        .fd-stat-sub {
+            font-size: 11px;
+            color: #aab3bd;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* SECTION HEADER */
+        .fd-section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .fd-section-head h3 {
             font-family: 'Poppins', sans-serif;
             font-size: 15px;
             font-weight: 700;
             color: #1a1a2e;
-            margin-bottom: 16px;
+            margin: 0;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
         }
 
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #ebebeb;
-            margin-left: 8px;
+        .fd-section-head h3 .icon-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            display: inline-block;
         }
 
-        /* ── Action Cards ── */
-        .action-card {
-            background: white;
-            border-radius: 16px;
-            border: 1px solid #ebebeb;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, .07);
-            padding: 28px 24px;
+        .fd-section-head a {
+            font-size: 13px;
+            color: #11998e;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .fd-section-head a:hover {
+            text-decoration: underline;
+        }
+
+        /* ACTION CARDS */
+        .fd-action {
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid #edf0f6;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+            padding: 26px 22px 20px;
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
             height: 100%;
-            transition: transform .2s, box-shadow .2s;
+            transition: transform .22s, box-shadow .22s;
+            text-decoration: none !important;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .fd-action:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, .12);
             text-decoration: none !important;
             color: inherit;
         }
 
-        .action-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 28px rgba(0, 0, 0, .12);
-            text-decoration: none !important;
-            color: inherit;
-        }
-
-        .action-icon {
-            width: 56px;
-            height: 56px;
+        .fd-action-icon {
+            width: 54px;
+            height: 54px;
             border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 22px;
+            flex-shrink: 0;
+            transition: transform .2s;
         }
 
-        .action-icon.green {
+        .fd-action:hover .fd-action-icon {
+            transform: scale(1.08);
+        }
+
+        .fd-action-icon.a-green {
             background: linear-gradient(135deg, #11998e, #38ef7d);
-            color: white;
+            color: #fff;
         }
 
-        .action-icon.amber {
+        .fd-action-icon.a-amber {
             background: linear-gradient(135deg, #f7971e, #ffd200);
-            color: white;
+            color: #fff;
         }
 
-        .action-icon.blue {
+        .fd-action-icon.a-blue {
             background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            color: #fff;
         }
 
-        .action-card h5 {
+        .fd-action-icon.a-teal {
+            background: linear-gradient(135deg, #17a2b8, #38ef7d);
+            color: #fff;
+        }
+
+        .fd-action-icon.a-rose {
+            background: linear-gradient(135deg, #f5576c, #f093fb);
+            color: #fff;
+        }
+
+        .fd-action h5 {
             font-family: 'Poppins', sans-serif;
             font-size: 15px;
             font-weight: 700;
@@ -317,39 +536,366 @@ $total_stmt->close();
             margin: 0;
         }
 
-        .action-card p {
-            font-size: 13px;
-            color: #888;
+        .fd-action p {
+            font-size: 12.5px;
+            color: #8b98a6;
             margin: 0;
             line-height: 1.55;
         }
 
-        .action-card .card-arrow {
+        .fd-action-footer {
             margin-top: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fd-action-link {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            font-weight: 600;
+            gap: 5px;
+            font-size: 12.5px;
+            font-weight: 700;
+            transition: gap .2s;
+        }
+
+        .fd-action:hover .fd-action-link {
+            gap: 9px;
+        }
+
+        .fd-action-link.c-green {
             color: #11998e;
         }
 
-        .action-card .card-arrow.amber-txt {
-            color: #e6a817;
+        .fd-action-link.c-amber {
+            color: #d4900a;
         }
 
-        .action-card .card-arrow.purple-txt {
+        .fd-action-link.c-blue {
             color: #667eea;
         }
 
-        @media (max-width: 576px) {
-            .farm-hero {
-                padding: 24px 18px 68px;
-            }
+        .fd-action-link.c-teal {
+            color: #17a2b8;
+        }
 
-            .profile-strip {
-                padding: 0 16px 18px;
+        .fd-action-link.c-rose {
+            color: #f5576c;
+        }
+
+        .fd-action-badge {
+            background: #f0f4f8;
+            color: #8b98a6;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .fd-action-badge.b-active {
+            background: #e8faf3;
+            color: #0b6e52;
+        }
+
+        /* RECENT LISTINGS */
+        .fd-recent-card {
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid #edf0f6;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+            overflow: hidden;
+            margin-bottom: 28px;
+        }
+
+        .fd-recent-card .rc-head {
+            padding: 18px 24px;
+            border-bottom: 1px solid #f1f4f8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fd-recent-card .rc-head h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .fd-recent-card .rc-head a {
+            font-size: 13px;
+            color: #11998e;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .fd-listing-row {
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid #f6f8fb;
+            transition: background .15s;
+        }
+
+        .fd-listing-row:last-child {
+            border-bottom: none;
+        }
+
+        .fd-listing-row:hover {
+            background: #fafbfd;
+        }
+
+        .fd-listing-num {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #f0f4f8;
+            color: #8b98a6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .fd-listing-title {
+            flex: 1;
+            font-weight: 600;
+            font-size: 13.5px;
+            color: #1a1a2e;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fd-listing-date {
+            font-size: 12px;
+            color: #aab3bd;
+            white-space: nowrap;
+        }
+
+        .fd-listing-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .ls-active {
+            background: #e8faf3;
+            color: #0b6e52;
+        }
+
+        .ls-sold {
+            background: #eef0ff;
+            color: #667eea;
+        }
+
+        .ls-pending {
+            background: #fff8e1;
+            color: #b37a00;
+        }
+
+        .ls-inactive {
+            background: #f0f4f8;
+            color: #8b98a6;
+        }
+
+        .fd-empty-state {
+            padding: 40px 24px;
+            text-align: center;
+            color: #aab3bd;
+        }
+
+        .fd-empty-state i {
+            font-size: 36px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .fd-empty-state p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        @media(max-width:768px) {
+            .fd-listing-date {
+                display: none;
             }
+        }
+
+        /* TIP CARD */
+        .fd-tip-card {
+            background: linear-gradient(135deg, #fff8e1, #fffde7);
+            border: 1px solid #ffe082;
+            border-radius: 18px;
+            padding: 22px 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .fd-tip-card .tip-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .fd-tip-card h5 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #7a5502;
+            margin: 0 0 4px;
+        }
+
+        .fd-tip-card p {
+            font-size: 13px;
+            color: #9a6e20;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        /* PROGRESS CARD */
+        .fd-progress-card {
+            background: #fff;
+            border-radius: 18px;
+            border: 1px solid #edf0f6;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+            padding: 22px 24px;
+            margin-bottom: 24px;
+        }
+
+        .fd-progress-card h4 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin: 0 0 16px;
+        }
+
+        .fd-prog-item {
+            margin-bottom: 14px;
+        }
+
+        .fd-prog-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .fd-prog-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 6px;
+        }
+
+        .fd-prog-bar-wrap {
+            background: #f0f4f8;
+            border-radius: 20px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .fd-prog-bar {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 1s cubic-bezier(.4, 0, .2, 1);
+        }
+
+        .fd-prog-bar.pb-green {
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+        }
+
+        .fd-prog-bar.pb-blue {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .fd-prog-bar.pb-amber {
+            background: linear-gradient(90deg, #f7971e, #ffd200);
+        }
+
+        /* MARKET CTA */
+        .fd-market-cta {
+            background: linear-gradient(135deg, #0d6e5e, #11998e, #38ef7d);
+            border-radius: 18px;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-decoration: none !important;
+            transition: transform .2s, box-shadow .2s;
+            box-shadow: 0 4px 18px rgba(17, 153, 142, .3);
+        }
+
+        .fd-market-cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(17, 153, 142, .4);
+        }
+
+        .fd-market-cta .cta-inner {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .fd-market-cta .cta-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .fd-market-cta .cta-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .fd-market-cta .cta-sub {
+            font-size: 12px;
+            opacity: .8;
+            color: #fff;
+        }
+
+        .fd-market-cta .cta-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12.5px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, .9);
+            transition: gap .2s;
+        }
+
+        .fd-market-cta:hover .cta-link {
+            gap: 10px;
         }
     </style>
 </head>
@@ -358,106 +904,259 @@ $total_stmt->close();
     <?php include '../includes/nav.php'; ?>
 
     <div class="main-container">
-        <div class="container py-4" style="max-width: 1200px;">
+        <div class="container py-4" style="max-width:1200px;">
 
-            <?php $initials = strtoupper(substr($farmer['username'], 0, 1)); ?>
-
-            <!-- Hero -->
-            <div class="farm-hero">
-                <div class="hero-label"><i class="fas fa-tractor me-1"></i> Farmer Dashboard</div>
-                <h1>Welcome back, <?php echo htmlspecialchars($farmer['username']); ?> 🌿</h1>
+            <!-- HERO -->
+            <div class="fd-hero mb-0">
+                <div class="fd-hero-badge">
+                    <i class="fas fa-tractor"></i> Farmer Dashboard
+                </div>
+                <h1><?php echo $greeting; ?>, <?php echo htmlspecialchars($farmer['username']); ?> &#127807;</h1>
+                <p class="sub">Here's an overview of your marketplace activity today.</p>
+                <div class="fd-hero-actions">
+                    <a href="create_post.php"><i class="fas fa-plus"></i> New Listing</a>
+                    <a href="view_posts.php"><i class="fas fa-layer-group"></i> My Listings</a>
+                </div>
             </div>
 
-            <!-- Profile Strip -->
-            <div class="profile-strip">
-                <div class="profile-strip-inner">
-                    <div class="profile-avatar"><?php echo $initials; ?></div>
-                    <div class="profile-name-block">
+            <!-- PROFILE CARD -->
+            <div class="fd-profile-card">
+                <div class="fd-profile-inner">
+                    <div class="fd-avatar"><?php echo $initials; ?></div>
+                    <div class="fd-profile-info">
                         <h2><?php echo htmlspecialchars($farmer['username']); ?></h2>
                         <div class="meta">
-                            <i class="fas fa-calendar-alt me-1"></i>
-                            Farmer since <?php echo date('F Y', strtotime($farmer['created_at'])); ?>
+                            <span><i class="fas fa-calendar-alt"></i> Farming since <?php echo date('M Y', strtotime($farmer['created_at'])); ?></span>
+                            <span><i class="fas fa-box-open"></i> <?php echo $total_posts; ?> listing<?php echo $total_posts != 1 ? 's' : ''; ?> total</span>
                         </div>
                     </div>
-                    <div class="farmer-badge">
-                        <i class="fas fa-leaf"></i> Verified Farmer
+                    <div class="fd-profile-right">
+                        <div class="fd-verified-badge"><i class="fas fa-leaf"></i> Verified Farmer</div>
+                        <a href="profile.php" class="btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
                 </div>
             </div>
 
-            <!-- Stat Cards -->
-            <div class="row stats-row g-3">
-                <div class="col-6 col-md-4">
-                    <div class="stat-box">
-                        <div class="stat-icon green"><i class="fas fa-store"></i></div>
-                        <div>
-                            <div class="stat-value"><?php echo $total_posts; ?></div>
-                            <div class="stat-label">Total Listings</div>
+            <!-- STAT CARDS -->
+            <div class="row g-3 fd-stats-grid">
+                <div class="col-6 col-lg-3">
+                    <div class="fd-stat s-green">
+                        <div class="fd-stat-icon s-green"><i class="fas fa-store"></i></div>
+                        <div class="fd-stat-body">
+                            <div class="fd-stat-value"><?php echo $total_posts; ?></div>
+                            <div class="fd-stat-label">Total Listings</div>
+                            <div class="fd-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#11998e;"></i> All time</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-4">
-                    <div class="stat-box">
-                        <div class="stat-icon purple"><i class="fas fa-bolt"></i></div>
-                        <div>
-                            <div class="stat-value"><?php echo $active_listings; ?></div>
-                            <div class="stat-label">Active Listings</div>
+                <div class="col-6 col-lg-3">
+                    <div class="fd-stat s-blue">
+                        <div class="fd-stat-icon s-blue"><i class="fas fa-bolt"></i></div>
+                        <div class="fd-stat-body">
+                            <div class="fd-stat-value"><?php echo $active_listings; ?></div>
+                            <div class="fd-stat-label">Active Listings</div>
+                            <div class="fd-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#667eea;"></i> Live &amp; approved</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-6 col-md-4">
-                    <div class="stat-box">
-                        <div class="stat-icon teal"><i class="fas fa-check-double"></i></div>
-                        <div>
-                            <div class="stat-value"><?php echo $total_sold; ?></div>
-                            <div class="stat-label">Products Sold</div>
+                <div class="col-6 col-lg-3">
+                    <div class="fd-stat s-amber">
+                        <div class="fd-stat-icon s-amber"><i class="fas fa-check-double"></i></div>
+                        <div class="fd-stat-body">
+                            <div class="fd-stat-value"><?php echo $total_sold; ?></div>
+                            <div class="fd-stat-label">Products Sold</div>
+                            <div class="fd-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#d4900a;"></i> Completed sales</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="fd-stat s-rose">
+                        <div class="fd-stat-icon s-rose"><i class="fas fa-hourglass-half"></i></div>
+                        <div class="fd-stat-body">
+                            <div class="fd-stat-value"><?php echo $pending_posts; ?></div>
+                            <div class="fd-stat-label">Pending Review</div>
+                            <div class="fd-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#f5576c;"></i> Awaiting approval</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Quick Actions -->
-            <div class="section-title"><i class="fas fa-th-large" style="color:#11998e;"></i> Quick Actions</div>
-            <div class="row g-3 mb-2">
+            <div class="row g-4">
+                <!-- LEFT COLUMN -->
+                <div class="col-lg-8">
 
-                <!-- Create Post -->
-                <div class="col-md-4">
-                    <a href="create_post.php" class="action-card">
-                        <div class="action-icon green"><i class="fas fa-plus"></i></div>
-                        <h5>Create New Listing</h5>
-                        <p>List a new farm product and start receiving bids from buyers immediately.</p>
-                        <span class="card-arrow">Get started <i class="fas fa-arrow-right"></i></span>
-                    </a>
+                    <!-- Quick Actions -->
+                    <div class="fd-section-head">
+                        <h3><span class="icon-dot"></span> Quick Actions</h3>
+                    </div>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6 col-md-4">
+                            <a href="create_post.php" class="fd-action">
+                                <div class="fd-action-icon a-green"><i class="fas fa-plus"></i></div>
+                                <h5>Create Listing</h5>
+                                <p>List a new farm product and receive bids from buyers.</p>
+                                <div class="fd-action-footer">
+                                    <span class="fd-action-link c-green">Get started <i class="fas fa-arrow-right"></i></span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <a href="view_posts.php" class="fd-action">
+                                <div class="fd-action-icon a-amber"><i class="fas fa-layer-group"></i></div>
+                                <h5>My Listings</h5>
+                                <p>View, edit, and track all your product listings.</p>
+                                <div class="fd-action-footer">
+                                    <span class="fd-action-link c-amber">View all <i class="fas fa-arrow-right"></i></span>
+                                    <?php if ($active_listings > 0): ?>
+                                        <span class="fd-action-badge b-active"><?php echo $active_listings; ?> active</span>
+                                    <?php endif; ?>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <a href="manage_orders.php" class="fd-action">
+                                <div class="fd-action-icon a-blue"><i class="fas fa-truck"></i></div>
+                                <h5>Manage Orders</h5>
+                                <p>Handle fulfilment and update delivery status.</p>
+                                <div class="fd-action-footer">
+                                    <span class="fd-action-link c-blue">Manage <i class="fas fa-arrow-right"></i></span>
+                                </div>
+                            </a>
+                        </div>
+
+                    </div>
+
+                    <!-- Recent Listings -->
+                    <div class="fd-recent-card">
+                        <div class="rc-head">
+                            <h3><i class="fas fa-clock" style="color:#11998e;font-size:14px;"></i> Recent Listings</h3>
+                            <a href="view_posts.php">View all <i class="fas fa-arrow-right"></i></a>
+                        </div>
+                        <?php if (empty($recent_posts)): ?>
+                            <div class="fd-empty-state">
+                                <i class="fas fa-seedling"></i>
+                                <p>No listings yet. <a href="create_post.php" style="color:#11998e;font-weight:600;">Create your first listing</a></p>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach ($recent_posts as $i => $post):
+                                if (!$post['is_approved']) {
+                                    $sClass = 'ls-pending';
+                                    $sLabel = 'Pending';
+                                } elseif ($post['status'] === 'sold') {
+                                    $sClass = 'ls-sold';
+                                    $sLabel = 'Sold';
+                                } elseif ($post['status'] === 'active') {
+                                    $sClass = 'ls-active';
+                                    $sLabel = 'Active';
+                                } else {
+                                    $sClass = 'ls-inactive';
+                                    $sLabel = ucfirst($post['status']);
+                                }
+                            ?>
+                                <div class="fd-listing-row">
+                                    <div class="fd-listing-num"><?php echo $i + 1; ?></div>
+                                    <div class="fd-listing-title"><?php echo htmlspecialchars($post['title']); ?></div>
+                                    <div class="fd-listing-date"><?php echo date('M d, Y', strtotime($post['created_at'])); ?></div>
+                                    <span class="fd-listing-status <?php echo $sClass; ?>"><?php echo $sLabel; ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
                 </div>
 
-                <!-- View Posts -->
-                <div class="col-md-4">
-                    <a href="view_posts.php" class="action-card">
-                        <div class="action-icon amber"><i class="fas fa-layer-group"></i></div>
-                        <h5>My Listings</h5>
-                        <p>View, edit, and track all your product listings and their bidding status.</p>
-                        <span class="card-arrow amber-txt">View all <i class="fas fa-arrow-right"></i></span>
-                    </a>
-                </div>
+                <!-- RIGHT COLUMN -->
+                <div class="col-lg-4">
 
-                <!-- Manage Orders -->
-                <div class="col-md-4">
-                    <a href="manage_orders.php" class="action-card">
-                        <div class="action-icon blue"><i class="fas fa-truck"></i></div>
-                        <h5>Manage Orders</h5>
-                        <p>Update delivery status and handle fulfilment for your completed sales.</p>
-                        <span class="card-arrow purple-txt">Manage <i class="fas fa-arrow-right"></i></span>
-                    </a>
-                </div>
+                    <!-- Listing Performance -->
+                    <?php
+                    $sold_pct    = $total_posts > 0 ? round(($total_sold       / $total_posts) * 100) : 0;
+                    $active_pct  = $total_posts > 0 ? round(($active_listings  / $total_posts) * 100) : 0;
+                    $pending_pct = $total_posts > 0 ? round(($pending_posts    / $total_posts) * 100) : 0;
+                    ?>
+                    <div class="fd-progress-card">
+                        <h4><i class="fas fa-chart-line me-2" style="color:#11998e;"></i> Listing Performance</h4>
+                        <div class="fd-prog-item">
+                            <div class="fd-prog-header">
+                                <span>Active Rate</span>
+                                <span><?php echo $active_pct; ?>%</span>
+                            </div>
+                            <div class="fd-prog-bar-wrap">
+                                <div class="fd-prog-bar pb-blue" style="width:0" data-w="<?php echo $active_pct; ?>%"></div>
+                            </div>
+                        </div>
+                        <div class="fd-prog-item">
+                            <div class="fd-prog-header">
+                                <span>Sold Rate</span>
+                                <span><?php echo $sold_pct; ?>%</span>
+                            </div>
+                            <div class="fd-prog-bar-wrap">
+                                <div class="fd-prog-bar pb-green" style="width:0" data-w="<?php echo $sold_pct; ?>%"></div>
+                            </div>
+                        </div>
+                        <div class="fd-prog-item">
+                            <div class="fd-prog-header">
+                                <span>Pending Rate</span>
+                                <span><?php echo $pending_pct; ?>%</span>
+                            </div>
+                            <div class="fd-prog-bar-wrap">
+                                <div class="fd-prog-bar pb-amber" style="width:0" data-w="<?php echo $pending_pct; ?>%"></div>
+                            </div>
+                        </div>
+                    </div>
 
+                    <!-- Tip Card -->
+                    <div class="fd-tip-card">
+                        <div class="tip-icon"><i class="fas fa-lightbulb"></i></div>
+                        <div>
+                            <h5>Seller Tip</h5>
+                            <p>Listings with clear photos and accurate descriptions receive up to <strong>3x more bids</strong>. Keep pricing competitive with current market rates.</p>
+                        </div>
+                    </div>
+
+                    <!-- Market CTA -->
+                    <a href="../browse.php" class="fd-market-cta">
+                        <div class="cta-inner">
+                            <div class="cta-icon"><i class="fas fa-chart-bar"></i></div>
+                            <div>
+                                <div class="cta-title">Browse Market</div>
+                                <div class="cta-sub">View live listings &amp; pricing trends</div>
+                            </div>
+                        </div>
+                        <div class="cta-link">Explore now <i class="fas fa-arrow-right"></i></div>
+                    </a>
+
+                </div>
             </div>
 
         </div>
     </div>
 
     <?php include '../includes/footer.php'; ?>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Animate progress bars
+            document.querySelectorAll('.fd-prog-bar[data-w]').forEach(bar => {
+                const target = bar.getAttribute('data-w');
+                setTimeout(() => {
+                    bar.style.width = target;
+                }, 150);
+            });
+            // Count-up animation for stat values
+            document.querySelectorAll('.fd-stat-value').forEach(el => {
+                const target = parseInt(el.textContent, 10);
+                if (isNaN(target) || target === 0) return;
+                let cur = 0;
+                const step = Math.max(1, Math.ceil(target / 40));
+                const timer = setInterval(() => {
+                    cur = Math.min(cur + step, target);
+                    el.textContent = cur;
+                    if (cur >= target) clearInterval(timer);
+                }, 20);
+            });
+        });
+    </script>
 </body>
 
 </html>

@@ -163,6 +163,20 @@ if ($max_bid && $max_bid > $post['price']) {
     $min_bid = $max_bid;
 }
 $min_bid += 0.01;
+
+// Fetch all product images (post_images table, fall back to posts.image)
+$all_images = [];
+$pi_stmt = $conn->prepare("SELECT filename FROM post_images WHERE post_id = ? ORDER BY is_primary DESC, sort_order ASC");
+$pi_stmt->bind_param("i", $post_id);
+$pi_stmt->execute();
+$pi_result = $pi_stmt->get_result();
+while ($pi_row = $pi_result->fetch_assoc()) {
+    $all_images[] = $pi_row['filename'];
+}
+$pi_stmt->close();
+if (empty($all_images) && !empty($post['image'])) {
+    $all_images[] = $post['image'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -178,6 +192,50 @@ $min_bid += 0.01;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
+    <style>
+        /* ── Gallery ── */
+        .pd-gallery-main {
+            position: relative;
+        }
+
+        .pd-gallery-thumbs {
+            display: flex;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #f4f4f4;
+            overflow-x: auto;
+            border-top: 1px solid #ebebeb;
+            border-radius: 0 0 16px 16px;
+            scrollbar-width: thin;
+        }
+
+        .pd-thumb {
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2.5px solid transparent;
+            transition: border-color .15s, transform .15s;
+            flex-shrink: 0;
+        }
+
+        .pd-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .pd-thumb:hover {
+            border-color: #11998e;
+            transform: scale(1.04);
+        }
+
+        .pd-thumb.pd-thumb-active {
+            border-color: #11998e;
+        }
+    </style>
 </head>
 
 <body>
@@ -202,11 +260,11 @@ $min_bid += 0.01;
 
                 <!-- Image Card -->
                 <div class="pd-image-card">
-                    <?php if ($post['image']): ?>
-                        <div class="pd-image-container">
-                            <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>"
+                    <?php if (!empty($all_images)): ?>
+                        <div class="pd-gallery-main">
+                            <img src="assets/images/<?php echo htmlspecialchars($all_images[0]); ?>"
                                 alt="<?php echo htmlspecialchars($post['product_name']); ?>"
-                                class="pd-main-img">
+                                class="pd-main-img" id="pdMainImg">
                             <!-- Status overlays -->
                             <?php if ($is_live): ?>
                                 <div class="pd-float-badge live-badge">
@@ -226,6 +284,16 @@ $min_bid += 0.01;
                                 </div>
                             <?php endif; ?>
                         </div>
+                        <?php if (count($all_images) > 1): ?>
+                            <div class="pd-gallery-thumbs">
+                                <?php foreach ($all_images as $idx => $img_file): ?>
+                                    <div class="pd-thumb <?php echo $idx === 0 ? 'pd-thumb-active' : ''; ?>"
+                                        onclick="pdSetMain(this,'assets/images/<?php echo htmlspecialchars($img_file); ?>')">
+                                        <img src="assets/images/<?php echo htmlspecialchars($img_file); ?>" alt="">
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php else: ?>
                         <div class="pd-image-placeholder">
                             <i class="fas fa-seedling fa-4x"></i>
@@ -409,6 +477,74 @@ $min_bid += 0.01;
                     <?php endif; ?>
                 <?php endif; ?>
 
+                <!-- Wishlist / Save for Later -->
+                <?php
+                $pd_is_wishlisted = false;
+                if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
+                    $conn->query("CREATE TABLE IF NOT EXISTS `wishlist` (
+                        `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                        `user_id` INT NOT NULL, `post_id` INT NOT NULL,
+                        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE KEY `unique_wishlist` (`user_id`, `post_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    $wl_s = $conn->prepare("SELECT id FROM wishlist WHERE user_id = ? AND post_id = ? LIMIT 1");
+                    $wl_s->bind_param("ii", $_SESSION['user_id'], $post_id);
+                    $wl_s->execute();
+                    $pd_is_wishlisted = $wl_s->get_result()->num_rows > 0;
+                    $wl_s->close();
+                }
+                ?>
+                <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user' && !$is_ended): ?>
+                    <div style="margin-bottom:16px;">
+                        <button id="pdWlBtn"
+                            onclick="pdToggleWishlist(this)"
+                            data-post-id="<?php echo $post_id; ?>"
+                            style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+                               padding:12px 18px;border-radius:12px;border:2px solid <?php echo $pd_is_wishlisted ? '#ef4444' : '#e2e8f0'; ?>;
+                               background:<?php echo $pd_is_wishlisted ? '#fff1f2' : '#fff' ?>;
+                               color:<?php echo $pd_is_wishlisted ? '#ef4444' : '#64748b' ?>;
+                               font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;">
+                            <i class="fas fa-heart" style="font-size:1rem;"></i>
+                            <span id="pdWlText"><?php echo $pd_is_wishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'; ?></span>
+                        </button>
+                    </div>
+                    <script>
+                        function pdToggleWishlist(btn) {
+                            var postId = btn.dataset.postId;
+                            fetch('wishlist_handler.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: 'action=toggle&post_id=' + postId
+                                })
+                                .then(function(r) {
+                                    return r.json();
+                                })
+                                .then(function(d) {
+                                    if (d.login_required) {
+                                        window.location.href = 'index.php?auth=login';
+                                        return;
+                                    }
+                                    if (d.success) {
+                                        var txt = document.getElementById('pdWlText');
+                                        if (d.saved) {
+                                            btn.style.borderColor = '#ef4444';
+                                            btn.style.background = '#fff1f2';
+                                            btn.style.color = '#ef4444';
+                                            txt.textContent = 'Saved to Wishlist';
+                                        } else {
+                                            btn.style.borderColor = '#e2e8f0';
+                                            btn.style.background = '#fff';
+                                            btn.style.color = '#64748b';
+                                            txt.textContent = 'Save to Wishlist';
+                                        }
+                                    }
+                                });
+                        }
+                    </script>
+                <?php endif; ?>
+
                 <!-- Bid History Card -->
                 <div class="pd-bids-card">
                     <div class="pd-bids-card-header">
@@ -588,6 +724,13 @@ $min_bid += 0.01;
                     setInterval(tick, 1000);
                 })();
         <?php endif; ?>
+
+        // Gallery thumbnail switcher
+        function pdSetMain(thumb, src) {
+            document.getElementById('pdMainImg').src = src;
+            document.querySelectorAll('.pd-thumb').forEach(t => t.classList.remove('pd-thumb-active'));
+            thumb.classList.add('pd-thumb-active');
+        }
     </script>
 
     <?php include 'includes/footer.php'; ?>

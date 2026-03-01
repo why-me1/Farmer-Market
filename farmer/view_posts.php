@@ -10,16 +10,87 @@ if ($_SESSION['role'] !== 'farmer') {
 
 $farmer_id = $_SESSION['user_id'];
 
+// ── Handle delete individual image ──────────────────────────────────
+if (isset($_GET['delete_image']) && isset($_GET['edit'])) {
+    $del_img_id    = (int)$_GET['delete_image'];
+    $del_post_id   = (int)$_GET['edit'];
+    $del_stmt = $conn->prepare(
+        "SELECT pi.filename, pi.is_primary FROM post_images pi
+         JOIN posts p ON p.id = pi.post_id
+         WHERE pi.id = ? AND p.farmer_id = ? AND pi.post_id = ?"
+    );
+    $del_stmt->bind_param("iii", $del_img_id, $farmer_id, $del_post_id);
+    $del_stmt->execute();
+    $del_row = $del_stmt->get_result()->fetch_assoc();
+    $del_stmt->close();
+    if ($del_row) {
+        $dp = '../assets/images/' . $del_row['filename'];
+        if (file_exists($dp)) unlink($dp);
+        $conn->query("DELETE FROM post_images WHERE id = $del_img_id");
+        if ($del_row['is_primary']) {
+            $nx = $conn->prepare("SELECT id, filename FROM post_images WHERE post_id = ? ORDER BY sort_order ASC LIMIT 1");
+            $nx->bind_param("i", $del_post_id);
+            $nx->execute();
+            $nx_row = $nx->get_result()->fetch_assoc();
+            $nx->close();
+            if ($nx_row) {
+                $conn->query("UPDATE post_images SET is_primary = 1 WHERE id = " . (int)$nx_row['id']);
+                $esc = $conn->real_escape_string($nx_row['filename']);
+                $conn->query("UPDATE posts SET image = '$esc' WHERE id = $del_post_id AND farmer_id = $farmer_id");
+            } else {
+                $conn->query("UPDATE posts SET image = '' WHERE id = $del_post_id AND farmer_id = $farmer_id");
+            }
+        }
+    }
+    header("Location: view_posts.php?edit=$del_post_id");
+    exit();
+}
+
 // Handle update post submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_post'])) {
-    $post_id = (int)$_POST['post_id'];
+    $post_id      = (int)$_POST['post_id'];
     $product_name = trim($_POST['product_name']);
-    $description = trim($_POST['description']);
-    $price = floatval($_POST['price']);
+    $description  = trim($_POST['description']);
+    $price        = floatval($_POST['price']);
 
     $update_stmt = $conn->prepare("UPDATE posts SET product_name = ?, description = ?, price = ? WHERE id = ? AND farmer_id = ?");
     $update_stmt->bind_param("ssdii", $product_name, $description, $price, $post_id, $farmer_id);
     $update_stmt->execute();
+    $update_stmt->close();
+
+    // Handle multiple new images
+    if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
+        $allowed  = ['jpg', 'jpeg', 'png', 'gif'];
+        $fc = count($_FILES['images']['name']);
+        // Get current max sort_order
+        $mo_r = $conn->query("SELECT MAX(sort_order) AS mx FROM post_images WHERE post_id = $post_id");
+        $max_ord = (($mo_r->fetch_assoc()['mx']) ?? -1) + 1;
+        // Check if any images already exist
+        $cnt_r = $conn->query("SELECT COUNT(*) AS cnt FROM post_images WHERE post_id = $post_id");
+        $has_imgs = (int)($cnt_r->fetch_assoc()['cnt']) > 0;
+        $img_ins2 = $conn->prepare("INSERT INTO post_images (post_id, filename, is_primary, sort_order) VALUES (?, ?, ?, ?)");
+        $first_new2 = true;
+        for ($i = 0; $i < $fc; $i++) {
+            if ($_FILES['images']['error'][$i] === UPLOAD_ERR_OK) {
+                $ext2 = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));
+                if (in_array($ext2, $allowed) && $_FILES['images']['size'][$i] <= 5 * 1024 * 1024) {
+                    $fn2 = uniqid() . '.' . $ext2;
+                    move_uploaded_file($_FILES['images']['tmp_name'][$i], '../assets/images/' . $fn2);
+                    $is_prim2 = (!$has_imgs && $first_new2) ? 1 : 0;
+                    $img_ins2->bind_param("isii", $post_id, $fn2, $is_prim2, $max_ord);
+                    $img_ins2->execute();
+                    if (!$has_imgs && $first_new2) {
+                        $esc2 = $conn->real_escape_string($fn2);
+                        $conn->query("UPDATE posts SET image = '$esc2' WHERE id = $post_id AND farmer_id = $farmer_id");
+                    }
+                    $max_ord++;
+                    $first_new2 = false;
+                    $has_imgs = true;
+                }
+            }
+        }
+        $img_ins2->close();
+    }
 
     header("Location: view_posts.php");
     exit();
@@ -437,6 +508,160 @@ $result = $stmt->get_result();
             color: #333;
         }
 
+        /* ── Edit Image Upload ── */
+        .edit-img-upload {
+            border: 2px dashed #cce8e4;
+            border-radius: 10px;
+            padding: 12px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all .2s;
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .edit-img-upload:hover {
+            border-color: #11998e;
+            background: #f0fdf8;
+        }
+
+        .edit-img-upload input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .edit-upload-txt {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .edit-upload-txt i {
+            color: #11998e;
+            font-size: 15px;
+        }
+
+        /* existing images grid */
+        .existing-imgs-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .existing-img-item {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #d0e8e0;
+            flex-shrink: 0;
+        }
+
+        .existing-img-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .img-primary-tag {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(17, 153, 142, .85);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            text-align: center;
+            padding: 2px 0;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .img-delete-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(200, 0, 0, .82);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            text-decoration: none;
+            transition: background .15s;
+        }
+
+        .img-delete-btn:hover {
+            background: #c00;
+            color: #fff;
+        }
+
+        .edit-previews-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+
+        .edit-previews-grid img {
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            object-fit: cover;
+            border: 2px solid #11998e;
+        }
+
+        .edit-img-current {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f0fdf8;
+            border: 1px solid #cce8e4;
+            border-radius: 8px;
+            padding: 7px 10px;
+            margin-bottom: 8px;
+        }
+
+        .edit-img-current img {
+            width: 44px;
+            height: 44px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #d0e8e0;
+            flex-shrink: 0;
+        }
+
+        .edit-img-current span {
+            font-size: 11px;
+            color: #555;
+        }
+
+        .edit-img-preview {
+            max-width: 100%;
+            max-height: 110px;
+            border-radius: 8px;
+            display: none;
+            margin-top: 10px;
+            object-fit: cover;
+            border: 1px solid #d0e0e8;
+        }
+
         /* ── Empty State ── */
         .empty-state {
             grid-column: 1 / -1;
@@ -528,7 +753,7 @@ $result = $stmt->get_result();
                             <div class="listing-card-body">
                                 <?php if ($edit_id === (int)$post['id']): ?>
                                     <!-- ── Edit Mode ── -->
-                                    <form action="" method="POST">
+                                    <form action="" method="POST" enctype="multipart/form-data">
                                         <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
                                         <div class="edit-form-panel">
                                             <div class="edit-form-title"><i class="fas fa-pen"></i> Editing Listing</div>
@@ -547,6 +772,54 @@ $result = $stmt->get_result();
                                                 <input type="number" name="price" class="edit-input"
                                                     value="<?php echo $post['price']; ?>" step="0.01" required>
                                             </div>
+
+                                            <!-- Images management -->
+                                            <div class="mb-3">
+                                                <label class="edit-label">Product Photos <span style="font-weight:400;color:#aaa;">(add more or remove existing)</span></label>
+                                                <?php
+                                                $ei_stmt = $conn->prepare("SELECT id, filename, is_primary FROM post_images WHERE post_id = ? ORDER BY is_primary DESC, sort_order ASC");
+                                                $ei_stmt->bind_param("i", $post['id']);
+                                                $ei_stmt->execute();
+                                                $ei_rows = $ei_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+                                                $ei_stmt->close();
+                                                ?>
+                                                <?php if (!empty($ei_rows)): ?>
+                                                    <div class="existing-imgs-grid">
+                                                        <?php foreach ($ei_rows as $ei): ?>
+                                                            <div class="existing-img-item">
+                                                                <img src="../assets/images/<?php echo htmlspecialchars($ei['filename']); ?>" alt="">
+                                                                <?php if ($ei['is_primary']): ?>
+                                                                    <span class="img-primary-tag">Cover</span>
+                                                                <?php endif; ?>
+                                                                <a href="?delete_image=<?php echo $ei['id']; ?>&edit=<?php echo $post['id']; ?>"
+                                                                    class="img-delete-btn"
+                                                                    onclick="return confirm('Remove this image?')"
+                                                                    title="Remove">
+                                                                    <i class="fas fa-times"></i>
+                                                                </a>
+                                                            </div>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                <?php elseif (!empty($post['image'])): ?>
+                                                    <div class="edit-img-current">
+                                                        <img src="../assets/images/<?php echo htmlspecialchars($post['image']); ?>"
+                                                            style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #d0e8e0;"
+                                                            alt="Current image">
+                                                        <span style="font-size:11px;color:#555;">Legacy photo — upload new ones to replace</span>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div class="edit-img-upload" id="editUploadArea-<?php echo $post['id']; ?>">
+                                                    <input type="file" name="images[]" multiple
+                                                        accept="image/jpg,image/jpeg,image/png,image/gif"
+                                                        onchange="previewEditImages(this,<?php echo $post['id']; ?>)">
+                                                    <div class="edit-upload-txt">
+                                                        <i class="fas fa-cloud-upload-alt"></i>
+                                                        <span id="editUploadLbl-<?php echo $post['id']; ?>">Click or drag to add more photos</span>
+                                                    </div>
+                                                    <div id="editImgPreviews-<?php echo $post['id']; ?>" class="edit-previews-grid"></div>
+                                                </div>
+                                            </div>
+
                                             <div style="display:flex;gap:8px;">
                                                 <button type="submit" name="update_post" class="btn-save">
                                                     <i class="fas fa-check me-1"></i> Save
@@ -619,6 +892,49 @@ $result = $stmt->get_result();
 
     <?php include '../includes/footer.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function previewEditImages(input, postId) {
+            const grid = document.getElementById('editImgPreviews-' + postId);
+            const lbl = document.getElementById('editUploadLbl-' + postId);
+            if (!grid) return;
+            grid.innerHTML = '';
+            if (!input.files || !input.files.length) return;
+            const count = Math.min(input.files.length, 10);
+            if (lbl) lbl.textContent = count + ' photo' + (count > 1 ? 's' : '') + ' to add';
+            for (let i = 0; i < count; i++) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    grid.appendChild(img);
+                };
+                reader.readAsDataURL(input.files[i]);
+            }
+        }
+
+        // Drag-over highlight for edit upload areas
+        document.querySelectorAll('.edit-img-upload').forEach(function(area) {
+            area.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                area.style.borderColor = '#11998e';
+                area.style.background = '#f0fdf8';
+            });
+            area.addEventListener('dragleave', function() {
+                area.style.borderColor = '';
+                area.style.background = '';
+            });
+            area.addEventListener('drop', function(e) {
+                e.preventDefault();
+                area.style.borderColor = '';
+                area.style.background = '';
+                const fileInput = area.querySelector('input[type=file]');
+                if (fileInput && e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    fileInput.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

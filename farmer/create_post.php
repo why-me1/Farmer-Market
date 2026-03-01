@@ -26,7 +26,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'farmer') {
 
 // Initialize variables
 $errors = [];
-$product_name = $category = $description = $image = "";
+$product_name = $category = $description = "";
 $price = 0.0;
 $quantity = 0.0;
 $unit = "kg";
@@ -44,18 +44,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $auction_start_date = sanitize($_POST['auction_start_date']);
     $auction_end_date = sanitize($_POST['auction_end_date']);
 
-    // Handle image upload
-    if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
+    // Handle multiple image uploads
+    $saved_images = [];
+    if (isset($_FILES['images']) && is_array($_FILES['images']['name'])) {
         $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-        $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-
-        if (in_array($ext, $allowed)) {
-            $image = uniqid() . '.' . $ext;
-            move_uploaded_file($_FILES['image']['tmp_name'], '../assets/images/' . $image);
-        } else {
-            $errors[] = "Invalid image format. Allowed formats: JPG, JPEG, PNG, GIF.";
+        $file_count = count($_FILES['images']['name']);
+        for ($i = 0; $i < $file_count; $i++) {
+            if ($_FILES['images']['error'][$i] === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));
+                if (in_array($ext, $allowed) && $_FILES['images']['size'][$i] <= 5 * 1024 * 1024) {
+                    $fname = uniqid() . '.' . $ext;
+                    move_uploaded_file($_FILES['images']['tmp_name'][$i], '../assets/images/' . $fname);
+                    $saved_images[] = $fname;
+                } else {
+                    $errors[] = "Image #" . ($i + 1) . ": invalid format or exceeds 5 MB (JPG, JPEG, PNG, GIF allowed).";
+                }
+            }
         }
     }
+    $cover_image = !empty($saved_images) ? $saved_images[0] : '';
 
     // Validate required fields
     if (empty($product_name) || empty($category) || empty($description) || empty($price) || empty($quantity) || empty($unit) || empty($auction_start_date) || empty($auction_end_date)) {
@@ -83,12 +90,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         $stmt = $conn->prepare("INSERT INTO posts (farmer_id, product_name, category, description, price, quantity, unit, auction_start_date, auction_end_date, image, created_at) 
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-
-        $stmt->bind_param("isssddssss", $farmer_id, $product_name, $category, $description, $price, $quantity, $unit, $auction_start_date, $auction_end_date, $image);
-
+        $stmt->bind_param("isssddssss", $farmer_id, $product_name, $category, $description, $price, $quantity, $unit, $auction_start_date, $auction_end_date, $cover_image);
 
         if ($stmt->execute()) {
-            // Adjust farmer automatic rating based on posted price vs market price for this product
+            $new_post_id = $stmt->insert_id;
+
+            // Save each image to post_images table
+            if (!empty($saved_images)) {
+                $img_ins = $conn->prepare("INSERT INTO post_images (post_id, filename, is_primary, sort_order) VALUES (?, ?, ?, ?)");
+                foreach ($saved_images as $idx => $fname) {
+                    $is_primary = ($idx === 0) ? 1 : 0;
+                    $img_ins->bind_param("isii", $new_post_id, $fname, $is_primary, $idx);
+                    $img_ins->execute();
+                }
+                $img_ins->close();
+            }
+
+            // Adjust farmer automatic rating
             adjust_rating_for_post($farmer_id, $price, $product_name);
 
             header("Location: dashboard.php");
@@ -307,15 +325,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #aaa;
         }
 
-        #imagePreview {
-            max-width: 100%;
-            max-height: 200px;
+        .preview-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+            justify-content: center;
+        }
+
+        .preview-grid img {
+            width: 90px;
+            height: 90px;
             border-radius: 10px;
-            display: none;
-            margin: 14px auto 0;
             object-fit: cover;
             box-shadow: 0 2px 10px rgba(0, 0, 0, .1);
-            border: 1px solid #ebebeb;
+            border: 2px solid #11998e;
         }
 
         /* ── Error Alert ── */
@@ -530,16 +554,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                     </div>
 
-                    <!-- Product Image -->
+                    <!-- Product Images -->
                     <div class="form-section">
-                        <div class="form-section-title"><i class="fas fa-image"></i> Product Photo</div>
+                        <div class="form-section-title"><i class="fas fa-images"></i> Product Photos</div>
                         <div class="image-upload-area" id="uploadArea">
-                            <input type="file" name="image" id="image" accept="image/jpg,image/jpeg,image/png,image/gif"
-                                onchange="previewImage(this)">
+                            <input type="file" name="images[]" id="images" accept="image/jpg,image/jpeg,image/png,image/gif"
+                                multiple onchange="previewImages(this)">
                             <div class="upload-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                            <div class="upload-label">Click or drag &amp; drop to upload</div>
-                            <div class="upload-hint">Supported: JPG, JPEG, PNG, GIF — optional but recommended</div>
-                            <img id="imagePreview" src="" alt="Preview">
+                            <div class="upload-label" id="uploadLabel">Click or drag &amp; drop to upload</div>
+                            <div class="upload-hint">Up to 10 photos &middot; JPG, PNG, GIF &middot; max 5 MB each &mdash; optional but recommended</div>
+                            <div class="preview-grid" id="previewGrid"></div>
                         </div>
                     </div>
 
@@ -564,17 +588,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-        function previewImage(input) {
-            const preview = document.getElementById('imagePreview');
-            const label = document.querySelector('.upload-label');
-            if (input.files && input.files[0]) {
+        function previewImages(input) {
+            const grid = document.getElementById('previewGrid');
+            const label = document.getElementById('uploadLabel');
+            grid.innerHTML = '';
+            if (!input.files || !input.files.length) return;
+            const count = Math.min(input.files.length, 10);
+            label.textContent = count + ' photo' + (count > 1 ? 's' : '') + ' selected';
+            for (let i = 0; i < count; i++) {
                 const reader = new FileReader();
                 reader.onload = e => {
-                    preview.src = e.target.result;
-                    preview.style.display = 'block';
-                    label.textContent = input.files[0].name;
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    grid.appendChild(img);
                 };
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(input.files[i]);
             }
         }
 
@@ -588,6 +616,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         area.addEventListener('drop', e => {
             e.preventDefault();
             area.classList.remove('dragover');
+            const fi = document.getElementById('images');
+            if (fi && e.dataTransfer.files.length) {
+                fi.files = e.dataTransfer.files;
+                fi.dispatchEvent(new Event('change'));
+            }
         });
     </script>
 </body>
