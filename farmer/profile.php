@@ -11,7 +11,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $farmerId = (int) $_GET['id'];
 
 // Fetch farmer info
-$farmer_stmt = $conn->prepare("SELECT id, username, created_at FROM users WHERE id = ? AND role = 'farmer' LIMIT 1");
+$farmer_stmt = $conn->prepare("SELECT id, username, full_name, farm_name, email, phone, location, bio, profile_picture, created_at FROM users WHERE id = ? AND role = 'farmer' LIMIT 1");
 $farmer_stmt->bind_param("i", $farmerId);
 $farmer_stmt->execute();
 $farmer = $farmer_stmt->get_result()->fetch_assoc();
@@ -109,6 +109,9 @@ $listings = $list_stmt->get_result();
 
 // Avatar initials
 $avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
+$has_avatar      = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $farmer['profile_picture']);
+$avatar_url      = $has_avatar ? $base_url . $farmer['profile_picture'] : null;
+$display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($farmer['full_name']) ? $farmer['full_name'] : $farmer['username']);
 
 ?>
 <!DOCTYPE html>
@@ -188,6 +191,43 @@ $avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
             padding: 28px 32px 26px;
             position: relative;
             z-index: 2;
+        }
+
+        /* Message button */
+        .fp-msg-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 20px;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(17, 153, 142, .35);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .fp-msg-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(17, 153, 142, .45);
+            color: #fff;
+        }
+
+        .fp-msg-btn--ghost {
+            background: transparent;
+            color: #11998e;
+            border: 1.5px solid #11998e;
+            box-shadow: none;
+        }
+
+        .fp-msg-btn--ghost:hover {
+            background: #f0fdf4;
+            transform: translateY(-1px);
+            box-shadow: none;
+            color: #0d6e5e;
         }
 
         /* Avatar */
@@ -1015,14 +1055,23 @@ $avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
 
                 <!-- Avatar -->
                 <div class="fp-avatar-wrap">
-                    <div class="fp-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
+                    <?php if ($avatar_url): ?>
+                        <img src="<?php echo htmlspecialchars($avatar_url); ?>" alt="Avatar"
+                            style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 4px 14px rgba(17,153,142,.3);">
+                    <?php else: ?>
+                        <div class="fp-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
+                    <?php endif; ?>
                     <div class="fp-avatar-badge"><i class="fas fa-check"></i></div>
                 </div>
 
                 <!-- Info -->
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center flex-wrap" style="gap:8px; margin-bottom:6px;">
-                        <span class="fp-name"><?php echo htmlspecialchars($farmer['username']); ?></span>
+                        <span class="fp-name"><?php echo htmlspecialchars($display_name); ?>
+                            <?php if ($display_name !== $farmer['username']): ?>
+                                <span style="font-size:.65em;color:#94a3b8;font-weight:500;margin-left:6px;">@<?php echo htmlspecialchars($farmer['username']); ?></span>
+                            <?php endif; ?>
+                        </span>
                         <?php if ($seller_stars > 0): ?>
                             <span class="fp-seller-badge">
                                 <i class="fas fa-star"></i>
@@ -1039,6 +1088,34 @@ $avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
                         <i class="fas fa-calendar-alt"></i>
                         Member since <?php echo date('F Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?>
                     </div>
+                    <?php if (!empty($farmer['location'])): ?>
+                        <div class="fp-joined mt-1"><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($farmer['location']); ?></div>
+                    <?php endif; ?>
+                    <?php if (!empty($farmer['bio'])): ?>
+                        <p style="font-size:.81rem;color:#64748b;margin:8px 0 0;max-width:480px;line-height:1.55;"><?php echo nl2br(htmlspecialchars($farmer['bio'])); ?></p>
+                    <?php endif; ?>
+
+                    <!-- Message Button -->
+                    <?php
+                    $viewer_id   = $_SESSION['user_id'] ?? null;
+                    $viewer_role = $_SESSION['role']    ?? null;
+                    $is_own      = $viewer_id && (int)$viewer_id === $farmerId;
+                    ?>
+                    <?php if (!$is_own): ?>
+                        <div style="margin-top:14px;">
+                            <?php if ($viewer_id && $viewer_role === 'user'): ?>
+                                <a href="<?php echo $base_url; ?>messages_chat.php?user=<?php echo $farmerId; ?>"
+                                    class="fp-msg-btn">
+                                    <i class="fas fa-paper-plane"></i> Message Farmer
+                                </a>
+                            <?php elseif (!$viewer_id): ?>
+                                <a href="<?php echo $base_url; ?>index.php?auth=login"
+                                    class="fp-msg-btn fp-msg-btn--ghost">
+                                    <i class="fas fa-comment-dots"></i> Login to Message
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
 
                     <?php if ($review_count > 0): ?>
                         <div class="d-flex align-items-center" style="gap:7px; margin-top:10px;">
@@ -1328,17 +1405,14 @@ $avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
                                 </div>
                             </div>
                             <div class="contact-row">
-                                <div class="contact-icon"><i class="fas fa-phone"></i></div>
-                                <div>
-                                    <div class="contact-lbl">Phone</div>
-                                    <div class="contact-val na">Not provided</div>
-                                </div>
-                            </div>
-                            <div class="contact-row">
                                 <div class="contact-icon"><i class="fas fa-map-marker-alt"></i></div>
                                 <div>
                                     <div class="contact-lbl">Location</div>
-                                    <div class="contact-val na">Not provided</div>
+                                    <?php if (!empty($farmer['location'])): ?>
+                                        <div class="contact-val"><?php echo htmlspecialchars($farmer['location']); ?></div>
+                                    <?php else: ?>
+                                        <div class="contact-val na">Not provided</div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>

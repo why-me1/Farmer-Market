@@ -11,7 +11,7 @@ if ($_SESSION['role'] !== 'farmer') {
 $farmer_id = $_SESSION['user_id'];
 
 // Farmer info
-$u_stmt = $conn->prepare("SELECT username, created_at FROM users WHERE id = ? LIMIT 1");
+$u_stmt = $conn->prepare("SELECT username, full_name, email, location, profile_picture, farm_name, created_at FROM users WHERE id = ? LIMIT 1");
 $u_stmt->bind_param("i", $farmer_id);
 $u_stmt->execute();
 $farmer = $u_stmt->get_result()->fetch_assoc();
@@ -64,7 +64,10 @@ if ($hour < 12)        $greeting = "Good morning";
 elseif ($hour < 17)    $greeting = "Good afternoon";
 else                   $greeting = "Good evening";
 
-$initials = strtoupper(substr($farmer['username'], 0, 1));
+$initials     = strtoupper(substr($farmer['username'], 0, 2));
+$has_avatar   = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $farmer['profile_picture']);
+$avatar_url   = $has_avatar ? $base_url . $farmer['profile_picture'] : null;
+$display_name = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($farmer['full_name']) ? $farmer['full_name'] : $farmer['username']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -922,9 +925,18 @@ $initials = strtoupper(substr($farmer['username'], 0, 1));
             <!-- PROFILE CARD -->
             <div class="fd-profile-card">
                 <div class="fd-profile-inner">
-                    <div class="fd-avatar"><?php echo $initials; ?></div>
+                    <?php if ($avatar_url): ?>
+                        <img src="<?php echo htmlspecialchars($avatar_url); ?>" alt="Avatar"
+                            style="width:86px;height:86px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 4px 18px rgba(17,153,142,.4);margin-top:-20px;flex-shrink:0;">
+                    <?php else: ?>
+                        <div class="fd-avatar"><?php echo $initials; ?></div>
+                    <?php endif; ?>
                     <div class="fd-profile-info">
-                        <h2><?php echo htmlspecialchars($farmer['username']); ?></h2>
+                        <h2><?php echo htmlspecialchars($display_name); ?>
+                            <?php if (!empty($farmer['farm_name']) || !empty($farmer['full_name'])): ?>
+                                <small style="font-size:13px;color:#8b98a6;font-weight:500;margin-left:6px;">@<?php echo htmlspecialchars($farmer['username']); ?></small>
+                            <?php endif; ?>
+                        </h2>
                         <div class="meta">
                             <span><i class="fas fa-calendar-alt"></i> Farming since <?php echo date('M Y', strtotime($farmer['created_at'])); ?></span>
                             <span><i class="fas fa-box-open"></i> <?php echo $total_posts; ?> listing<?php echo $total_posts != 1 ? 's' : ''; ?> total</span>
@@ -932,7 +944,7 @@ $initials = strtoupper(substr($farmer['username'], 0, 1));
                     </div>
                     <div class="fd-profile-right">
                         <div class="fd-verified-badge"><i class="fas fa-leaf"></i> Verified Farmer</div>
-                        <a href="profile.php" class="btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
+                        <a href="edit_profile.php" class="btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
                 </div>
             </div>

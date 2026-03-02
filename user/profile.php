@@ -11,7 +11,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $userId = (int)$_GET['id'];
 
 // Fetch user info
-$user_stmt = $conn->prepare("SELECT id, username, created_at FROM users WHERE id = ? AND role = 'user' LIMIT 1");
+$user_stmt = $conn->prepare("SELECT id, username, full_name, email, phone, location, bio, profile_picture, created_at FROM users WHERE id = ? AND role = 'user' LIMIT 1");
 $user_stmt->bind_param("i", $userId);
 $user_stmt->execute();
 $user = $user_stmt->get_result()->fetch_assoc();
@@ -71,10 +71,13 @@ $rating_color = $fairness_rating >= 7.5 ? '#22c55e' : ($fairness_rating >= 5 ? '
 $rating_label = $fairness_rating >= 7.5 ? 'Excellent' : ($fairness_rating >= 5 ? 'Good' : 'Needs Improvement');
 $rating_pct = round(($fairness_rating / 10) * 100);
 
-$member_since = date('F Y', strtotime($user['created_at'] ?? date('Y-m-d')));
-$initials = strtoupper(substr($user['username'], 0, 1));
+$member_since  = date('F Y', strtotime($user['created_at'] ?? date('Y-m-d')));
+$initials      = strtoupper(substr($user['username'], 0, 2));
 $avatar_colors = ['#6366f1', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#14b8a6'];
-$avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
+$avatar_bg     = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
+$has_avatar    = !empty($user['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $user['profile_picture']);
+$avatar_url    = $has_avatar ? $base_url . $user['profile_picture'] : null;
+$display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -338,6 +341,43 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+
+        /* Message button */
+        .up-msg-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 20px;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, .35);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .up-msg-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(99, 102, 241, .45);
+            color: #fff;
+        }
+
+        .up-msg-btn--ghost {
+            background: transparent;
+            color: #6366f1;
+            border: 1.5px solid #6366f1;
+            box-shadow: none;
+        }
+
+        .up-msg-btn--ghost:hover {
+            background: #eef0ff;
+            transform: translateY(-1px);
+            box-shadow: none;
+            color: #4338ca;
         }
 
         /* Rating gauge card */
@@ -799,15 +839,52 @@ $avatar_bg = $avatar_colors[crc32($user['username']) % count($avatar_colors)];
                 <div style="display:flex;align-items:center;gap:20px;">
                     <div class="avatar-wrap">
                         <div class="avatar-ring"></div>
-                        <div class="avatar-circle" style="background:<?php echo $avatar_bg; ?>">
-                            <?php echo $initials; ?>
-                        </div>
+                        <?php if ($avatar_url): ?>
+                            <img src="<?php echo htmlspecialchars($avatar_url); ?>" alt="Avatar"
+                                style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid #fff;">
+                        <?php else: ?>
+                            <div class="avatar-circle" style="background:<?php echo $avatar_bg; ?>">
+                                <?php echo $initials; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div style="padding-top:6px;">
-                        <h1 class="username-title"><?php echo htmlspecialchars($user['username']); ?></h1>
+                        <h1 class="username-title"><?php echo htmlspecialchars($display_name); ?>
+                            <?php if (!empty($user['full_name'])): ?>
+                                <span style="font-size:.7em;color:#94a3b8;font-weight:500;">@<?php echo htmlspecialchars($user['username']); ?></span>
+                            <?php endif; ?>
+                        </h1>
                         <div class="member-since">
                             <i class="bi bi-calendar3"></i> Member since <?php echo $member_since; ?>
                         </div>
+                        <?php if (!empty($user['location'])): ?>
+                            <div class="member-since mt-1"><i class="bi bi-geo-alt-fill"></i> <?php echo htmlspecialchars($user['location']); ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($user['bio'])): ?>
+                            <p style="font-size:.82rem;color:#64748b;margin:8px 0 0;max-width:420px;line-height:1.5;"><?php echo nl2br(htmlspecialchars($user['bio'])); ?></p>
+                        <?php endif; ?>
+
+                        <!-- Message Button -->
+                        <?php
+                        $viewer_id   = $_SESSION['user_id'] ?? null;
+                        $viewer_role = $_SESSION['role']    ?? null;
+                        $is_own      = $viewer_id && (int)$viewer_id === $userId;
+                        ?>
+                        <?php if (!$is_own): ?>
+                            <div style="margin-top:12px;">
+                                <?php if ($viewer_id && $viewer_role === 'farmer'): ?>
+                                    <a href="<?php echo $base_url; ?>messages_chat.php?user=<?php echo $userId; ?>"
+                                        class="up-msg-btn">
+                                        <i class="bi bi-send-fill"></i> Message Buyer
+                                    </a>
+                                <?php elseif (!$viewer_id): ?>
+                                    <a href="<?php echo $base_url; ?>index.php?auth=login"
+                                        class="up-msg-btn up-msg-btn--ghost">
+                                        <i class="bi bi-chat-dots"></i> Login to Message
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="rating-pill">

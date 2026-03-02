@@ -12,7 +12,7 @@ if ($_SESSION['role'] !== 'user') {
 $user_id = $_SESSION['user_id'];
 
 // User info
-$user_stmt = $conn->prepare("SELECT id, username, created_at FROM users WHERE id = ? LIMIT 1");
+$user_stmt = $conn->prepare("SELECT id, username, full_name, email, location, profile_picture, created_at FROM users WHERE id = ? LIMIT 1");
 $user_stmt->bind_param("i", $user_id);
 $user_stmt->execute();
 $user = $user_stmt->get_result()->fetch_assoc();
@@ -146,7 +146,10 @@ else                 $greeting = "Good evening";
 $success_rate = $total_auctions_participated > 0
     ? round(($auctions_won / $total_auctions_participated) * 100)
     : 0;
-$initials = strtoupper(substr($user['username'], 0, 1));
+$initials      = strtoupper(substr($user['username'], 0, 2));
+$has_avatar    = !empty($user['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $user['profile_picture']);
+$avatar_url    = $has_avatar ? $base_url . $user['profile_picture'] : null;
+$display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['username'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -975,16 +978,25 @@ $initials = strtoupper(substr($user['username'], 0, 1));
                 <p class="sub">Track your bids, purchases, and marketplace activity.</p>
                 <div class="ud-hero-actions">
                     <a href="<?php echo $base_url; ?>browse.php"><i class="fas fa-store"></i> Browse Market</a>
-                    <a href="profile.php"><i class="fas fa-user"></i> My Profile</a>
+                    <a href="profile.php?id=<?php echo $user_id; ?>"><i class="fas fa-user"></i> My Profile</a>
                 </div>
             </div>
 
             <!-- PROFILE CARD -->
             <div class="ud-profile-card">
                 <div class="ud-profile-inner">
-                    <div class="ud-avatar"><?php echo $initials; ?></div>
+                    <?php if ($avatar_url): ?>
+                        <img src="<?php echo htmlspecialchars($avatar_url); ?>" alt="Avatar"
+                            style="width:86px;height:86px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 4px 18px rgba(102,126,234,.4);margin-top:-20px;flex-shrink:0;">
+                    <?php else: ?>
+                        <div class="ud-avatar"><?php echo $initials; ?></div>
+                    <?php endif; ?>
                     <div class="ud-profile-info">
-                        <h2><?php echo htmlspecialchars($user['username']); ?></h2>
+                        <h2><?php echo htmlspecialchars($display_name); ?>
+                            <?php if (!empty($user['full_name'])): ?>
+                                <small style="font-size:13px;color:#8b98a6;font-weight:500;margin-left:6px;">@<?php echo htmlspecialchars($user['username']); ?></small>
+                            <?php endif; ?>
+                        </h2>
                         <div class="meta">
                             <span><i class="fas fa-calendar-alt"></i> Member since <?php echo date('M Y', strtotime($user['created_at'])); ?></span>
                             <span><i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?> placed</span>
@@ -995,7 +1007,7 @@ $initials = strtoupper(substr($user['username'], 0, 1));
                             <i class="fas fa-star"></i>
                             Fairness: <strong><?php echo number_format($fairness_rating, 1); ?> / 10</strong>
                         </div>
-                        <a href="profile.php" class="ud-btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
+                        <a href="edit_profile.php" class="ud-btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
                 </div>
             </div>
