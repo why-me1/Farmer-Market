@@ -11,6 +11,7 @@ $username = $_SESSION['username'] ?? null;
 $role = $_SESSION['role'] ?? 'guest';
 
 // Fetch unread notifications count
+$unread_messages = 0;
 if (isset($_SESSION['user_id'])) {
     $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
     $stmt->bind_param("i", $_SESSION['user_id']);
@@ -18,6 +19,26 @@ if (isset($_SESSION['user_id'])) {
     $stmt->bind_result($notification_count);
     $stmt->fetch();
     $stmt->close();
+
+    // Fetch unread direct messages count
+    $conn->query("CREATE TABLE IF NOT EXISTS `messages` (
+        `id`          INT AUTO_INCREMENT PRIMARY KEY,
+        `sender_id`   INT NOT NULL,
+        `receiver_id` INT NOT NULL,
+        `message`     TEXT NOT NULL,
+        `is_read`     TINYINT(1) NOT NULL DEFAULT 0,
+        `created_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_sender`   (`sender_id`),
+        INDEX `idx_receiver` (`receiver_id`),
+        FOREIGN KEY (`sender_id`)   REFERENCES `users`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`receiver_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $ms = $conn->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0");
+    $ms->bind_param("i", $_SESSION['user_id']);
+    $ms->execute();
+    $ms->bind_result($unread_messages);
+    $ms->fetch();
+    $ms->close();
 }
 
 // Define base URL
@@ -888,6 +909,15 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
             </button>
 
             <?php if ($role !== 'guest'): ?>
+                <!-- Direct Messages -->
+                <a class="fm-icon-btn" href="<?php echo $base_url; ?>messages.php" title="Messages">
+                    <i class="fas fa-comments"></i>
+                    <?php if ($unread_messages > 0): ?>
+                        <span class="fm-badge" id="msgCount">
+                            <?php echo $unread_messages > 99 ? '99+' : $unread_messages; ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
                 <!-- Notifications -->
                 <a class="fm-icon-btn" href="<?php echo $base_url; ?>notifications.php" title="Notifications">
                     <i class="fas fa-bell <?php echo $notification_count > 0 ? 'bell-ring' : ''; ?>"></i>
@@ -932,6 +962,12 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
                                     <i class="fas fa-user"></i> My Profile
                                 </a>
                             <?php endif; ?>
+                            <a class="fm-dropdown-item" href="<?php echo $base_url; ?>messages.php">
+                                <i class="fas fa-comments"></i> Messages
+                                <?php if ($unread_messages > 0): ?>
+                                    <span style="margin-left:auto;background:#059669;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;"><?php echo $unread_messages; ?></span>
+                                <?php endif; ?>
+                            </a>
                             <a class="fm-dropdown-item" href="<?php echo $base_url; ?>notifications.php">
                                 <i class="fas fa-bell"></i> Notifications
                                 <?php if ($notification_count > 0): ?>
@@ -979,6 +1015,12 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
     <?php if ($role !== 'guest'): ?>
         <div class="fm-mobile-divider"></div>
         <a class="fm-mobile-link" href="<?php echo $dashboard_url; ?>"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a class="fm-mobile-link" href="<?php echo $base_url; ?>messages.php" id="mobileMessageLink">
+            <i class="fas fa-comments"></i> Messages
+            <?php if ($unread_messages > 0): ?>
+                <span style="margin-left:auto;background:#059669;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;" id="mobileMsgBadge"><?php echo $unread_messages; ?></span>
+            <?php endif; ?>
+        </a>
         <a class="fm-mobile-link" href="<?php echo $base_url; ?>notifications.php">
             <i class="fas fa-bell"></i> Notifications
             <?php if ($notification_count > 0): ?>
@@ -1066,9 +1108,45 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
         });
     }
 
+    function fetchUnreadMessages() {
+        <?php if (isset($_SESSION['user_id'])): ?>
+            $.ajax({
+                url: "<?php echo $base_url; ?>messages_handler.php?action=unread_count",
+                method: "GET",
+                success: function(data) {
+                    try {
+                        let res = JSON.parse(data);
+                        let cnt = res.count || 0;
+                        let badge = $('#msgCount');
+                        let mobileBadge = $('#mobileMsgBadge');
+                        if (cnt > 0) {
+                            let disp = cnt > 99 ? '99+' : cnt;
+                            if (badge.length === 0) {
+                                $('a[href*="messages.php"].fm-icon-btn').append('<span class="fm-badge" id="msgCount">' + disp + '</span>');
+                            } else {
+                                badge.text(disp).show();
+                            }
+                            if (mobileBadge.length === 0) {
+                                $('#mobileMessageLink').append('<span style="margin-left:auto;background:#059669;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;" id="mobileMsgBadge">' + disp + '</span>');
+                            } else {
+                                mobileBadge.text(disp).show();
+                            }
+                        } else {
+                            badge.hide();
+                            mobileBadge.hide();
+                        }
+                    } catch (e) {}
+                }
+            });
+        <?php endif; ?>
+    }
+
     $(document).ready(function() {
         fetchNotifications();
         setInterval(fetchNotifications, 10000);
+
+        fetchUnreadMessages();
+        setInterval(fetchUnreadMessages, 10000);
 
         // ── Sticky scroll shadow ──
         window.addEventListener('scroll', function() {

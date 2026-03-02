@@ -494,6 +494,23 @@ if (empty($all_images) && !empty($post['image'])) {
                     $wl_s->close();
                 }
                 ?>
+
+                <!-- Message Farmer Button -->
+                <?php if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$post['farmer_id']): ?>
+                    <div style="margin-bottom:12px;">
+                        <a href="<?php echo BASE_URL; ?>messages_chat.php?user=<?php echo (int)$post['farmer_id']; ?>"
+                            style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+                              padding:12px 18px;border-radius:12px;border:2px solid #d1fae5;
+                              background:#f0fdf4;color:#059669;
+                              font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;"
+                            onmouseover="this.style.background='#dcfce7';this.style.borderColor='#6ee7b7';"
+                            onmouseout="this.style.background='#f0fdf4';this.style.borderColor='#d1fae5';">
+                            <i class="fas fa-comments" style="font-size:1rem;"></i>
+                            Message Farmer
+                        </a>
+                    </div>
+                <?php endif; ?>
+
                 <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user' && !$is_ended): ?>
                     <div style="margin-bottom:16px;">
                         <button id="pdWlBtn"
