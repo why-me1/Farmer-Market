@@ -896,7 +896,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
         <!-- Center Nav Links -->
         <ul class="fm-nav-links">
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a></li>
-            <li><a class="fm-nav-link" href="<?php echo $base_url; ?>index.php#live-auctions"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a></li>
+            <li><a class="fm-nav-link" href="<?php echo $base_url; ?>auctions.php"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a></li>
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a></li>
         </ul>
 
@@ -1009,7 +1009,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
     <?php endif; ?>
 
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a>
-    <a class="fm-mobile-link" href="<?php echo $base_url; ?>index.php#live-auctions"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a>
+    <a class="fm-mobile-link" href="<?php echo $base_url; ?>auctions.php"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a>
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a>
 
     <?php if ($role !== 'guest'): ?>

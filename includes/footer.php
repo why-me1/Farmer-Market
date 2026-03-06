@@ -227,18 +227,6 @@ $footer_base = (strpos($_SERVER['PHP_SELF'], '/farmer/') !== false
                 </ul>
             </div>
 
-            <!-- For Farmers -->
-            <div class="col-lg-2 col-md-6 col-6">
-                <div class="footer-heading">For Farmers</div>
-                <ul class="footer-links">
-                    <li><a href="<?php echo $footer_base; ?>farmer/dashboard.php"><i class="fas fa-chevron-right"></i> Dashboard</a></li>
-                    <li><a href="<?php echo $footer_base; ?>farmer/create_post.php"><i class="fas fa-chevron-right"></i> List a Product</a></li>
-                    <li><a href="<?php echo $footer_base; ?>farmer/view_posts.php"><i class="fas fa-chevron-right"></i> My Listings</a></li>
-                    <li><a href="<?php echo $footer_base; ?>farmer/manage_orders.php"><i class="fas fa-chevron-right"></i> Manage Orders</a></li>
-                    <li><a href="<?php echo $footer_base; ?>farmer/profile.php"><i class="fas fa-chevron-right"></i> My Profile</a></li>
-                </ul>
-            </div>
-
             <!-- Contact -->
             <div class="col-lg-4 col-md-6">
                 <div class="footer-heading">Contact Us</div>

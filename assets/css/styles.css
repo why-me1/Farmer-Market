@@ -3202,179 +3202,127 @@ html body .navbar {
     box-shadow: var(--shadow-sm);
 }
 
-.category-cards-grid {
-    /* let Bootstrap .row handle flex/gutter — no overrides needed */
+/* ── Category tile grid (homepage) ── */
+.cat-chip-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 10px;
 }
 
-.category-card-link {
-    text-decoration: none;
-    color: inherit;
-    display: block;
-}
-
-.category-card-link:hover,
-.category-card-link:focus {
-    text-decoration: none;
-    color: inherit;
-}
-
-.category-card {
-    text-align: center;
-    padding: 2rem 1.25rem 1.5rem;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%);
-    border: 2px solid #f0f0f0;
-    transition: all 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-    height: 100%;
+.cat-chip {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.55rem;
+    gap: 8px;
+    padding: 20px 10px 16px;
+    background: var(--chip-bg, #f8f9fa);
+    border: 1.5px solid var(--chip-border, #e2e8f0);
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    text-align: center;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Large decorative ghost icon behind content */
-.category-ghost-icon {
+.cat-chip::before {
+    content: '';
     position: absolute;
-    bottom: -10px;
-    right: -10px;
-    font-size: 5.5rem;
+    bottom: -18px;
+    right: -14px;
+    width: 56px;
+    height: 56px;
+    background: var(--chip-icon, #065f46);
     opacity: 0.07;
-    line-height: 1;
-    pointer-events: none;
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    border-radius: 50%;
+    transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.category-card:hover .category-ghost-icon {
-    opacity: 0.13;
-    transform: scale(1.1) rotate(-5deg);
+.cat-chip:hover::before {
+    transform: scale(1.4);
+    opacity: 0.12;
 }
 
-.category-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+.cat-chip:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 28px rgba(0,0,0,0.11);
+    border-color: var(--chip-icon, #065f46);
+    text-decoration: none;
+    color: inherit;
 }
 
-.category-icon {
-    width: 68px;
-    height: 68px;
-    margin: 0 auto;
-    background: var(--primary-gradient);
-    border-radius: 18px;
+.cat-chip-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: var(--chip-icon, #065f46);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.7rem;
-    color: #fff;
-    transition: all 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
-    position: relative;
-    z-index: 1;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    font-size: 1.55rem;
+    flex-shrink: 0;
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.category-card:hover .category-icon {
-    transform: scale(1.12) rotate(-4deg);
+.cat-chip:hover .cat-chip-icon {
+    transform: scale(1.12) rotate(-6deg);
 }
 
-.category-name {
-    font-size: 1.05rem;
+.cat-chip-name {
+    font-family: 'Poppins', sans-serif;
+    font-size: .78rem;
     font-weight: 700;
-    color: var(--dark-color);
-    margin: 0;
-    position: relative;
-    z-index: 1;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    color: var(--chip-text, #1e293b);
+    line-height: 1.25;
     word-break: break-word;
-    hyphens: auto;
-    line-height: 1.3;
 }
 
-.category-count-badge {
-    display: inline-block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #6b7280;
-    background: rgba(0,0,0,0.055);
-    padding: 2px 10px;
-    border-radius: 50px;
-    position: relative;
-    z-index: 1;
+.cat-chip-count {
+    font-size: .66rem;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1;
 }
 
-.category-browse-btn {
+.cat-view-all-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    padding: 6px 16px;
+    gap: 7px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #065f46;
+    border: 1.5px solid #a7f3d0;
+    background: #f0fdf4;
     border-radius: 50px;
-    background: rgba(0,0,0,0.07);
-    color: var(--dark-color);
-    position: relative;
-    z-index: 1;
-    transition: background 0.2s ease, gap 0.2s ease;
-    margin-top: 0.2rem;
+    padding: 7px 18px;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+    white-space: nowrap;
 }
 
-.category-card:hover .category-browse-btn {
-    background: rgba(0,0,0,0.12);
-    gap: 10px;
+.cat-view-all-btn:hover {
+    background: #d1fae5;
+    border-color: #10b981;
+    color: #064e3b;
+    transform: translateX(3px);
+    text-decoration: none;
 }
 
-/* Per-category accent colors (nth-child matches the 8 fixed categories) */
-/* 1 Vegetables - green */
-.category-cards-grid > div:nth-child(1) .category-card { background: linear-gradient(135deg, #e8f5e9 0%, #f4fdf5 100%); border-color: #c8e6c9; }
-.category-cards-grid > div:nth-child(1) .category-card:hover { box-shadow: 0 16px 48px rgba(56, 142, 60, 0.2); border-color: #388e3c; }
-.category-cards-grid > div:nth-child(1) .category-icon  { background: linear-gradient(135deg, #388e3c, #66bb6a); box-shadow: 0 6px 20px rgba(56,142,60,0.35); }
-.category-cards-grid > div:nth-child(1) .category-name  { color: #2e7d32; }
-.category-cards-grid > div:nth-child(1) .category-ghost-icon { color: #388e3c; }
-/* 2 Fruits - orange */
-.category-cards-grid > div:nth-child(2) .category-card { background: linear-gradient(135deg, #fff3e0 0%, #fffaf4 100%); border-color: #ffe0b2; }
-.category-cards-grid > div:nth-child(2) .category-card:hover { box-shadow: 0 16px 48px rgba(230, 81, 0, 0.2); border-color: #e65100; }
-.category-cards-grid > div:nth-child(2) .category-icon  { background: linear-gradient(135deg, #e65100, #ff8f00); box-shadow: 0 6px 20px rgba(230,81,0,0.35); }
-.category-cards-grid > div:nth-child(2) .category-name  { color: #e65100; }
-.category-cards-grid > div:nth-child(2) .category-ghost-icon { color: #e65100; }
-/* 3 Grains - amber */
-.category-cards-grid > div:nth-child(3) .category-card { background: linear-gradient(135deg, #fff8e1 0%, #fffef5 100%); border-color: #ffecb3; }
-.category-cards-grid > div:nth-child(3) .category-card:hover { box-shadow: 0 16px 48px rgba(245, 127, 23, 0.2); border-color: #f57f17; }
-.category-cards-grid > div:nth-child(3) .category-icon  { background: linear-gradient(135deg, #f57f17, #ffd54f); box-shadow: 0 6px 20px rgba(245,127,23,0.35); }
-.category-cards-grid > div:nth-child(3) .category-name  { color: #f57f17; }
-.category-cards-grid > div:nth-child(3) .category-ghost-icon { color: #f57f17; }
-/* 4 Dairy - blue */
-.category-cards-grid > div:nth-child(4) .category-card { background: linear-gradient(135deg, #e3f2fd 0%, #f5f9ff 100%); border-color: #bbdefb; }
-.category-cards-grid > div:nth-child(4) .category-card:hover { box-shadow: 0 16px 48px rgba(21, 101, 192, 0.2); border-color: #1565c0; }
-.category-cards-grid > div:nth-child(4) .category-icon  { background: linear-gradient(135deg, #1565c0, #42a5f5); box-shadow: 0 6px 20px rgba(21,101,192,0.35); }
-.category-cards-grid > div:nth-child(4) .category-name  { color: #1565c0; }
-.category-cards-grid > div:nth-child(4) .category-ghost-icon { color: #1565c0; }
-/* 5 Eggs - yellow */
-.category-cards-grid > div:nth-child(5) .category-card { background: linear-gradient(135deg, #fffde7 0%, #fffff8 100%); border-color: #fff9c4; }
-.category-cards-grid > div:nth-child(5) .category-card:hover { box-shadow: 0 16px 48px rgba(249, 168, 37, 0.2); border-color: #f9a825; }
-.category-cards-grid > div:nth-child(5) .category-icon  { background: linear-gradient(135deg, #f9a825, #ffee58); box-shadow: 0 6px 20px rgba(249,168,37,0.35); }
-.category-cards-grid > div:nth-child(5) .category-name  { color: #f9a825; }
-.category-cards-grid > div:nth-child(5) .category-ghost-icon { color: #f9a825; }
-/* 6 Honey - deep-orange */
-.category-cards-grid > div:nth-child(6) .category-card { background: linear-gradient(135deg, #fbe9e7 0%, #fff7f5 100%); border-color: #ffccbc; }
-.category-cards-grid > div:nth-child(6) .category-card:hover { box-shadow: 0 16px 48px rgba(191, 54, 12, 0.2); border-color: #bf360c; }
-.category-cards-grid > div:nth-child(6) .category-icon  { background: linear-gradient(135deg, #bf360c, #ff7043); box-shadow: 0 6px 20px rgba(191,54,12,0.35); }
-.category-cards-grid > div:nth-child(6) .category-name  { color: #bf360c; }
-.category-cards-grid > div:nth-child(6) .category-ghost-icon { color: #bf360c; }
-/* 7 Herbs - teal */
-.category-cards-grid > div:nth-child(7) .category-card { background: linear-gradient(135deg, #e0f2f1 0%, #f2faf9 100%); border-color: #b2dfdb; }
-.category-cards-grid > div:nth-child(7) .category-card:hover { box-shadow: 0 16px 48px rgba(0, 105, 92, 0.2); border-color: #00695c; }
-.category-cards-grid > div:nth-child(7) .category-icon  { background: linear-gradient(135deg, #00695c, #26a69a); box-shadow: 0 6px 20px rgba(0,105,92,0.35); }
-.category-cards-grid > div:nth-child(7) .category-name  { color: #00695c; }
-.category-cards-grid > div:nth-child(7) .category-ghost-icon { color: #00695c; }
-/* 8 Root Vegetables - brown */
-.category-cards-grid > div:nth-child(8) .category-card { background: linear-gradient(135deg, #efebe9 0%, #faf7f6 100%); border-color: #d7ccc8; }
-.category-cards-grid > div:nth-child(8) .category-card:hover { box-shadow: 0 16px 48px rgba(78, 52, 46, 0.2); border-color: #4e342e; }
-.category-cards-grid > div:nth-child(8) .category-icon  { background: linear-gradient(135deg, #4e342e, #a1887f); box-shadow: 0 6px 20px rgba(78,52,46,0.35); }
-.category-cards-grid > div:nth-child(8) .category-name  { color: #4e342e; }
-.category-cards-grid > div:nth-child(8) .category-ghost-icon { color: #4e342e; }
+@media (max-width: 1199px) {
+    .cat-chip-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 767px) {
+    .cat-chip-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .cat-chip { padding: 16px 8px 12px; }
+    .cat-chip-icon { width: 44px; height: 44px; font-size: 1.3rem; }
+}
+@media (max-width: 480px) {
+    .cat-chip-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .cat-chip-name { font-size: .68rem; }
+}
 
 /* Browse Page Styles */
 

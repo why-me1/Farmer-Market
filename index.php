@@ -258,183 +258,194 @@ if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
 
 
 
-        <!-- 2. LIVE AUCTIONS - ENDING SOON SECTION -->
-        <div id="live-auctions" class="live-auctions-section mb-5">
-            <div class="section-header">
-                <h2 class="section-title"><i class="fas fa-fire me-2"></i>Live Auctions - Ending Soon</h2>
-                <p class="section-subtitle">Products ending in the next 24 hours</p>
+        <!-- 2. LIVE AUCTIONS TEASER BANNER -->
+        <?php
+        $teaser_all = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW()");
+        $teaser_all->execute();
+        $teaser_all->bind_result($teaser_all_count);
+        $teaser_all->fetch();
+        $teaser_all->close();
+        $teaser_end = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW() AND UNIX_TIMESTAMP(auction_end_date)-UNIX_TIMESTAMP(NOW()) <= 86400");
+        $teaser_end->execute();
+        $teaser_end->bind_result($teaser_end_count);
+        $teaser_end->fetch();
+        $teaser_end->close();
+        ?>
+        <div id="live-auctions" class="auction-teaser-banner mb-5">
+            <div class="auction-teaser-left">
+                <div class="auction-teaser-icon"><i class="fas fa-gavel"></i></div>
+                <div>
+                    <h3 class="auction-teaser-title"><span class="live-dot" style="width:10px;height:10px;display:inline-block;background:#ef4444;border-radius:50%;animation:livePulse 1.5s infinite;margin-right:8px;"></span>Live Auctions</h3>
+                    <p class="auction-teaser-sub"><?php echo $teaser_all_count; ?> auctions live &nbsp;&bull;&nbsp; <?php echo $teaser_end_count; ?> ending within 24 hours</p>
+                </div>
             </div>
-
-            <!-- Filter Bar for Live Auctions -->
-            <div class="filter-bar-live mb-4">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <?php
-                $live_categories = $conn->prepare("SELECT DISTINCT category FROM posts 
-                                                   WHERE is_approved = 1 AND status = 'active' 
-                                                   AND auction_start_date <= NOW() 
-                                                   AND auction_end_date > NOW()
-                                                   ORDER BY category ASC");
-                $live_categories->execute();
-                $live_cat_result = $live_categories->get_result();
-                while ($cat_row = $live_cat_result->fetch_assoc()):
-                    $cat_name = htmlspecialchars($cat_row['category']);
-                ?>
-                    <button class="filter-btn" data-filter="<?php echo $cat_name; ?>"><?php echo $cat_name; ?></button>
-                <?php endwhile; ?>
-                <?php $live_categories->close(); ?>
-            </div>
-
-            <!-- Live Auctions Grid -->
-            <div id="live-auctions-grid" class="row">
-                <?php
-                // Get live auctions ending within next 24 hours, sorted by time remaining
-                $live_stmt = $conn->prepare("SELECT posts.*, users.username, 
-                                             (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
-                                             (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
-                                             FROM posts 
-                                             JOIN users ON posts.farmer_id = users.id 
-                                             WHERE posts.is_approved = 1 AND posts.status = 'active'
-                                             AND posts.auction_start_date <= NOW() 
-                                             AND posts.auction_end_date > NOW()
-                                             AND UNIX_TIMESTAMP(posts.auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
-                                             ORDER BY posts.auction_end_date ASC
-                                             LIMIT 8");
-                $live_stmt->execute();
-                $live_result = $live_stmt->get_result();
-
-                if ($live_result->num_rows > 0):
-                    while ($post = $live_result->fetch_assoc()):
-                        $post_id = $post['id'];
-                        $current_time = time();
-                        $auction_end_time = strtotime($post['auction_end_date']);
-                        $time_remaining = $auction_end_time - $current_time;
-                        $total_bids = $post['total_bids'];
-                        $max_bid = $post['max_bid'];
-                ?>
-                        <div class="col-lg-3 col-md-6 product-card live-auction-card fade-in-up" data-category="<?php echo htmlspecialchars($post['category']); ?>" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
-                            <a href="product_detail.php?id=<?php echo $post_id; ?>" class="br-card">
-
-                                <div class="br-card-img-wrap">
-                                    <?php if ($post['image']): ?>
-                                        <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" alt="<?php echo htmlspecialchars($post['product_name']); ?>" class="br-card-img">
-                                    <?php else: ?>
-                                        <div class="br-card-img-placeholder"><i class="fas fa-leaf"></i></div>
-                                    <?php endif; ?>
-                                    <div class="br-view-overlay">
-                                        <span class="br-view-btn"><i class="fas fa-eye"></i> View Details</span>
-                                    </div>
-                                    <div class="br-status-badge br-live">
-                                        <span class="br-live-dot"></span> LIVE
-                                    </div>
-                                    <div class="br-bids-pill">
-                                        <i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids != 1 ? 's' : ''; ?>
-                                    </div>
-                                    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user'): ?>
-                                        <button class="wl-btn <?php echo in_array($post_id, $wishlist_post_ids) ? 'saved' : ''; ?>"
-                                            data-post-id="<?php echo $post_id; ?>"
-                                            title="<?php echo in_array($post_id, $wishlist_post_ids) ? 'Remove from wishlist' : 'Save to wishlist'; ?>"
-                                            onclick="event.preventDefault();event.stopPropagation();toggleWishlist(this);">
-                                            <i class="fas fa-heart"></i>
-                                        </button>
-                                    <?php endif; ?>
-                                </div>
-
-                                <div class="br-card-body">
-                                    <h3 class="br-card-title"><?php echo htmlspecialchars($post['product_name']); ?></h3>
-                                    <div class="br-card-price-row">
-                                        <div>
-                                            <span class="br-price-label">Starting at</span>
-                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 2); ?></span>
-                                        </div>
-                                        <?php if ($max_bid && $max_bid > $post['price']): ?>
-                                            <div class="br-current-bid">
-                                                <span class="br-cb-label">Current</span>
-                                                <span class="br-cb-val">৳<?php echo number_format($max_bid, 2); ?></span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="br-card-qty">
-                                        <i class="fas fa-balance-scale"></i>
-                                        <?php echo htmlspecialchars($post['quantity']); ?> <?php echo htmlspecialchars($post['unit']); ?>
-                                    </div>
-                                </div>
-
-                                <div class="br-card-footer">
-                                    <div class="br-farmer-info" onclick="event.preventDefault();event.stopPropagation();window.location.href='farmer/profile.php?id=<?php echo $post['farmer_id']; ?>'" title="View <?php echo htmlspecialchars($post['username']); ?>'s profile">
-                                        <span class="br-farmer-avatar"><?php echo strtoupper(substr($post['username'], 0, 2)); ?></span>
-                                        <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
-                                        <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
-                                    </div>
-                                    <div class="br-countdown" data-end="<?php echo $auction_end_time; ?>">
-                                        <i class="fas fa-clock"></i>
-                                        <span class="br-cd-label">Ends in</span>
-                                        <span class="br-cd-text">–</span>
-                                    </div>
-                                </div>
-
-                            </a>
-                        </div>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            <i class="fas fa-info-circle me-2"></i>No live auctions ending soon. Check back later!
-                        </div>
-                    </div>
-                <?php endif; ?>
-                <?php $live_stmt->close(); ?>
+            <div class="auction-teaser-actions">
+                <a href="auctions.php?tab=ending-soon" class="btn auction-teaser-btn-fire"><i class="fas fa-fire me-2"></i>Ending Soon <span class="auction-teaser-count"><?php echo $teaser_end_count; ?></span></a>
+                <a href="auctions.php?tab=all" class="btn auction-teaser-btn-all"><i class="fas fa-gavel me-2"></i>All Live Auctions <span class="auction-teaser-count"><?php echo $teaser_all_count; ?></span></a>
             </div>
         </div>
+        <style>
+            .auction-teaser-banner {
+                background: linear-gradient(135deg, #022c22 0%, #065f46 100%);
+                border-radius: 16px;
+                padding: 28px 32px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+                flex-wrap: wrap;
+                overflow: hidden;
+                position: relative;
+            }
+
+            .auction-teaser-banner::after {
+                content: '\f0e3';
+                font-family: 'Font Awesome 6 Free';
+                font-weight: 900;
+                position: absolute;
+                right: 32px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 6rem;
+                color: rgba(255, 255, 255, .05);
+                pointer-events: none;
+            }
+
+            .auction-teaser-left {
+                display: flex;
+                align-items: center;
+                gap: 18px;
+                z-index: 1;
+            }
+
+            .auction-teaser-icon {
+                width: 54px;
+                height: 54px;
+                background: rgba(255, 255, 255, .12);
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                color: #6ee7b7;
+                flex-shrink: 0;
+            }
+
+            .auction-teaser-title {
+                font-family: 'Poppins', sans-serif;
+                font-size: 1.2rem;
+                font-weight: 700;
+                color: #fff;
+                margin: 0 0 4px;
+            }
+
+            .auction-teaser-sub {
+                color: rgba(255, 255, 255, .65);
+                font-size: .85rem;
+                margin: 0;
+            }
+
+            .auction-teaser-actions {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                z-index: 1;
+            }
+
+            .auction-teaser-btn-fire {
+                background: linear-gradient(135deg, #ef4444, #f97316);
+                color: #fff !important;
+                border: none;
+                border-radius: 50px;
+                padding: 10px 22px;
+                font-weight: 600;
+                font-size: .88rem;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                transition: opacity .2s, transform .2s;
+            }
+
+            .auction-teaser-btn-fire:hover {
+                opacity: .9;
+                transform: translateY(-1px);
+                text-decoration: none;
+            }
+
+            .auction-teaser-btn-all {
+                background: rgba(255, 255, 255, .12);
+                border: 1px solid rgba(255, 255, 255, .25);
+                color: #fff !important;
+                border-radius: 50px;
+                padding: 10px 22px;
+                font-weight: 600;
+                font-size: .88rem;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                transition: background .2s, transform .2s;
+            }
+
+            .auction-teaser-btn-all:hover {
+                background: rgba(255, 255, 255, .2);
+                transform: translateY(-1px);
+                text-decoration: none;
+            }
+
+            .auction-teaser-count {
+                background: rgba(255, 255, 255, .22);
+                border-radius: 50px;
+                padding: 2px 8px;
+                font-size: .75rem;
+            }
+        </style>
 
         <!-- 3. CATEGORY SECTIONS -->
         <div class="category-sections-wrapper mb-5">
-            <div class="section-header">
-                <h2 class="section-title"><i class="fas fa-th-large me-2"></i>Browse by Category</h2>
+            <div class="section-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div>
+                    <h2 class="section-title mb-0"><i class="fas fa-th-large me-2"></i>Browse by Category</h2>
+                    <p class="section-subtitle mb-0">Find exactly what you're looking for</p>
+                </div>
+                <a href="browse.php" class="cat-view-all-btn">View All <i class="fas fa-arrow-right"></i></a>
             </div>
 
-            <div class="row category-cards-grid">
+            <div class="cat-chip-grid">
                 <?php
-                // Define all 8 categories with icons
                 $all_categories = [
-                    'Vegetables' => 'fa-leaf',
-                    'Fruits' => 'fa-apple-alt',
-                    'Grains' => 'fa-wheat',
-                    'Dairy' => 'fa-cheese',
-                    'Eggs' => 'fa-egg',
-                    'Honey' => 'fa-jar',
-                    'Herbs' => 'fa-clover',
-                    'Root Vegetables' => 'fa-carrot'
+                    'Vegetables'     => ['icon' => 'fa-leaf',      'emoji' => '🥦'],
+                    'Fruits'         => ['icon' => 'fa-apple-alt', 'emoji' => '🍎'],
+                    'Grains'         => ['icon' => 'fa-wheat',     'emoji' => '🌾'],
+                    'Dairy'          => ['icon' => 'fa-cheese',    'emoji' => '🧀'],
+                    'Eggs'           => ['icon' => 'fa-egg',       'emoji' => '🥚'],
+                    'Honey'          => ['icon' => 'fa-jar',       'emoji' => '🍯'],
+                    'Herbs'          => ['icon' => 'fa-clover',    'emoji' => '🌿'],
+                    'Root Vegetables' => ['icon' => 'fa-carrot',    'emoji' => '🥕'],
                 ];
-
-                foreach ($all_categories as $category_name => $icon):
-                    // Get count of active products in this category
-                    $count_stmt = $conn->prepare("SELECT COUNT(*) as product_count FROM posts 
-                                                WHERE is_approved = 1 AND status = 'active' 
-                                                AND category = ?");
+                $cat_colors = [
+                    'Vegetables'     => ['bg' => '#e8f5e9', 'border' => '#a5d6a7', 'icon_bg' => '#388e3c', 'text' => '#2e7d32'],
+                    'Fruits'         => ['bg' => '#fff3e0', 'border' => '#ffcc80', 'icon_bg' => '#e65100', 'text' => '#bf360c'],
+                    'Grains'         => ['bg' => '#fff8e1', 'border' => '#ffe082', 'icon_bg' => '#f57f17', 'text' => '#e65100'],
+                    'Dairy'          => ['bg' => '#e3f2fd', 'border' => '#90caf9', 'icon_bg' => '#1565c0', 'text' => '#0d47a1'],
+                    'Eggs'           => ['bg' => '#fffde7', 'border' => '#fff176', 'icon_bg' => '#f9a825', 'text' => '#f57f17'],
+                    'Honey'          => ['bg' => '#fbe9e7', 'border' => '#ffab91', 'icon_bg' => '#bf360c', 'text' => '#870000'],
+                    'Herbs'          => ['bg' => '#e0f2f1', 'border' => '#80cbc4', 'icon_bg' => '#00695c', 'text' => '#004d40'],
+                    'Root Vegetables' => ['bg' => '#efebe9', 'border' => '#bcaaa4', 'icon_bg' => '#5d4037', 'text' => '#4e342e'],
+                ];
+                foreach ($all_categories as $category_name => $meta):
+                    $count_stmt = $conn->prepare("SELECT COUNT(*) as c FROM posts WHERE is_approved=1 AND status='active' AND category=?");
                     $count_stmt->bind_param("s", $category_name);
                     $count_stmt->execute();
-                    $count_result = $count_stmt->get_result();
-                    $count_row = $count_result->fetch_assoc();
-                    $count = $count_row['product_count'];
+                    $count = $count_stmt->get_result()->fetch_assoc()['c'];
                     $count_stmt->close();
+                    $c = $cat_colors[$category_name];
                 ?>
-                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-                        <a href="browse.php?category=<?php echo urlencode($category_name); ?>" class="category-card-link">
-                            <div class="category-card">
-                                <div class="category-ghost-icon">
-                                    <i class="fas <?php echo $icon; ?>"></i>
-                                </div>
-                                <div class="category-icon">
-                                    <i class="fas <?php echo $icon; ?>"></i>
-                                </div>
-                                <h4 class="category-name"><?php echo $category_name; ?></h4>
-                                <span class="category-count-badge"><?php echo $count; ?> auction<?php echo $count !== 1 ? 's' : ''; ?></span>
-                                <div class="category-browse-btn">
-                                    Browse <i class="fas fa-arrow-right"></i>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
+                    <a href="browse.php?category=<?php echo urlencode($category_name); ?>" class="cat-chip"
+                        style="--chip-bg:<?php echo $c['bg']; ?>;--chip-border:<?php echo $c['border']; ?>;--chip-icon:<?php echo $c['icon_bg']; ?>;--chip-text:<?php echo $c['text']; ?>">
+                        <span class="cat-chip-icon"><?php echo $meta['emoji']; ?></span>
+                        <span class="cat-chip-name"><?php echo $category_name; ?></span>
+                        <span class="cat-chip-count"><?php echo $count; ?> listing<?php echo $count !== 1 ? 's' : ''; ?></span>
+                    </a>
                 <?php endforeach; ?>
             </div>
         </div>
