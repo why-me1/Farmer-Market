@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/notification_functions.php';
+require_once '../includes/ratings.php';
 check_login();
 
 if ($_SESSION['role'] !== 'farmer') {
@@ -38,6 +39,31 @@ if (isset($_POST['update_delivery']) && isset($_POST['product_id']) && isset($_P
         notifyBuyerDeliveryUpdate($buyer_id, $product_id, $product_name, $status);
     }
 
+    // When farmer marks as delivered, record payment and recalculate buyer score
+    if ($success && $status === 'delivered' && $buyer_id) {
+        record_buyer_payment($buyer_id, $product_id);
+    }
+
+    header("Location: manage_orders.php");
+    exit();
+}
+
+// Handle farmer rating a buyer after delivery
+if (isset($_POST['rate_buyer'])) {
+    $product_id = intval($_POST['product_id']);
+    $buyer_id   = intval($_POST['buyer_id']);
+    $rating     = max(1, min(5, intval($_POST['rating'])));
+
+    // Verify this post belongs to this farmer and is delivered
+    $stmt = $conn->prepare("SELECT id FROM posts WHERE id = ? AND farmer_id = ? AND status = 'delivered'");
+    $stmt->bind_param("ii", $product_id, $farmer_id);
+    $stmt->execute();
+    $valid = $stmt->get_result()->num_rows > 0;
+    $stmt->close();
+
+    if ($valid && $buyer_id && $rating) {
+        add_farmer_buyer_rating($farmer_id, $buyer_id, $product_id, $rating);
+    }
     header("Location: manage_orders.php");
     exit();
 }
@@ -52,6 +78,17 @@ $stmt->bind_param("i", $farmer_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $stmt->close();
+
+// Pre-fetch all buyer ratings given by this farmer (post_id => rating)
+$rated_stmt = $conn->prepare("SELECT post_id, rating FROM buyer_ratings WHERE farmer_id = ?");
+$rated_stmt->bind_param("i", $farmer_id);
+$rated_stmt->execute();
+$rated_rows = $rated_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$rated_stmt->close();
+$already_rated = [];
+foreach ($rated_rows as $rr) {
+    $already_rated[(int)$rr['post_id']] = (int)$rr['rating'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -314,22 +351,29 @@ $stmt->close();
             margin-bottom: 2px;
         }
 
-        .order-status {
+        /* ── Unified right-side column ── */
+        .order-right {
             flex-shrink: 0;
-            text-align: center;
-            min-width: 110px;
+            width: 160px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
         }
 
         .status-pill {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
+            gap: 6px;
             border-radius: 20px;
-            padding: 5px 13px;
+            padding: 6px 14px;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: .4px;
             text-transform: uppercase;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .status-pill.sold {
@@ -342,42 +386,27 @@ $stmt->close();
             color: #0d6b5e;
         }
 
-        .order-action {
-            flex-shrink: 0;
-        }
-
         .btn-deliver {
             background: linear-gradient(135deg, #11998e, #38ef7d);
             color: white;
             border: none;
             border-radius: 9px;
-            padding: 9px 16px;
+            padding: 10px 0;
             font-size: 13px;
             font-weight: 700;
             cursor: pointer;
             transition: all .2s;
-            display: inline-flex;
+            display: flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             box-shadow: 0 3px 10px rgba(17, 153, 142, .3);
-            white-space: nowrap;
+            width: 100%;
         }
 
         .btn-deliver:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 18px rgba(17, 153, 142, .42);
-        }
-
-        .delivered-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #e8f8ee;
-            color: #0d6b5e;
-            border-radius: 9px;
-            padding: 9px 14px;
-            font-size: 13px;
-            font-weight: 600;
         }
 
         /* ── Empty State ── */
@@ -410,6 +439,107 @@ $stmt->close();
             color: #aaa;
         }
 
+        /* ── Star Rating Widget ── */
+        .rating-card {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            min-width: 150px;
+        }
+
+        .star-label {
+            font-size: 10px;
+            color: #92400e;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stars {
+            display: flex;
+            flex-direction: row-reverse;
+            gap: 1px;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .stars input {
+            display: none;
+        }
+
+        .stars label {
+            font-size: 28px;
+            color: #d4d4d4;
+            cursor: pointer;
+            transition: color .1s, transform .1s;
+            line-height: 1;
+        }
+
+        .stars label:hover {
+            transform: scale(1.15);
+        }
+
+        .stars input:checked~label,
+        .stars label:hover,
+        .stars label:hover~label {
+            color: #f59e0b;
+        }
+
+        .btn-rate {
+            width: 100%;
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 0;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, .35);
+            transition: opacity .15s, transform .1s;
+        }
+
+        .btn-rate:hover {
+            opacity: .88;
+            transform: translateY(-1px);
+        }
+
+        .rated-card {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .rated-stars {
+            color: #f59e0b;
+            font-size: 18px;
+            letter-spacing: 2px;
+            display: block;
+        }
+
+        .rated-label {
+            font-size: 10px;
+            color: #047857;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-top: 2px;
+            display: block;
+        }
+
         @media (max-width: 768px) {
             .order-row {
                 flex-wrap: wrap;
@@ -417,10 +547,10 @@ $stmt->close();
             }
 
             .order-price,
-            .order-status,
-            .order-action {
+            .order-right {
                 min-width: unset;
                 text-align: left;
+                width: 100%;
             }
 
             .page-hero {
@@ -537,20 +667,11 @@ $stmt->close();
                                 <div class="order-price-val">৳<?php echo number_format($order['price'], 2); ?></div>
                             </div>
 
-                            <div class="order-status">
-                                <?php if ($order['status'] === 'delivered'): ?>
-                                    <span class="status-pill delivered">
-                                        <i class="fas fa-check" style="font-size:9px;"></i> Delivered
-                                    </span>
-                                <?php else: ?>
+                            <div class="order-right">
+                                <?php if ($order['status'] !== 'delivered'): ?>
                                     <span class="status-pill sold">
                                         <i class="fas fa-clock" style="font-size:9px;"></i> Pending
                                     </span>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="order-action">
-                                <?php if ($order['status'] !== 'delivered'): ?>
                                     <form method="POST">
                                         <input type="hidden" name="product_id" value="<?php echo $order['id']; ?>">
                                         <input type="hidden" name="status" value="delivered">
@@ -559,9 +680,36 @@ $stmt->close();
                                         </button>
                                     </form>
                                 <?php else: ?>
-                                    <div class="delivered-badge">
-                                        <i class="fas fa-check-circle"></i> Done
-                                    </div>
+                                    <span class="status-pill delivered">
+                                        <i class="fas fa-check" style="font-size:9px;"></i> Delivered
+                                    </span>
+                                    <?php if (isset($already_rated[$order['id']])): ?>
+                                        <?php $given = $already_rated[$order['id']]; ?>
+                                        <div class="rated-card">
+                                            <span class="rated-stars"><?php echo str_repeat('★', $given); ?><span style="color:#d4d4d4;"><?php echo str_repeat('★', 5 - $given); ?></span></span>
+                                            <span class="rated-label"><i class="fas fa-check" style="margin-right:3px;"></i>Buyer rated</span>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="rating-card">
+                                            <form method="POST" class="star-rating-form">
+                                                <input type="hidden" name="product_id" value="<?php echo $order['id']; ?>">
+                                                <input type="hidden" name="buyer_id" value="<?php echo $order['user_id']; ?>">
+                                                <span class="star-label"><i class="fas fa-star"></i> Rate this buyer</span>
+                                                <div class="stars">
+                                                    <?php for ($s = 5; $s >= 1; $s--): ?>
+                                                        <input type="radio"
+                                                            id="star<?php echo $s . '_' . $order['id']; ?>"
+                                                            name="rating"
+                                                            value="<?php echo $s; ?>">
+                                                        <label for="star<?php echo $s . '_' . $order['id']; ?>" title="<?php echo $s; ?> stars">&#9733;</label>
+                                                    <?php endfor; ?>
+                                                </div>
+                                                <button type="submit" name="rate_buyer" class="btn-rate">
+                                                    <i class="fas fa-star"></i> Submit
+                                                </button>
+                                            </form>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </div>
 

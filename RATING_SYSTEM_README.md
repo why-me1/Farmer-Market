@@ -1,173 +1,215 @@
-# Automatic Rating System Documentation
+# Rating System Documentation
 
 ## Overview
 
-The Farmer Market platform implements a comprehensive automatic rating system that evaluates both **farmers** and **buyers (users)** based on their behavior, pricing fairness, and market engagement. Ratings range from **0.0 to 10.0**, with a default starting rating of **5.0**.
+The Farmers' Market platform uses a **multi-factor reputation algorithm** to score both buyers and farmers on a **0.0 – 5.0 star scale**. Scores are stored in `users.automatic_rating` and are **fully recalculated from raw data** on every relevant event — there are no cumulative delta adjustments. New users start at **2.5** (neutral).
+
+Scores are displayed as star ratings throughout the platform (profile pages, dashboards, bid activity).
 
 ---
 
-## Buyer (User) Rating System
+## Buyer Reputation Score
 
-### Rating Factors
+**Formula:**
 
-#### 1. Bid Fairness (compared to farmer's asking price)
+> BuyerScore = 5 × (0.35 × BidFairness + 0.30 × PurchaseCompletion + 0.20 × PaymentSpeed + 0.15 × FarmerFeedback)
 
-Evaluated when a user places a bid on a product.
-
-**Rules:**
-| Bid Range | Rating Change | Reasoning |
-|-----------|---------------|-----------|
-| **>50% below** asking price | **-0.5** | Lowball offers waste farmer's time |
-| **10-50% below** asking price | **+0.1** | Reasonable negotiation |
-| **Within ±10%** of asking price | **+0.3** | Fair and respectful bidding |
-
-**Example:**
-
-- Farmer asks ₹200 for coconut
-- User bids ₹95 (52.5% below) → Rating **-0.5** (lowball)
-- User bids ₹150 (25% below) → Rating **+0.1** (reasonable)
-- User bids ₹195 (2.5% below) → Rating **+0.3** (fair)
-
-
-## Farmer Rating System
-
-### Rating Factors
-
-#### 1. Product Pricing (compared to market price)
-
-Evaluated when farmer creates a new product post.
-
-**Rules:**
-| Price Deviation | Rating Change | Reasoning |
-|-----------------|---------------|-----------|
-| **>±30%** from market price | **-0.5** | Unrealistic pricing (too high or too low) |
-| **Within ±30%** of market price | **+0.2** | Fair market pricing |
-
-**Example:**
-
-- Market price: ₹100
-- Farmer lists at ₹140 (40% above) → Rating **-0.5** (overpriced)
-- Farmer lists at ₹110 (10% above) → Rating **+0.2** (fair)
+All four sub-factors return a value between **0.0 and 1.0**. Each returns **0.5 (neutral)** when no data exists yet for that buyer.
 
 ---
 
-#### 2. Sale Speed (time to sell)
+### Factor 1 — Bid Fairness (weight: 35%)
 
-Evaluated when product is sold. Fast sales indicate good pricing.
+Measures how reasonable a buyer's bids are relative to the farmer's asking price, averaged across all bids placed.
 
-**Rules:**
-| Time to Sell | Rating Change | Reasoning |
-|--------------|---------------|-----------|
-| **≤24 hours** | **+0.3** | Excellent pricing, quick sale |
-| **24-72 hours** | **+0.1** | Good pricing, reasonable time |
-| **≥7 days** | **-0.2** | Poor pricing or low demand |
+| Bid vs Asking Price         | Score |
+| --------------------------- | ----- |
+| Within 10% below (or above) | 1.0   |
+| 10 – 30% below              | 0.7   |
+| 30 – 50% below              | 0.4   |
+| More than 50% below         | 0.0   |
 
-**Example:**
+Only numeric bids are included. Bids above the asking price are treated as within 10% (score 1.0).
 
-- Product sold in 18 hours → Rating **+0.3**
-- Product sold in 2 days → Rating **+0.1**
-- Product sold in 10 days → Rating **-0.2**
-
-
-#### 3. Final Price Fairness (compared to market price)
-
-Evaluated when product is sold. Checks if winning bid is close to market value.
-
-**Rules:**
-| Final Bid vs Market | Rating Change | Reasoning |
-|---------------------|---------------|-----------|
-| **Within ±20%** | **+0.2** | Fair market transaction |
-| **Outside ±20%** | **0** | No penalty, but no reward |
-
-**Example:**
-
-- Market price: ₹200
-- Sold for ₹190 (5% below) → Rating **+0.2** (fair)
-- Sold for ₹140 (30% below) → No change
-
-
-#### 4. Unsold Products Penalty
-
-Evaluated when bidding ends but product remains unsold.
-
-**Rules:**
-| Unsold Status | Rating Change | Reasoning |
-|---------------|---------------|-----------|
-| **Single unsold** product | **-0.4** | Overpriced or unrealistic |
-| **Each additional unsold** (last 30 days) | **-0.1** | Pattern of poor pricing |
-
-**Example:**
-
-- First unsold product → Rating **-0.4**
-- 3 unsold products in 30 days → Rating **-0.6** (-0.4 - 0.1 - 0.1)
-
-**Conditions:**
-
-- Product has `status = 'active'`
-- Expiry date has passed (`expiry_date < UNIX_TIMESTAMP(NOW())`)
-- At least 5 bids received but none met asking price
+**Triggered by:** every bid placed (`comment.php`)
 
 ---
 
-#### 5. Bidding Activity & Engagement
+### Factor 2 — Purchase Completion (weight: 30%)
 
-Evaluated when product is sold. Measures buyer interest.
+Ratio of auctions the buyer actually received delivery on vs total auctions they won.
 
-**Rules:**
-| Bid Activity | Rating Change | Reasoning |
-|--------------|---------------|-----------|
-| **≥10 bids** received | **+0.2** | High engagement, attractive product/pricing |
-| **Exactly 5 bids + slow** (>48h to first bid) | **-0.1** | Barely met minimum, low interest |
+> PurchaseCompletion = delivered wins ÷ total wins
 
-**Example:**
+- A buyer who wins and always receives delivery scores **1.0**
+- A buyer who wins but orders are never marked delivered scores **0.0**
+- No wins yet → **0.5** (neutral)
 
-- Product gets 15 bids → Rating **+0.2** (popular)
-- Product gets 5 bids, first bid after 60 hours → Rating **-0.1** (low interest)
+**Triggered by:** every bid placed; every delivery confirmed in Manage Orders
 
 ---
 
-## Rating Combination Example
+### Factor 3 — Payment Speed (weight: 20%)
 
-**Scenario:** Farmer posts coconut at ₹210 (market: ₹200)
+Measures how quickly a transaction is completed after the buyer wins an auction. The gap is between two timestamps stored in the `transactions` table:
 
-1. **Post Creation**:
+- `win_at` — stamped when the auction auto-selects the highest bidder
+- `paid_at` — stamped when the farmer marks the order as **Delivered**
 
-   - Price ±5% from market → **+0.2**
-   - Current rating: 5.0 → **5.2**
+| Gap (win → delivered)         | Score         |
+| ----------------------------- | ------------- |
+| ≤ 1 hour                      | 1.0           |
+| 1 – 12 hours                  | 0.7           |
+| > 12 hours                    | 0.4           |
+| No completed transactions yet | 0.5 (neutral) |
 
-2. **Product Sells**:
-   - Sold in 30 hours → **+0.1** (sale speed)
-   - Final bid ₹195 (2.5% below market) → **+0.2** (fair price)
-   - Received 12 bids → **+0.2** (high engagement)
-   - Total adjustment: **+0.5**
-   - Final rating: 5.2 → **5.7**
+Averaged across all past transactions.
+
+**Triggered by:** farmer marking an order as Delivered (`manage_orders.php`)
 
 ---
 
+### Factor 4 — Farmer Feedback (weight: 15%)
+
+Average of all star ratings (1–5) given by farmers to this buyer after completed deliveries, normalised to 0–1.
+
+> FarmerFeedback = average buyer_rating ÷ 5
+
+- Farmers rate buyers via the star widget on the Manage Orders page after marking delivered
+- Each farmer can rate a buyer once per order
+- No ratings yet → **0.5** (neutral)
+
+**Triggered by:** farmer submitting a buyer rating (`manage_orders.php`)
+
+---
+
+## Farmer Reputation Score
+
+**Formula:**
+
+> FarmerScore = 5 × (0.40 × BuyerRatings + 0.25 × SaleSuccessRate + 0.20 × EngagementScore + 0.15 × DeliveryReliability)
+
+All four sub-factors return a value between **0.0 and 1.0**. Each returns **0.5 (neutral)** when no data exists yet.
+
+---
+
+### Factor 1 — Buyer Ratings (weight: 40%)
+
+Average star rating (1–5) left by buyers on the farmer's products via product reviews, normalised to 0–1.
+
+> BuyerRatings = average review rating ÷ 5
+
+**Triggered by:** buyer submitting a product review (`submit_review.php`)
+
+---
+
+### Factor 2 — Sale Success Rate (weight: 25%)
+
+Proportion of the farmer's admin-approved listings that have been sold or delivered.
+
+> SaleSuccessRate = (sold + delivered posts) ÷ approved posts
+
+- Only admin-approved listings count in the denominator — posts still awaiting approval do not penalise the farmer
+- No approved posts yet → **0.5** (neutral)
+
+**Triggered by:** any event that recalculates the farmer score (bid placed, auction won, delivery confirmed)
+
+---
+
+### Factor 3 — Engagement Score (weight: 20%)
+
+Measures buyer demand per product by counting unique bidders per listing, then averaging across all listings.
+
+| Unique bidders per listing | Score |
+| -------------------------- | ----- |
+| > 10                       | 1.0   |
+| 5 – 10                     | 0.7   |
+| 2 – 4                      | 0.4   |
+| < 2                        | 0.1   |
+
+No listings with bids yet → **0.1**
+
+**Triggered by:** every bid placed on any of the farmer's products
+
+---
+
+### Factor 4 — Delivery Reliability (weight: 15%)
+
+Proportion of completed sales that the farmer has marked as delivered.
+
+> DeliveryReliability = delivered posts ÷ (sold + delivered posts)
+
+- A farmer who always marks delivery scores **1.0**
+- No completed sales yet → **0.5** (neutral)
+
+**Triggered by:** farmer marking an order as Delivered
+
+---
+
+## When Scores Are Recalculated
+
+| Event                          | Buyer score updated        | Farmer score updated |
+| ------------------------------ | -------------------------- | -------------------- |
+| Buyer places a bid             | ✅                         | ✅                   |
+| Auction auto-selects winner    | ✅                         | ✅                   |
+| Farmer marks order Delivered   | ✅ (payment speed stamped) | ✅                   |
+| Farmer rates a buyer           | ✅                         | —                    |
+| Buyer submits a product review | —                          | ✅                   |
+
+Every recalculation reads **current live data** from the database — no deltas, no drift.
+
+---
+
+## Auction Winner Selection
+
+When an auction ends:
+
+- The **highest numeric bid** wins (string-safe `CAST(comment_text AS DECIMAL(12,2))`)
+- Minimum 5 bids required and the highest bid must meet the asking price
+- Tie-break: earliest bidder at the maximum amount wins (`ORDER BY created_at ASC LIMIT 1`)
+- The winning `comments` row is marked `is_approved = 1`
+
+Farmers have **no ability to manually approve or reject bids**. The process is fully automatic.
+
+---
+
+## Score Display
+
+Scores are displayed as filled stars (★) out of 5 across:
+
+- Farmer public profile (`farmer/profile.php`) — "Fairness Rating"
+- User dashboard (`user/dashboard.php`)
+- User public profile (`user/profile.php`)
+- Bid Activity page (`farmer/manage_comments.php`)
+
+Badge thresholds on profiles:
+
+| Score  | Badge                      |
+| ------ | -------------------------- |
+| ≥ 4.5  | Top Seller / Trusted Buyer |
+| ≥ 3.75 | Verified Seller            |
+| < 3.75 | New Seller                 |
+
+---
 
 ## Technical Notes
 
-### Rating Constraints
-
-- **Minimum**: 0.0
-- **Maximum**: 10.0
-- **Precision**: 1 decimal place
-- **Default**: 5.0 (new users)
-
-### Market Price Management
-
-- Updated by admins via `admin/update_market_price.php`
-- Keyed by `product_name` (exact match required)
-- Used as reference for all fairness calculations
+- **Scale:** 0.0 – 5.0, stored as `DECIMAL(3,1)` in `users.automatic_rating`
+- **Default:** 2.5 (neutral, for new users with no activity)
+- **Migration:** legacy 0–10 values are halved to 0–5 automatically on first load
+- **New tables:** `transactions` (win_at / paid_at tracking), `buyer_ratings` (farmer-to-buyer ratings) — created automatically if they don't exist
+- **Market prices:** managed by admins via `admin/update_market_price.php`, stored in `market_prices` table
 
 ---
 
 ## Version History
 
-- **v1.0** (Initial): Basic buyer bid fairness + farmer price fairness
-- **v2.0** (Enhanced): Added sale speed, unsold penalties, bidding activity
-- **v2.1** (Current): Fixed success rate calculation (auctions vs bids)
+| Version        | Changes                                                                                                                                                                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0           | Delta-based system: fixed +/- adjustments on 0–10 scale                                                                                                                                                                                                                      |
+| v2.0           | Added sale speed, unsold penalties, bidding activity deltas                                                                                                                                                                                                                  |
+| v3.0 (current) | Full rewrite: multi-factor weighted formula, 0–5 scale, full recalculation on every event, `transactions` and `buyer_ratings` tables, farmer-rates-buyer UI, auction winner tie-break fix, sale success rate excludes unapproved posts, reviews trigger farmer recalculation |
 
 ---
 
-_Last Updated: November 20, 2025_
+_Last Updated: March 9, 2026_

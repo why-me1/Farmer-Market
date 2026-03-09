@@ -23,7 +23,7 @@ if (!$user) {
 }
 
 // Fairness rating
-$fairness_rating = get_user_automatic_rating($userId) ?? 5.0;
+$fairness_rating = get_user_automatic_rating($userId) ?? 2.5;
 
 // Bidding statistics
 $total_bids = $approved_bids = $pending_bids = 0;
@@ -67,9 +67,9 @@ $recent_purchases = $purchases_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $purchases_stmt->close();
 
 // Rating colour
-$rating_color = $fairness_rating >= 7.5 ? '#22c55e' : ($fairness_rating >= 5 ? '#f59e0b' : '#ef4444');
-$rating_label = $fairness_rating >= 7.5 ? 'Excellent' : ($fairness_rating >= 5 ? 'Good' : 'Needs Improvement');
-$rating_pct = round(($fairness_rating / 10) * 100);
+$rating_color = $fairness_rating >= 3.75 ? '#22c55e' : ($fairness_rating >= 2.5 ? '#f59e0b' : '#ef4444');
+$rating_label = $fairness_rating >= 3.75 ? 'Excellent' : ($fairness_rating >= 2.5 ? 'Good' : 'Needs Improvement');
+$rating_pct = round(($fairness_rating / 5) * 100);
 
 $member_since  = date('F Y', strtotime($user['created_at'] ?? date('Y-m-d')));
 $initials      = strtoupper(substr($user['username'], 0, 2));
@@ -890,7 +890,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                 <div class="rating-pill">
                     <div class="rating-score" style="color:<?php echo $rating_color; ?>">
                         <?php echo number_format($fairness_rating, 1); ?>
-                        <span style="font-size:.9rem;color:#94a3b8;font-weight:500;">/10</span>
+                        <span style="font-size:.9rem;color:#94a3b8;font-weight:500;">/5</span>
                     </div>
                     <div class="rating-label-sm">Bidding Fairness</div>
                     <div class="rating-tag" style="background:<?php echo $rating_color; ?>18;color:<?php echo $rating_color; ?>">
@@ -958,13 +958,13 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                         style="width:0%;background:<?php echo $rating_color; ?>"></div>
                 </div>
                 <div style="font-size:1rem;font-weight:800;color:<?php echo $rating_color; ?>;min-width:48px;text-align:right;">
-                    <?php echo number_format($fairness_rating, 1); ?>/10
+                    <?php echo number_format($fairness_rating, 1); ?>/5
                 </div>
             </div>
             <div class="bar-labels">
                 <span>0 &mdash; Poor</span>
-                <span>5 &mdash; Average</span>
-                <span>10 &mdash; Excellent</span>
+                <span>2.5 &mdash; Average</span>
+                <span>5 &mdash; Excellent</span>
             </div>
         </div>
 

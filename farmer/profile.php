@@ -74,10 +74,10 @@ while ($row = $star_dist_result->fetch_assoc()) {
 }
 $star_dist_stmt->close();
 
-// Get automatic rating (Fairness Rating)
+// Get automatic rating (Reputation Score)
 $fairness_rating = get_user_automatic_rating($farmerId);
 if ($fairness_rating === null) {
-    $fairness_rating = 5.0;
+    $fairness_rating = 2.5;
 }
 
 // Determine seller label from average rating
@@ -108,9 +108,9 @@ $list_stmt->execute();
 $listings = $list_stmt->get_result();
 
 // Avatar initials
-$avatar_initials = strtoupper(substr($farmer['username'], 0, 2));
-$has_avatar      = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $farmer['profile_picture']);
-$avatar_url      = $has_avatar ? $base_url . $farmer['profile_picture'] : null;
+$fp_initials  = strtoupper(substr($farmer['username'], 0, 2));
+$has_avatar   = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $farmer['profile_picture']);
+$fp_avatar_url = $has_avatar ? $base_url . $farmer['profile_picture'] : null;
 $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($farmer['full_name']) ? $farmer['full_name'] : $farmer['username']);
 
 ?>
@@ -1055,11 +1055,11 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
 
                 <!-- Avatar -->
                 <div class="fp-avatar-wrap">
-                    <?php if ($avatar_url): ?>
-                        <img src="<?php echo htmlspecialchars($avatar_url); ?>" alt="Avatar"
+                    <?php if ($fp_avatar_url): ?>
+                        <img src="<?php echo htmlspecialchars($fp_avatar_url); ?>" alt="Avatar"
                             style="width:88px;height:88px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 4px 14px rgba(17,153,142,.3);">
                     <?php else: ?>
-                        <div class="fp-avatar"><?php echo htmlspecialchars($avatar_initials); ?></div>
+                        <div class="fp-avatar"><?php echo htmlspecialchars($fp_initials); ?></div>
                     <?php endif; ?>
                     <div class="fp-avatar-badge"><i class="fas fa-check"></i></div>
                 </div>
@@ -1173,11 +1173,11 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                             </div>
                             <div class="fp-rpill">
                                 <div class="rp-lbl">
-                                    Fairness Rating
-                                    <span title="Automatically adjusted based on how fairly your prices compare to the market." style="cursor:help;font-size:.7rem;">&#x2139;</span>
+                                    Reputation Score
+                                    <span title="Automatically calculated based on your sales, buyer ratings, and market engagement." style="cursor:help;font-size:.7rem;">&#x2139;</span>
                                 </div>
-                                <div class="rp-val"><?php echo number_format($fairness_rating, 1); ?><span style="font-size:.7rem;font-weight:500;color:#94a3b8;">/10</span></div>
-                                <div class="rp-sub">Market fairness</div>
+                                <div class="rp-val"><?php echo number_format($fairness_rating, 1); ?><span style="font-size:.7rem;font-weight:500;color:#94a3b8;">/5</span></div>
+                                <div class="rp-sub">Seller reputation</div>
                             </div>
                         </div>
                     </div>
@@ -1356,11 +1356,11 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                             </div>
 
                             <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:.78rem;color:#64748b;">
-                                <span>Fairness Rating</span>
-                                <span style="font-weight:700;color:#059669;"><?php echo number_format($fairness_rating, 1); ?>/10</span>
+                                <span>Reputation Score</span>
+                                <span style="font-weight:700;color:#059669;"><?php echo number_format($fairness_rating, 1); ?>/5</span>
                             </div>
                             <div class="fp-bar-track" style="margin-bottom:0;">
-                                <div class="fp-bar-fill" style="width:<?php echo $fairness_rating / 10 * 100; ?>%;background:linear-gradient(90deg,#10b981,#059669);"></div>
+                                <div class="fp-bar-fill" style="width:<?php echo $fairness_rating / 5 * 100; ?>%;background:linear-gradient(90deg,#10b981,#059669);"></div>
                             </div>
                         </div>
 
@@ -1368,7 +1368,7 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                         <div class="fp-trust">
                             <div class="trust-label" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:#6b9080;margin-bottom:4px;">Overall Trust Score</div>
                             <?php
-                            $trust = round(($success_rate * 0.4) + ($avg_rating_value / 5 * 100 * 0.4) + ($fairness_rating / 10 * 100 * 0.2));
+                            $trust = round(($success_rate * 0.4) + ($avg_rating_value / 5 * 100 * 0.4) + ($fairness_rating / 5 * 100 * 0.2));
                             $trust = max(0, min(100, $trust));
                             ?>
                             <div class="trust-score"><?php echo $trust; ?><span style="font-size:1.2rem;font-weight:500;color:#6b9080;">/100</span></div>

@@ -567,6 +567,7 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
 
             fetch(BASE + 'messages_handler.php', {
                     method: 'POST',
+                    credentials: 'same-origin',
                     body: fd
                 })
                 .then(r => r.json())
@@ -594,7 +595,9 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
 
         // ── Polling for new messages ──────────────────────────────────────────────────
         function pollMessages() {
-            fetch(`${BASE}messages_handler.php?action=get_messages&other_id=${OTHER_ID}&since_id=${lastMsgId}`)
+            fetch(`${BASE}messages_handler.php?action=get_messages&other_id=${OTHER_ID}&since_id=${lastMsgId}`, {
+                    credentials: 'same-origin'
+                })
                 .then(r => r.json())
                 .then(data => {
                     if (data.success && data.messages.length) {

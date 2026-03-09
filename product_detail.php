@@ -52,7 +52,7 @@ if ($current_time >= $auction_start_time && $current_time < $auction_end_time) {
 }
 
 // Get bid count and highest bid
-$comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(comment_text) as max_bid FROM comments WHERE post_id = ?");
+$comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(CAST(comment_text AS DECIMAL(12,2))) as max_bid FROM comments WHERE post_id = ?");
 $comment_count_stmt->bind_param("i", $post_id);
 $comment_count_stmt->execute();
 $comment_result = $comment_count_stmt->get_result();
@@ -67,8 +67,12 @@ $is_unsold = false;
 // Check if auction ended with winning bid
 if ($is_ended && $total_bids >= 5 && $max_bid >= $post['price']) {
     $is_sold = true;
-    // Approve the highest bid
-    $approve_stmt = $conn->prepare("UPDATE comments SET is_approved = 1 WHERE post_id = ? AND comment_text = ?");
+    // Approve only ONE winner — earliest bidder at the highest amount (tie-break: first come, first served)
+    $approve_stmt = $conn->prepare(
+        "UPDATE comments SET is_approved = 1
+         WHERE post_id = ? AND CAST(comment_text AS DECIMAL(12,2)) = ?
+         ORDER BY created_at ASC LIMIT 1"
+    );
     $approve_stmt->bind_param("id", $post_id, $max_bid);
     $approve_stmt->execute();
     $approve_stmt->close();
@@ -352,7 +356,7 @@ if (empty($all_images) && !empty($post['image'])) {
                                     </a>
                                     <span class="pd-fairness-badge">
                                         <i class="fas fa-shield-alt"></i>
-                                        <?php echo number_format($farmer_auto_rating, 1); ?>/10 fairness
+                                        <?php echo number_format($farmer_auto_rating, 1); ?>/10 reputation
                                     </span>
                                 </span>
                             </div>
@@ -609,10 +613,29 @@ if (empty($all_images) && !empty($post['image'])) {
             </div><!-- /pd-right-col -->
         </div><!-- /pd-main-grid -->
 
+        <!-- Flash messages from review submission -->
+        <?php if (!empty($_SESSION['success_message'])): ?>
+            <div class="pd-flash pd-flash-success">
+                <i class="fas fa-check-circle"></i>
+                <?php echo htmlspecialchars($_SESSION['success_message']);
+                unset($_SESSION['success_message']); ?>
+            </div>
+        <?php elseif (!empty($_SESSION['error_message'])): ?>
+            <div class="pd-flash pd-flash-error">
+                <i class="fas fa-exclamation-circle"></i>
+                <?php echo htmlspecialchars($_SESSION['error_message']);
+                unset($_SESSION['error_message']); ?>
+            </div>
+        <?php endif; ?>
+
         <!-- ===== REVIEWS SECTION ===== -->
         <div class="pd-reviews-section">
             <div class="pd-reviews-header">
-                <h2><i class="fas fa-star"></i> Customer Reviews</h2>
+                <div class="pd-reviews-header-left">
+                    <h2><i class="fas fa-star"></i> Customer Reviews</h2>
+                    <p class="pd-reviews-subtitle">Real feedback from verified buyers</p>
+                </div>
+                <span class="pd-reviews-count-badge"><?php echo $total_reviews; ?> Review<?php echo $total_reviews != 1 ? 's' : ''; ?></span>
             </div>
 
             <div class="pd-reviews-body">
@@ -624,14 +647,22 @@ if (empty($all_images) && !empty($post['image'])) {
                         if ($avg_rating > 0) {
                             $starsFilled = (int)round($avg_rating);
                             for ($s = 1; $s <= 5; $s++) {
-                                echo '<i class="fas fa-star' . ($s <= $starsFilled ? '' : '-o') . '"></i>';
+                                if ($s <= $starsFilled) {
+                                    echo '<i class="fas fa-star pd-star-on"></i>';
+                                } else {
+                                    echo '<i class="fas fa-star pd-star-off"></i>';
+                                }
                             }
                         } else {
-                            for ($s = 0; $s < 5; $s++) echo '<i class="far fa-star"></i>';
+                            for ($s = 0; $s < 5; $s++) echo '<i class="fas fa-star pd-star-off"></i>';
                         }
                         ?>
                     </div>
-                    <div class="pd-rating-total-label"><?php echo $total_reviews; ?> review<?php echo $total_reviews != 1 ? 's' : ''; ?></div>
+                    <div class="pd-rating-total-label">
+                        <i class="fas fa-users"></i>
+                        <?php echo $total_reviews; ?> review<?php echo $total_reviews != 1 ? 's' : ''; ?>
+                    </div>
+                    <div class="pd-rating-out-of">out of 5.0</div>
                 </div>
 
                 <!-- Review cards -->
@@ -640,6 +671,7 @@ if (empty($all_images) && !empty($post['image'])) {
                         <?php while ($review = $reviews_result->fetch_assoc()):
                             $rInitials = strtoupper(substr($review['username'], 0, 2));
                             $rStars    = (int)$review['rating'];
+                            $rLabels   = ['', 'Very Poor', 'Poor', 'Average', 'Good', 'Excellent'];
                         ?>
                             <div class="pd-review-card">
                                 <div class="pd-review-top">
@@ -651,44 +683,51 @@ if (empty($all_images) && !empty($post['image'])) {
                                                 <?php for ($s = 1; $s <= 5; $s++): ?>
                                                     <i class="fas fa-star <?php echo $s <= $rStars ? 'star-filled' : 'star-empty'; ?>"></i>
                                                 <?php endfor; ?>
+                                                <span class="pd-review-rating-label"><?php echo $rLabels[$rStars] ?? ''; ?></span>
                                             </div>
                                         </div>
                                     </div>
-                                    <span class="pd-review-date"><?php echo date("d M Y", strtotime($review['created_at'])); ?></span>
+                                    <span class="pd-review-date"><i class="far fa-calendar-alt"></i> <?php echo date("d M Y", strtotime($review['created_at'])); ?></span>
                                 </div>
                                 <p class="pd-review-text"><?php echo htmlspecialchars($review['review_text']); ?></p>
                             </div>
                         <?php endwhile; ?>
                     <?php else: ?>
                         <div class="pd-no-reviews">
-                            <i class="far fa-comment-dots fa-3x"></i>
-                            <p>No reviews yet for this product.</p>
+                            <div class="pd-no-reviews-icon">
+                                <i class="far fa-comment-dots"></i>
+                            </div>
+                            <h4>No Reviews Yet</h4>
+                            <p>Be the first to share your experience with this product!</p>
                         </div>
                     <?php endif; ?>
 
                     <!-- Leave a Review -->
                     <?php if ($is_sold && isset($_SESSION['user_id'])): ?>
                         <div class="pd-leave-review-card" id="review-section">
-                            <h5><i class="fas fa-pen"></i> Leave a Review</h5>
+                            <div class="pd-leave-review-header">
+                                <span class="pd-leave-review-icon"><i class="fas fa-pen-fancy"></i></span>
+                                <div>
+                                    <h5>Leave a Review</h5>
+                                    <p>How was your experience with this product?</p>
+                                </div>
+                            </div>
                             <form id="reviewForm" method="POST" action="submit_review.php">
-                                <div class="pd-review-form-row">
-                                    <div class="pd-form-group">
-                                        <label for="rating">Rating</label>
-                                        <select name="rating" id="rating" class="pd-form-select" required>
-                                            <option value="">Select…</option>
-                                            <option value="5">★★★★★ Excellent</option>
-                                            <option value="4">★★★★☆ Good</option>
-                                            <option value="3">★★★☆☆ Average</option>
-                                            <option value="2">★★☆☆☆ Poor</option>
-                                            <option value="1">★☆☆☆☆ Very Poor</option>
-                                        </select>
+                                <div class="pd-form-group">
+                                    <label>Your Rating</label>
+                                    <div class="pd-star-picker" id="starRater">
+                                        <input type="hidden" name="rating" id="rating" value="">
+                                        <?php for ($i = 1; $i <= 5; $i++): ?>
+                                            <span class="pd-star-pick" data-val="<?php echo $i; ?>"><i class="fas fa-star"></i></span>
+                                        <?php endfor; ?>
+                                        <span class="pd-star-label">Click to rate</span>
                                     </div>
                                 </div>
                                 <div class="pd-form-group">
                                     <label for="review_text">Your Review</label>
                                     <textarea name="review_text" id="review_text" class="pd-form-textarea"
-                                        rows="3" required
-                                        placeholder="Share your experience with this product…"></textarea>
+                                        rows="4" required
+                                        placeholder="Share your experience — quality, delivery, packaging…"></textarea>
                                 </div>
                                 <input type="hidden" name="product_id" value="<?php echo $post_id; ?>">
                                 <button type="submit" class="pd-submit-review-btn">
@@ -697,9 +736,9 @@ if (empty($all_images) && !empty($post['image'])) {
                             </form>
                         </div>
                     <?php elseif ($is_sold && !isset($_SESSION['user_id'])): ?>
-                        <div class="pd-login-prompt" style="margin-top:1rem;">
-                            <i class="fas fa-lock fa-2x"></i>
-                            <p><a href="#" data-auth-modal="login">Login</a> or <a href="#" data-auth-modal="signup">register</a> to leave a review</p>
+                        <div class="pd-login-prompt">
+                            <i class="fas fa-lock"></i>
+                            <p><a href="#" data-auth-modal="login">Log in</a> or <a href="#" data-auth-modal="signup">register</a> to leave a review.</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -748,6 +787,59 @@ if (empty($all_images) && !empty($post['image'])) {
             document.querySelectorAll('.pd-thumb').forEach(t => t.classList.remove('pd-thumb-active'));
             thumb.classList.add('pd-thumb-active');
         }
+
+        // Interactive star rating picker
+        (function() {
+            const rater = document.getElementById('starRater');
+            if (!rater) return;
+            const stars = rater.querySelectorAll('.pd-star-pick');
+            const hidden = document.getElementById('rating');
+            const lbl = rater.querySelector('.pd-star-label');
+            const rLabels = ['', 'Very Poor', 'Poor', 'Average', 'Good', 'Excellent'];
+
+            function paint(upTo) {
+                stars.forEach(s => {
+                    s.classList.toggle('hovered', +s.dataset.val <= upTo);
+                });
+            }
+
+            function commit(val) {
+                stars.forEach(s => {
+                    s.classList.toggle('selected', +s.dataset.val <= val);
+                    s.classList.remove('hovered');
+                });
+            }
+
+            stars.forEach(s => {
+                s.addEventListener('mouseover', () => paint(+s.dataset.val));
+                s.addEventListener('mouseout', () => paint(+hidden.value || 0));
+                s.addEventListener('click', () => {
+                    const val = +s.dataset.val;
+                    hidden.value = val;
+                    commit(val);
+                    lbl.textContent = rLabels[val];
+                    lbl.classList.remove('pd-error-label');
+                    rater.classList.remove('pd-star-error');
+                });
+            });
+
+            // Validate on form submit
+            const form = document.getElementById('reviewForm');
+            if (form) {
+                form.addEventListener('submit', e => {
+                    if (!hidden.value) {
+                        e.preventDefault();
+                        rater.classList.add('pd-star-error');
+                        lbl.textContent = 'Please select a rating!';
+                        lbl.classList.add('pd-error-label');
+                        rater.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                });
+            }
+        })();
     </script>
 
     <?php include 'includes/footer.php'; ?>

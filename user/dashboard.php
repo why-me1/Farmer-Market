@@ -20,7 +20,7 @@ $user_stmt->close();
 
 // Fairness rating
 $fairness_rating = get_user_automatic_rating($user_id);
-if ($fairness_rating === null) $fairness_rating = 5.0;
+if ($fairness_rating === null) $fairness_rating = 2.5;
 
 // Total bids
 $bids_stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE user_id = ?");
@@ -1005,7 +1005,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                     <div class="ud-profile-right">
                         <div class="ud-fairness-badge">
                             <i class="fas fa-star"></i>
-                            Fairness: <strong><?php echo number_format($fairness_rating, 1); ?> / 10</strong>
+                            Fairness: <strong><?php echo number_format($fairness_rating, 1); ?> / 5</strong>
                         </div>
                         <a href="edit_profile.php" class="ud-btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
