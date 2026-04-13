@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
@@ -10,8 +10,13 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $farmerId = (int) $_GET['id'];
 
+// Ensure location columns exist (created lazily if edit_profile was never visited)
+$conn->query("ALTER TABLE `users`
+    ADD COLUMN IF NOT EXISTS `latitude`  DECIMAL(10,7) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `longitude` DECIMAL(10,7) DEFAULT NULL");
+
 // Fetch farmer info
-$farmer_stmt = $conn->prepare("SELECT id, username, full_name, farm_name, email, phone, location, bio, profile_picture, created_at FROM users WHERE id = ? AND role = 'farmer' LIMIT 1");
+$farmer_stmt = $conn->prepare("SELECT id, username, full_name, farm_name, email, phone, location, bio, profile_picture, created_at, latitude, longitude FROM users WHERE id = ? AND role = 'farmer' LIMIT 1");
 $farmer_stmt->bind_param("i", $farmerId);
 $farmer_stmt->execute();
 $farmer = $farmer_stmt->get_result()->fetch_assoc();
@@ -1089,7 +1094,14 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                         Member since <?php echo date('F Y', strtotime($farmer['created_at'] ?? date('Y-m-d'))); ?>
                     </div>
                     <?php if (!empty($farmer['location'])): ?>
-                        <div class="fp-joined mt-1"><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($farmer['location']); ?></div>
+                        <div class="fp-joined mt-1">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <?php if (!empty($farmer['latitude']) && !empty($farmer['longitude'])): ?>
+                                <a href="#tab-about" onclick="switchTab('about', document.querySelectorAll('.fp-tab-btn')[2]); setTimeout(()=>{ document.getElementById('farmerMapSection').scrollIntoView({behavior:'smooth'}); }, 200); return false;" style="color:inherit;text-decoration:underline dotted;"><?php echo htmlspecialchars($farmer['location']); ?></a>
+                            <?php else: ?>
+                                <?php echo htmlspecialchars($farmer['location']); ?>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
                     <?php if (!empty($farmer['bio'])): ?>
                         <p style="font-size:.81rem;color:#64748b;margin:8px 0 0;max-width:480px;line-height:1.55;"><?php echo nl2br(htmlspecialchars($farmer['bio'])); ?></p>
@@ -1409,7 +1421,16 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                                 <div>
                                     <div class="contact-lbl">Location</div>
                                     <?php if (!empty($farmer['location'])): ?>
-                                        <div class="contact-val"><?php echo htmlspecialchars($farmer['location']); ?></div>
+                                        <div class="contact-val">
+                                            <?php if (!empty($farmer['latitude']) && !empty($farmer['longitude'])): ?>
+                                                <a href="#farmerMapSection" onclick="document.getElementById('farmerMapSection').scrollIntoView({behavior:'smooth'}); return false;" style="color:#059669;font-weight:600;text-decoration:none;">
+                                                    <i class="fas fa-map-pin" style="font-size:.75rem;"></i>
+                                                    <?php echo htmlspecialchars($farmer['location']); ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <?php echo htmlspecialchars($farmer['location']); ?>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php else: ?>
                                         <div class="contact-val na">Not provided</div>
                                     <?php endif; ?>
@@ -1452,11 +1473,126 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                             <?php endif; ?>
                         </div>
                     </div>
+
+                    <!-- Farm Location Map (full-width, only when lat/lng set) -->
+                    <?php if (!empty($farmer['latitude']) && !empty($farmer['longitude'])): ?>
+                    <div class="farmer-map-card" id="farmerMapSection">
+                        <div class="farmer-map-head">
+                            <div class="farmer-map-icon"><i class="fas fa-map-marked-alt"></i></div>
+                            <div>
+                                <div class="farmer-map-title">Farm Location</div>
+                                <div class="farmer-map-subtitle">
+                                    <?php echo htmlspecialchars($farmer['location'] ?? 'Pinned location'); ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="farmerLeafletMap"></div>
+                        <div class="farmer-map-footer">
+                            <div class="map-loc-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <?php echo htmlspecialchars($farmer['location'] ?? ''); ?>
+                            </div>
+                            <a class="map-osm-link"
+                               href="https://www.openstreetmap.org/?mlat=<?php echo (float)$farmer['latitude']; ?>&mlon=<?php echo (float)$farmer['longitude']; ?>&zoom=14"
+                               target="_blank" rel="noopener">
+                                <i class="fas fa-external-link-alt"></i> Open in OpenStreetMap
+                            </a>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="farmer-map-card" id="farmerMapSection">
+                        <div class="farmer-map-no-location">
+                            <div><i class="fas fa-map-marked-alt"></i></div>
+                            <p>This farmer hasn't pinned their location yet.</p>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
         </div><!-- /fp-content -->
     </div><!-- /fp-page -->
+
+    <!-- Leaflet map for farm location -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .farmer-map-card {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            border: 1.5px solid #e2e8f0;
+            overflow: hidden;
+            grid-column: 1 / -1;
+            margin-top: 4px;
+        }
+        .farmer-map-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 22px 14px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .farmer-map-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #059669, #065f46);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .farmer-map-title {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .farmer-map-subtitle {
+            font-size: .75rem;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+        #farmerLeafletMap {
+            height: 380px;
+            width: 100%;
+        }
+        .farmer-map-footer {
+            padding: 12px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            background: #f8fafc;
+        }
+        .farmer-map-footer .map-loc-text {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .82rem;
+            color: #475569;
+            font-weight: 500;
+        }
+        .farmer-map-footer .map-loc-text i {
+            color: #059669;
+        }
+        .map-osm-link {
+            font-size: .75rem;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+        .map-osm-link:hover { color: #059669; }
+        .farmer-map-no-location {
+            padding: 40px 24px;
+            text-align: center;
+            color: #94a3b8;
+        }
+        .farmer-map-no-location i { font-size: 2.5rem; margin-bottom: 12px; color: #cbd5e1; }
+        .farmer-map-no-location p { font-size: .85rem; margin: 0; }
+    </style>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
@@ -1467,7 +1603,50 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             document.querySelectorAll('.fp-tab-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('tab-' + name).classList.add('active');
             btn.classList.add('active');
+            // Invalidate map size when About tab shown
+            if (name === 'about' && window._farmerMap) {
+                setTimeout(() => window._farmerMap.invalidateSize(), 100);
+            }
         }
+
+        // ── Farm Location Map (read-only view) ──
+        (function() {
+            const lat = <?php echo !empty($farmer['latitude'])  ? (float)$farmer['latitude']  : 'null'; ?>;
+            const lng = <?php echo !empty($farmer['longitude']) ? (float)$farmer['longitude'] : 'null'; ?>;
+
+            if (!lat || !lng) return; // No coordinates — map section hidden
+
+            const map = L.map('farmerLeafletMap', { scrollWheelZoom: false }).setView([lat, lng], 13);
+            window._farmerMap = map;
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            const farmName = <?php echo json_encode(!empty($farmer['farm_name']) ? $farmer['farm_name'] : $farmer['username']); ?>;
+            const locText  = <?php echo json_encode($farmer['location'] ?? ''); ?>;
+
+            const greenIcon = L.divIcon({
+                className: '',
+                html: '<div style="width:44px;height:44px;background:linear-gradient(135deg,#059669,#065f46);border:4px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 6px 18px rgba(5,150,105,.5);"><span style="display:block;width:12px;height:12px;background:#fff;border-radius:50%;margin:12px auto;"></span></div>',
+                iconSize: [44, 44],
+                iconAnchor: [22, 44],
+                popupAnchor: [0, -46]
+            });
+
+            const marker = L.marker([lat, lng], { icon: greenIcon }).addTo(map);
+            marker.bindPopup(
+                '<div style="font-family:Inter,sans-serif;min-width:160px;">'
+                + '<div style="font-weight:800;font-size:.95rem;color:#065f46;margin-bottom:4px;">🌾 ' + farmName + '</div>'
+                + (locText ? '<div style="font-size:.8rem;color:#475569;"><i class="fas fa-map-marker-alt" style="color:#059669;"></i> ' + locText + '</div>' : '')
+                + '</div>'
+            ).openPopup();
+
+            // Enable scroll wheel zoom on click
+            map.on('click', () => map.scrollWheelZoom.enable());
+            map.on('mouseout', () => map.scrollWheelZoom.disable());
+        })();
     </script>
 
     <?php include '../includes/footer.php'; ?>

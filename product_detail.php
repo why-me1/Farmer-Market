@@ -33,6 +33,21 @@ $stmt->close();
 // Fetch farmer automatic rating (default 5.0)
 $farmer_auto_rating = get_user_automatic_rating($post['farmer_id']);
 
+// Fetch farmer location for mini-map (ensure columns exist first)
+$conn->query("ALTER TABLE `users`
+    ADD COLUMN IF NOT EXISTS `latitude`  DECIMAL(10,7) DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `longitude` DECIMAL(10,7) DEFAULT NULL");
+
+$floc_stmt = $conn->prepare("SELECT farm_name, location, latitude, longitude FROM users WHERE id = ? LIMIT 1");
+$floc_stmt->bind_param("i", $post['farmer_id']);
+$floc_stmt->execute();
+$floc = $floc_stmt->get_result()->fetch_assoc();
+$floc_stmt->close();
+$farmer_lat  = !empty($floc['latitude'])  ? (float)$floc['latitude']  : null;
+$farmer_lng  = !empty($floc['longitude']) ? (float)$floc['longitude'] : null;
+$farmer_loc  = $floc['location'] ?? '';
+$farmer_farm = !empty($floc['farm_name']) ? $floc['farm_name'] : $post['username'];
+
 $current_time = time();
 
 // Get auction dates
@@ -566,6 +581,33 @@ if (empty($all_images) && !empty($post['image'])) {
                     </script>
                 <?php endif; ?>
 
+                <!-- Farm Location Mini Map -->
+                <?php if ($farmer_lat && $farmer_lng): ?>
+                <div class="pd-map-card" id="pd-farm-map-card">
+                    <div class="pd-map-card-head">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <div>
+                            <div class="pd-map-card-title">Farm Location</div>
+                            <?php if ($farmer_loc): ?>
+                                <div class="pd-map-card-sub"><?php echo htmlspecialchars($farmer_loc); ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div id="pdFarmMiniMap"></div>
+                    <div class="pd-map-card-foot">
+                        <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>#tab-about"
+                           style="font-size:.78rem;color:#059669;font-weight:600;text-decoration:none;">
+                            <i class="fas fa-user-circle"></i> View Full Farm Profile
+                        </a>
+                        <a href="https://www.openstreetmap.org/?mlat=<?php echo $farmer_lat; ?>&mlon=<?php echo $farmer_lng; ?>&zoom=14"
+                           target="_blank" rel="noopener"
+                           style="font-size:.72rem;color:#94a3b8;text-decoration:none;">
+                            <i class="fas fa-external-link-alt"></i> OSM
+                        </a>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <!-- Bid History Card -->
                 <div class="pd-bids-card">
                     <div class="pd-bids-card-header">
@@ -746,6 +788,68 @@ if (empty($all_images) && !empty($post['image'])) {
         </div>
 
     </div><!-- /pd-page-wrapper -->
+
+    <!-- Leaflet mini-map for farm location -->
+    <?php if ($farmer_lat && $farmer_lng): ?>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .pd-map-card {
+            background: #fff;
+            border-radius: 16px;
+            border: 1.5px solid #e2e8f0;
+            box-shadow: 0 2px 14px rgba(0,0,0,.06);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .pd-map-card-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            font-size: .85rem;
+            font-weight: 700;
+            color: #0f172a;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .pd-map-card-head i { color: #059669; font-size: 1.1rem; }
+        .pd-map-card-title { font-size: .88rem; font-weight: 700; color: #0f172a; line-height: 1.2; }
+        .pd-map-card-sub   { font-size: .72rem; color: #94a3b8; margin-top: 1px; }
+        #pdFarmMiniMap { height: 210px; width: 100%; }
+        .pd-map-card-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #f8fafc;
+        }
+    </style>
+    <script>
+    (function() {
+        const lat  = <?php echo $farmer_lat; ?>;
+        const lng  = <?php echo $farmer_lng; ?>;
+        const name = <?php echo json_encode($farmer_farm); ?>;
+        const loc  = <?php echo json_encode($farmer_loc); ?>;
+
+        const map = L.map('pdFarmMiniMap', { scrollWheelZoom: false, zoomControl: false }).setView([lat, lng], 13);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap', maxZoom: 19
+        }).addTo(map);
+
+        const greenIcon = L.divIcon({
+            className: '',
+            html: '<div style="width:32px;height:32px;background:linear-gradient(135deg,#059669,#065f46);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 4px 12px rgba(5,150,105,.5);"><span style="display:block;width:9px;height:9px;background:#fff;border-radius:50%;margin:8px auto;"></span></div>',
+            iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -34]
+        });
+
+        const marker = L.marker([lat, lng], { icon: greenIcon }).addTo(map);
+        marker.bindPopup('<b>🌾 ' + name + '</b>' + (loc ? '<br><small>' + loc + '</small>' : '')).openPopup();
+        map.on('click', () => map.scrollWheelZoom.enable());
+        map.on('mouseout', () => map.scrollWheelZoom.disable());
+    })();
+    </script>
+    <?php endif; ?>
 
     <script>
         // Live countdown timer

@@ -14,16 +14,18 @@ $success   = [];
 
 // ─── Ensure extended columns exist ───────────────────────────────────────────
 $conn->query("ALTER TABLE `users`
-    ADD COLUMN IF NOT EXISTS `full_name`       VARCHAR(100) DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `email`           VARCHAR(100) DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `phone`           VARCHAR(20)  DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `location`        VARCHAR(255) DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `bio`             TEXT         DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `profile_picture` VARCHAR(255) DEFAULT NULL,
-    ADD COLUMN IF NOT EXISTS `farm_name`       VARCHAR(100) DEFAULT NULL");
+    ADD COLUMN IF NOT EXISTS `full_name`       VARCHAR(100)   DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `email`           VARCHAR(100)   DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `phone`           VARCHAR(20)    DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `location`        VARCHAR(255)   DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `bio`             TEXT           DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `profile_picture` VARCHAR(255)   DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `farm_name`       VARCHAR(100)   DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `latitude`        DECIMAL(10,7)  DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `longitude`       DECIMAL(10,7)  DEFAULT NULL");
 
 // ─── Fetch current farmer data ────────────────────────────────────────────────
-$stmt = $conn->prepare("SELECT username, full_name, email, phone, location, bio, profile_picture, farm_name FROM users WHERE id = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT username, full_name, email, phone, location, bio, profile_picture, farm_name, latitude, longitude FROM users WHERE id = ? LIMIT 1");
 $stmt->bind_param("i", $farmer_id);
 $stmt->execute();
 $farmer = $stmt->get_result()->fetch_assoc();
@@ -41,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $location  = trim($_POST['location']  ?? '');
         $bio       = trim($_POST['bio']       ?? '');
         $farm_name = trim($_POST['farm_name'] ?? '');
+        $latitude  = $_POST['latitude']  !== '' ? (float)$_POST['latitude']  : null;
+        $longitude = $_POST['longitude'] !== '' ? (float)$_POST['longitude'] : null;
 
         if (mb_strlen($full_name) > 100) $errors[] = 'Full name is too long (max 100 characters).';
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email address.';
@@ -48,6 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (mb_strlen($location) > 255) $errors[] = 'Location is too long.';
         if (mb_strlen($bio) > 1000) $errors[] = 'Bio must be under 1000 characters.';
         if (mb_strlen($farm_name) > 100) $errors[] = 'Farm name is too long (max 100 characters).';
+        if ($latitude !== null  && ($latitude  < -90  || $latitude  > 90))  $errors[] = 'Invalid latitude.';
+        if ($longitude !== null && ($longitude < -180 || $longitude > 180)) $errors[] = 'Invalid longitude.';
 
         // Email uniqueness check
         if ($email !== '' && empty($errors)) {
@@ -60,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($errors)) {
-            $upd = $conn->prepare("UPDATE users SET full_name=?, email=?, phone=?, location=?, bio=?, farm_name=? WHERE id=?");
-            $upd->bind_param("ssssssi", $full_name, $email, $phone, $location, $bio, $farm_name, $farmer_id);
+            $upd = $conn->prepare("UPDATE users SET full_name=?, email=?, phone=?, location=?, bio=?, farm_name=?, latitude=?, longitude=? WHERE id=?");
+            $upd->bind_param("ssssssddi", $full_name, $email, $phone, $location, $bio, $farm_name, $latitude, $longitude, $farmer_id);
             if ($upd->execute()) {
                 $success[] = 'Profile updated successfully!';
                 $farmer['full_name'] = $full_name;
@@ -70,6 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $farmer['location']  = $location;
                 $farmer['bio']       = $bio;
                 $farmer['farm_name'] = $farm_name;
+                $farmer['latitude']  = $latitude;
+                $farmer['longitude'] = $longitude;
             } else {
                 $errors[] = 'Database error. Please try again.';
             }
@@ -724,13 +732,29 @@ $bio_len    = mb_strlen($farmer['bio'] ?? '');
                                             value="<?php echo htmlspecialchars($farmer['farm_name'] ?? ''); ?>"
                                             placeholder="e.g. Green Valley Farm">
                                     </div>
-                                    <!-- Location -->
-                                    <div class="col-md-6">
+                                    <!-- Location + Map Picker -->
+                                    <div class="col-12">
                                         <label class="ep-form-label" for="location">Farm Location</label>
-                                        <input type="text" id="location" name="location" class="ep-form-control"
-                                            maxlength="255"
-                                            value="<?php echo htmlspecialchars($farmer['location'] ?? ''); ?>"
-                                            placeholder="City, Region, Country">
+                                        <div class="map-picker-input-row">
+                                            <input type="text" id="location" name="location" class="ep-form-control"
+                                                maxlength="255"
+                                                value="<?php echo htmlspecialchars($farmer['location'] ?? ''); ?>"
+                                                placeholder="e.g. Dhaka, Bangladesh — then click Find on Map">
+                                            <button type="button" id="geoFindBtn" class="ep-btn-geocode">
+                                                <i class="fas fa-search-location"></i> Find on Map
+                                            </button>
+                                        </div>
+                                        <p class="ep-form-hint mt-1">Type your location then click <strong>Find on Map</strong>, or drag the pin to your exact farm location.</p>
+                                        <!-- Hidden lat/lng -->
+                                        <input type="hidden" id="latitude"  name="latitude"  value="<?php echo htmlspecialchars($farmer['latitude']  ?? ''); ?>">
+                                        <input type="hidden" id="longitude" name="longitude" value="<?php echo htmlspecialchars($farmer['longitude'] ?? ''); ?>">
+                                        <!-- Map container -->
+                                        <div id="farmMapPicker" class="farm-map-picker"></div>
+                                        <div id="mapCoordDisplay" class="map-coord-display" style="display:none;">
+                                            <i class="fas fa-map-pin"></i>
+                                            <span id="mapCoordText"></span>
+                                            <span class="map-coord-badge">Pinned ✓</span>
+                                        </div>
                                     </div>
                                     <!-- Email -->
                                     <div class="col-md-6">
@@ -905,6 +929,152 @@ $bio_len    = mb_strlen($farmer['bio'] ?? '');
                 a.classList.toggle('active', href === '#' + current);
             });
         });
+    </script>
+
+    <!-- Leaflet for map picker -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .map-picker-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        .map-picker-input-row .ep-form-control {
+            flex: 1;
+        }
+        .ep-btn-geocode {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity .2s, transform .2s;
+            box-shadow: 0 4px 12px rgba(17,153,142,.3);
+        }
+        .ep-btn-geocode:hover { opacity:.88; transform:translateY(-1px); }
+        .ep-btn-geocode:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+        .farm-map-picker {
+            height: 320px;
+            border-radius: 14px;
+            border: 2px solid #e2e8f0;
+            margin-top: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 18px rgba(0,0,0,.08);
+            transition: border-color .2s;
+        }
+        .farm-map-picker:focus-within,
+        .farm-map-picker.active { border-color: #11998e; }
+        .map-coord-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12.5px;
+            color: #059669;
+            font-weight: 600;
+        }
+        .map-coord-badge {
+            background: #d1fae5;
+            color: #065f46;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+    </style>
+    <script>
+    (function() {
+        const initLat  = <?php echo !empty($farmer['latitude'])  ? (float)$farmer['latitude']  : 'null'; ?>;
+        const initLng  = <?php echo !empty($farmer['longitude']) ? (float)$farmer['longitude'] : 'null'; ?>;
+        const defaultLat = 23.6850, defaultLng = 90.3563; // Bangladesh center
+
+        const map = L.map('farmMapPicker', { zoomControl: true }).setView(
+            (initLat && initLng) ? [initLat, initLng] : [defaultLat, defaultLng],
+            (initLat && initLng) ? 13 : 6
+        );
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Custom green marker
+        const greenIcon = L.divIcon({
+            className: '',
+            html: '<div style="width:36px;height:36px;background:linear-gradient(135deg,#11998e,#38ef7d);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 4px 14px rgba(17,153,142,.5);"><span style="display:block;width:10px;height:10px;background:#fff;border-radius:50%;margin:10px auto;"></span></div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 36],
+            popupAnchor: [0, -36]
+        });
+
+        let marker = null;
+
+        function setPin(lat, lng, zoom) {
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng], { icon: greenIcon, draggable: true }).addTo(map);
+            marker.bindPopup('<b>🌾 Your Farm</b><br>Drag to adjust position').openPopup();
+            marker.on('dragend', function(e) {
+                const pos = e.target.getLatLng();
+                updateCoords(pos.lat, pos.lng);
+            });
+            document.getElementById('farmMapPicker').classList.add('active');
+            if (zoom) map.setView([lat, lng], zoom);
+            updateCoords(lat, lng);
+        }
+
+        function updateCoords(lat, lng) {
+            document.getElementById('latitude').value  = lat.toFixed(7);
+            document.getElementById('longitude').value = lng.toFixed(7);
+            const disp = document.getElementById('mapCoordDisplay');
+            document.getElementById('mapCoordText').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+            disp.style.display = 'flex';
+        }
+
+        // If existing co-ords — place pin right away
+        if (initLat && initLng) setPin(initLat, initLng, false);
+
+        // Click on map → place pin
+        map.on('click', function(e) {
+            setPin(e.latlng.lat, e.latlng.lng, false);
+        });
+
+        // Geocode button
+        document.getElementById('geoFindBtn').addEventListener('click', function() {
+            const query = document.getElementById('location').value.trim();
+            if (!query) { alert('Please enter a location first.'); return; }
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching…';
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query), {
+                headers: { 'Accept-Language': 'en' }
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-search-location"></i> Find on Map';
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    setPin(lat, lng, 13);
+                } else {
+                    alert('Location not found. Try a more specific name.');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-search-location"></i> Find on Map';
+                alert('Geocoding failed. Please check your internet connection.');
+            });
+        });
+    })();
     </script>
 </body>
 
