@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
+require_once '../includes/discovery.php';
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ../index.php');
@@ -118,6 +119,11 @@ $has_avatar   = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR_
 $fp_avatar_url = $has_avatar ? $base_url . $farmer['profile_picture'] : null;
 $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($farmer['full_name']) ? $farmer['full_name'] : $farmer['username']);
 
+$fp_follower_count = discoveryGetFarmerFollowerCount($farmerId);
+$fp_is_following = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$farmerId
+    ? discoveryIsFollowingFarmer((int)$_SESSION['user_id'], (int)$farmerId)
+    : false;
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -233,6 +239,42 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             transform: translateY(-1px);
             box-shadow: none;
             color: #0d6e5e;
+        }
+
+        .fp-follow-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 10px;
+            padding: 9px 16px;
+            border: 1.5px solid #d1fae5;
+            background: #f0fdf4;
+            color: #059669;
+            font-size: 13.5px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(17, 153, 142, .12);
+            transition: transform .2s, box-shadow .2s, background .2s, border-color .2s;
+        }
+
+        .fp-follow-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(17, 153, 142, .18);
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #0d6e5e;
+        }
+
+        .fp-follow-btn.is-following {
+            background: #ecfeff;
+            border-color: #a5f3fc;
+            color: #0f766e;
+        }
+
+        .fp-follow-hint {
+            font-size: .75rem;
+            color: #94a3b8;
+            margin-top: 6px;
         }
 
         /* Avatar */
@@ -1127,6 +1169,22 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                                 </a>
                             <?php endif; ?>
                         </div>
+
+                        <div style="margin-top:10px;">
+                            <?php if ($viewer_id): ?>
+                                <button type="button"
+                                    id="fpFollowBtn"
+                                    data-farmer-id="<?php echo $farmerId; ?>"
+                                    class="fp-follow-btn <?php echo $fp_is_following ? 'is-following' : ''; ?>"
+                                    onclick="fpToggleFollow(this)">
+                                    <i class="fas <?php echo $fp_is_following ? 'fa-user-check' : 'fa-user-plus'; ?>"></i>
+                                    <span id="fpFollowText"><?php echo $fp_is_following ? 'Following Farmer' : 'Follow Farmer'; ?></span>
+                                </button>
+                                <div class="fp-follow-hint">
+                                    <i class="fas fa-heart"></i> <span id="fpFollowCount"><?php echo number_format($fp_follower_count); ?></span> follower<?php echo $fp_follower_count === 1 ? '' : 's'; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                     <?php endif; ?>
 
                     <?php if ($review_count > 0): ?>
@@ -1476,36 +1534,36 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
 
                     <!-- Farm Location Map (full-width, only when lat/lng set) -->
                     <?php if (!empty($farmer['latitude']) && !empty($farmer['longitude'])): ?>
-                    <div class="farmer-map-card" id="farmerMapSection">
-                        <div class="farmer-map-head">
-                            <div class="farmer-map-icon"><i class="fas fa-map-marked-alt"></i></div>
-                            <div>
-                                <div class="farmer-map-title">Farm Location</div>
-                                <div class="farmer-map-subtitle">
-                                    <?php echo htmlspecialchars($farmer['location'] ?? 'Pinned location'); ?>
+                        <div class="farmer-map-card" id="farmerMapSection">
+                            <div class="farmer-map-head">
+                                <div class="farmer-map-icon"><i class="fas fa-map-marked-alt"></i></div>
+                                <div>
+                                    <div class="farmer-map-title">Farm Location</div>
+                                    <div class="farmer-map-subtitle">
+                                        <?php echo htmlspecialchars($farmer['location'] ?? 'Pinned location'); ?>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div id="farmerLeafletMap"></div>
-                        <div class="farmer-map-footer">
-                            <div class="map-loc-text">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <?php echo htmlspecialchars($farmer['location'] ?? ''); ?>
+                            <div id="farmerLeafletMap"></div>
+                            <div class="farmer-map-footer">
+                                <div class="map-loc-text">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <?php echo htmlspecialchars($farmer['location'] ?? ''); ?>
+                                </div>
+                                <a class="map-osm-link"
+                                    href="https://www.openstreetmap.org/?mlat=<?php echo (float)$farmer['latitude']; ?>&mlon=<?php echo (float)$farmer['longitude']; ?>&zoom=14"
+                                    target="_blank" rel="noopener">
+                                    <i class="fas fa-external-link-alt"></i> Open in OpenStreetMap
+                                </a>
                             </div>
-                            <a class="map-osm-link"
-                               href="https://www.openstreetmap.org/?mlat=<?php echo (float)$farmer['latitude']; ?>&mlon=<?php echo (float)$farmer['longitude']; ?>&zoom=14"
-                               target="_blank" rel="noopener">
-                                <i class="fas fa-external-link-alt"></i> Open in OpenStreetMap
-                            </a>
                         </div>
-                    </div>
                     <?php else: ?>
-                    <div class="farmer-map-card" id="farmerMapSection">
-                        <div class="farmer-map-no-location">
-                            <div><i class="fas fa-map-marked-alt"></i></div>
-                            <p>This farmer hasn't pinned their location yet.</p>
+                        <div class="farmer-map-card" id="farmerMapSection">
+                            <div class="farmer-map-no-location">
+                                <div><i class="fas fa-map-marked-alt"></i></div>
+                                <p>This farmer hasn't pinned their location yet.</p>
+                            </div>
                         </div>
-                    </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1520,12 +1578,13 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
         .farmer-map-card {
             background: #fff;
             border-radius: 20px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.08);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, .08);
             border: 1.5px solid #e2e8f0;
             overflow: hidden;
             grid-column: 1 / -1;
             margin-top: 4px;
         }
+
         .farmer-map-head {
             display: flex;
             align-items: center;
@@ -1533,6 +1592,7 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             padding: 18px 22px 14px;
             border-bottom: 1px solid #f1f5f9;
         }
+
         .farmer-map-icon {
             width: 38px;
             height: 38px;
@@ -1545,20 +1605,24 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             font-size: 1rem;
             flex-shrink: 0;
         }
+
         .farmer-map-title {
             font-size: .95rem;
             font-weight: 700;
             color: #0f172a;
         }
+
         .farmer-map-subtitle {
             font-size: .75rem;
             color: #94a3b8;
             margin-top: 1px;
         }
+
         #farmerLeafletMap {
             height: 380px;
             width: 100%;
         }
+
         .farmer-map-footer {
             padding: 12px 22px;
             display: flex;
@@ -1568,6 +1632,7 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             gap: 8px;
             background: #f8fafc;
         }
+
         .farmer-map-footer .map-loc-text {
             display: flex;
             align-items: center;
@@ -1576,22 +1641,37 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             color: #475569;
             font-weight: 500;
         }
+
         .farmer-map-footer .map-loc-text i {
             color: #059669;
         }
+
         .map-osm-link {
             font-size: .75rem;
             color: #94a3b8;
             text-decoration: none;
         }
-        .map-osm-link:hover { color: #059669; }
+
+        .map-osm-link:hover {
+            color: #059669;
+        }
+
         .farmer-map-no-location {
             padding: 40px 24px;
             text-align: center;
             color: #94a3b8;
         }
-        .farmer-map-no-location i { font-size: 2.5rem; margin-bottom: 12px; color: #cbd5e1; }
-        .farmer-map-no-location p { font-size: .85rem; margin: 0; }
+
+        .farmer-map-no-location i {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+            color: #cbd5e1;
+        }
+
+        .farmer-map-no-location p {
+            font-size: .85rem;
+            margin: 0;
+        }
     </style>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -1609,6 +1689,40 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             }
         }
 
+        function fpToggleFollow(btn) {
+            const farmerId = btn.dataset.farmerId;
+            fetch('<?php echo $base_url; ?>follow_farmer_handler.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'farmer_id=' + encodeURIComponent(farmerId)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.login_required) {
+                        window.location.href = '<?php echo $base_url; ?>index.php?auth=login';
+                        return;
+                    }
+                    if (!data.success) return;
+
+                    const label = document.getElementById('fpFollowText');
+                    const count = document.getElementById('fpFollowCount');
+                    if (data.following) {
+                        btn.classList.add('is-following');
+                        btn.querySelector('i').className = 'fas fa-user-check';
+                        label.textContent = 'Following Farmer';
+                    } else {
+                        btn.classList.remove('is-following');
+                        btn.querySelector('i').className = 'fas fa-user-plus';
+                        label.textContent = 'Follow Farmer';
+                    }
+                    if (count) {
+                        count.textContent = Number(data.followers || 0).toLocaleString();
+                    }
+                });
+        }
+
         // ── Farm Location Map (read-only view) ──
         (function() {
             const lat = <?php echo !empty($farmer['latitude'])  ? (float)$farmer['latitude']  : 'null'; ?>;
@@ -1616,7 +1730,9 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
 
             if (!lat || !lng) return; // No coordinates — map section hidden
 
-            const map = L.map('farmerLeafletMap', { scrollWheelZoom: false }).setView([lat, lng], 13);
+            const map = L.map('farmerLeafletMap', {
+                scrollWheelZoom: false
+            }).setView([lat, lng], 13);
             window._farmerMap = map;
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1625,7 +1741,7 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
             }).addTo(map);
 
             const farmName = <?php echo json_encode(!empty($farmer['farm_name']) ? $farmer['farm_name'] : $farmer['username']); ?>;
-            const locText  = <?php echo json_encode($farmer['location'] ?? ''); ?>;
+            const locText = <?php echo json_encode($farmer['location'] ?? ''); ?>;
 
             const greenIcon = L.divIcon({
                 className: '',
@@ -1635,12 +1751,14 @@ $display_name    = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty
                 popupAnchor: [0, -46]
             });
 
-            const marker = L.marker([lat, lng], { icon: greenIcon }).addTo(map);
+            const marker = L.marker([lat, lng], {
+                icon: greenIcon
+            }).addTo(map);
             marker.bindPopup(
-                '<div style="font-family:Inter,sans-serif;min-width:160px;">'
-                + '<div style="font-weight:800;font-size:.95rem;color:#065f46;margin-bottom:4px;">🌾 ' + farmName + '</div>'
-                + (locText ? '<div style="font-size:.8rem;color:#475569;"><i class="fas fa-map-marker-alt" style="color:#059669;"></i> ' + locText + '</div>' : '')
-                + '</div>'
+                '<div style="font-family:Inter,sans-serif;min-width:160px;">' +
+                '<div style="font-weight:800;font-size:.95rem;color:#065f46;margin-bottom:4px;">🌾 ' + farmName + '</div>' +
+                (locText ? '<div style="font-size:.8rem;color:#475569;"><i class="fas fa-map-marker-alt" style="color:#059669;"></i> ' + locText + '</div>' : '') +
+                '</div>'
             ).openPopup();
 
             // Enable scroll wheel zoom on click

@@ -1,6 +1,7 @@
 ﻿<?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
+require_once '../includes/discovery.php';
 check_login();
 
 if ($_SESSION['role'] !== 'farmer') {
@@ -48,6 +49,9 @@ $pending_stmt->execute();
 $pending_stmt->bind_result($pending_posts);
 $pending_stmt->fetch();
 $pending_stmt->close();
+
+// Followers
+$follower_count = discoveryGetFarmerFollowerCount($farmer_id);
 
 // Recent listings (last 4)
 $recent_stmt = $conn->prepare(
@@ -281,6 +285,22 @@ $display_name = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($f
             padding: 6px 15px;
             font-size: 12.5px;
             font-weight: 700;
+        }
+
+        .fd-followers-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #eef0ff, #dce0ff);
+            color: #4a3fbf;
+            border-radius: 30px;
+            padding: 6px 15px;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+
+        .fd-followers-badge i {
+            color: #667eea;
         }
 
         .btn-edit {
@@ -944,6 +964,7 @@ $display_name = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($f
                     </div>
                     <div class="fd-profile-right">
                         <div class="fd-verified-badge"><i class="fas fa-leaf"></i> Verified Farmer</div>
+                        <div class="fd-followers-badge"><i class="fas fa-user-check"></i> <?php echo number_format($follower_count); ?> follower<?php echo $follower_count === 1 ? '' : 's'; ?></div>
                         <a href="edit_profile.php" class="btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
                 </div>

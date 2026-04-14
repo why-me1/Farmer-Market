@@ -4,6 +4,7 @@ include 'includes/db.php'; // Database connection
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
+require_once 'includes/discovery.php';
 
 // Pre-load wishlist post IDs for logged-in buyer
 $wishlist_post_ids = [];
@@ -23,6 +24,8 @@ if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
     }
     $wl_pre->close();
 }
+
+$recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
 ?>
 
 <!DOCTYPE html>
@@ -631,6 +634,81 @@ if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
                 <?php $recent_stmt->close(); ?>
             </div>
         </div>
+
+        <?php if (!empty($recently_viewed_products)): ?>
+            <div class="recently-listed-section mb-5">
+                <div class="section-header">
+                    <h2 class="section-title"><i class="fas fa-history me-2"></i>Recently Viewed</h2>
+                    <p class="section-subtitle">Pick up where you left off</p>
+                </div>
+
+                <div id="recently-viewed-grid" class="row">
+                    <?php foreach ($recently_viewed_products as $post):
+                        $post_id = (int)$post['id'];
+                        $current_time = time();
+                        $auction_start_time = strtotime($post['auction_start_date']);
+                        $auction_end_time = strtotime($post['auction_end_date']);
+                        $is_ended = ($current_time >= $auction_end_time);
+                        $is_live = (!$is_ended && $current_time >= $auction_start_time);
+                        $total_bids = (int)($post['total_bids'] ?? 0);
+                        $max_bid = $post['highest_bid'] ?? null;
+                    ?>
+                        <div class="col-lg-3 col-md-6 product-card recently-viewed-card fade-in-up" data-name="<?php echo strtolower(htmlspecialchars($post['product_name'])); ?>">
+                            <a href="product_detail.php?id=<?php echo $post_id; ?>" class="br-card">
+                                <div class="br-card-img-wrap">
+                                    <?php if (!empty($post['image'])): ?>
+                                        <img src="assets/images/<?php echo htmlspecialchars($post['image']); ?>" alt="<?php echo htmlspecialchars($post['product_name']); ?>" class="br-card-img">
+                                    <?php else: ?>
+                                        <div class="br-card-img-placeholder"><i class="fas fa-leaf"></i></div>
+                                    <?php endif; ?>
+                                    <div class="br-view-overlay"><span class="br-view-btn"><i class="fas fa-eye"></i> View Details</span></div>
+                                    <?php if ($is_ended): ?>
+                                        <div class="br-status-badge br-ended"><i class="fas fa-flag-checkered"></i> Ended</div>
+                                    <?php elseif ($is_live): ?>
+                                        <div class="br-status-badge br-live"><span class="br-live-dot"></span> LIVE</div>
+                                    <?php else: ?>
+                                        <div class="br-status-badge br-upcoming"><i class="fas fa-hourglass-start"></i> Upcoming</div>
+                                    <?php endif; ?>
+                                    <div class="br-bids-pill"><i class="fas fa-eye"></i> Viewed</div>
+                                </div>
+
+                                <div class="br-card-body">
+                                    <h3 class="br-card-title"><?php echo htmlspecialchars($post['product_name']); ?></h3>
+                                    <div class="br-card-price-row">
+                                        <div>
+                                            <span class="br-price-label">Starting at</span>
+                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 2); ?></span>
+                                        </div>
+                                        <?php if ($max_bid && $max_bid > $post['price']): ?>
+                                            <div class="br-current-bid">
+                                                <span class="br-cb-label">Current</span>
+                                                <span class="br-cb-val">৳<?php echo number_format($max_bid, 2); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="br-card-qty"><i class="fas fa-gavel"></i> <?php echo $total_bids; ?> bid<?php echo $total_bids !== 1 ? 's' : ''; ?></div>
+                                </div>
+
+                                <div class="br-card-footer">
+                                    <div class="br-farmer-info" onclick="event.preventDefault();event.stopPropagation();window.location.href='farmer/profile.php?id=<?php echo $post['farmer_id']; ?>'">
+                                        <span class="br-farmer-avatar"><?php echo strtoupper(substr($post['username'], 0, 2)); ?></span>
+                                        <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
+                                        <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
+                                    </div>
+                                    <?php if ($is_ended): ?>
+                                        <div class="br-ended-pill"><i class="fas fa-gavel"></i><span>Auction Ended</span></div>
+                                    <?php elseif ($is_live): ?>
+                                        <div class="br-countdown" data-end="<?php echo $auction_end_time; ?>"><i class="fas fa-clock"></i><span class="br-cd-label">Ends in</span><span class="br-cd-text">–</span></div>
+                                    <?php else: ?>
+                                        <div class="br-starts-on" data-start="<?php echo $auction_start_time; ?>"><i class="fas fa-hourglass-start"></i><span class="br-starts-label">Starts in</span><span class="br-cd-text">–</span></div>
+                                    <?php endif; ?>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <script>

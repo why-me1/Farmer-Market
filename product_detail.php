@@ -6,6 +6,7 @@ require_once 'includes/config.php';
 require_once 'includes/functions.php';
 require_once 'includes/ratings.php';
 require_once 'includes/notification_functions.php';
+require_once 'includes/discovery.php';
 
 if (!isset($_GET['id'])) {
     header("Location: index.php");
@@ -196,6 +197,19 @@ $pi_stmt->close();
 if (empty($all_images) && !empty($post['image'])) {
     $all_images[] = $post['image'];
 }
+
+discoveryTrackRecentlyViewedPost($post_id);
+
+$pd_followers_count = discoveryGetFarmerFollowerCount($post['farmer_id']);
+$pd_is_following_farmer = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$post['farmer_id']
+    ? discoveryIsFollowingFarmer((int)$_SESSION['user_id'], (int)$post['farmer_id'])
+    : false;
+
+$pd_similar_products = discoveryGetSimilarProducts($post_id, $post['category'], $post['farmer_id'], 4);
+$pd_recently_viewed = discoveryGetRecentlyViewedProducts(4);
+$pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, function ($item) use ($post_id) {
+    return (int)$item['id'] !== (int)$post_id;
+}));
 ?>
 
 <!DOCTYPE html>
@@ -253,6 +267,192 @@ if (empty($all_images) && !empty($post['image'])) {
 
         .pd-thumb.pd-thumb-active {
             border-color: #11998e;
+        }
+
+        .pd-farmer-follow-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 12px;
+            padding: 11px 16px;
+            border: 1.5px solid #d1fae5;
+            background: #f0fdf4;
+            color: #059669;
+            font-size: .9rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+
+        .pd-farmer-follow-btn:hover {
+            background: #dcfce7;
+            border-color: #86efac;
+            transform: translateY(-1px);
+        }
+
+        .pd-farmer-follow-btn.is-following {
+            background: #ecfeff;
+            border-color: #a5f3fc;
+            color: #0f766e;
+        }
+
+        .pd-farmer-follow-hint {
+            font-size: .74rem;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
+
+        .pd-discovery-section {
+            margin-top: 24px;
+        }
+
+        .pd-discovery-card {
+            background: #fff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 18px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .pd-discovery-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .pd-discovery-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .pd-discovery-head p {
+            margin: 2px 0 0;
+            font-size: .77rem;
+            color: #64748b;
+        }
+
+        .pd-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+            gap: 14px;
+            align-items: start;
+        }
+
+        .pd-mini-card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            border: 1px solid #f1f5f9;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #f8fafc;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+
+        .pd-mini-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 26px rgba(5, 150, 105, .12);
+            border-color: #bbf7d0;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .pd-mini-img {
+            aspect-ratio: 4 / 3;
+            height: auto;
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pd-mini-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .pd-mini-body {
+            padding: 12px 13px 13px;
+        }
+
+        .pd-mini-title {
+            font-size: .88rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 3px;
+        }
+
+        .pd-mini-sub {
+            font-size: .72rem;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .pd-mini-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: .75rem;
+            font-weight: 700;
+            color: #059669;
+        }
+
+        .pd-mini-empty {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 18px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: .82rem;
+        }
+
+        .pd-action-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pd-action-item {
+            margin: 0;
+        }
+
+        .pd-message-farmer-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 2px solid #d1fae5;
+            background: #f0fdf4;
+            color: #059669;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            text-decoration: none;
+        }
+
+        .pd-message-farmer-btn:hover {
+            background: #dcfce7;
+            border-color: #6ee7b7;
+            text-decoration: none;
+            color: #059669;
+        }
+
+        .pd-action-item .pd-farmer-follow-btn,
+        .pd-action-item #pdWlBtn {
+            width: 100%;
+            justify-content: center;
         }
     </style>
 </head>
@@ -399,6 +599,75 @@ if (empty($all_images) && !empty($post['image'])) {
                         </div>
                     </div>
                 </div>
+
+                <?php if (!empty($pd_similar_products) || !empty($pd_recently_viewed_display)): ?>
+                    <div class="pd-discovery-section">
+                        <?php if (!empty($pd_similar_products)): ?>
+                            <div class="pd-discovery-card">
+                                <div class="pd-discovery-head">
+                                    <div>
+                                        <h3><i class="fas fa-seedling" style="color:#059669;margin-right:6px;"></i>Similar Products</h3>
+                                        <p>More items from the same category and nearby sellers</p>
+                                    </div>
+                                    <a href="browse.php?category=<?php echo urlencode($post['category']); ?>" style="font-size:.8rem;font-weight:700;color:#059669;text-decoration:none;">View Category</a>
+                                </div>
+                                <div class="pd-mini-grid">
+                                    <?php foreach ($pd_similar_products as $similar): ?>
+                                        <a href="product_detail.php?id=<?php echo (int)$similar['id']; ?>" class="pd-mini-card">
+                                            <div class="pd-mini-img">
+                                                <?php if (!empty($similar['image'])): ?>
+                                                    <img src="assets/images/<?php echo htmlspecialchars($similar['image']); ?>" alt="<?php echo htmlspecialchars($similar['product_name']); ?>">
+                                                <?php else: ?>
+                                                    <div style="height:100%;display:flex;align-items:center;justify-content:center;color:#86efac;font-size:2rem;"><i class="fas fa-leaf"></i></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="pd-mini-body">
+                                                <div class="pd-mini-title"><?php echo htmlspecialchars($similar['product_name']); ?></div>
+                                                <div class="pd-mini-sub">by <?php echo htmlspecialchars($similar['username']); ?></div>
+                                                <div class="pd-mini-meta">
+                                                    <span><?php echo number_format((float)$similar['price'], 2); ?>৳</span>
+                                                    <span><i class="fas fa-gavel"></i> <?php echo (int)($similar['total_bids'] ?? 0); ?></span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($pd_recently_viewed_display)): ?>
+                            <div class="pd-discovery-card">
+                                <div class="pd-discovery-head">
+                                    <div>
+                                        <h3><i class="fas fa-history" style="color:#0f766e;margin-right:6px;"></i>Recently Viewed</h3>
+                                        <p>Jump back into listings you opened earlier</p>
+                                    </div>
+                                </div>
+                                <div class="pd-mini-grid">
+                                    <?php foreach ($pd_recently_viewed_display as $recent): ?>
+                                        <a href="product_detail.php?id=<?php echo (int)$recent['id']; ?>" class="pd-mini-card">
+                                            <div class="pd-mini-img">
+                                                <?php if (!empty($recent['image'])): ?>
+                                                    <img src="assets/images/<?php echo htmlspecialchars($recent['image']); ?>" alt="<?php echo htmlspecialchars($recent['product_name']); ?>">
+                                                <?php else: ?>
+                                                    <div style="height:100%;display:flex;align-items:center;justify-content:center;color:#86efac;font-size:2rem;"><i class="fas fa-leaf"></i></div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="pd-mini-body">
+                                                <div class="pd-mini-title"><?php echo htmlspecialchars($recent['product_name']); ?></div>
+                                                <div class="pd-mini-sub">by <?php echo htmlspecialchars($recent['username']); ?></div>
+                                                <div class="pd-mini-meta">
+                                                    <span><?php echo number_format((float)$recent['price'], 2); ?>৳</span>
+                                                    <span><i class="fas fa-eye"></i> Open</span>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
             </div>
 
             <!-- ===== RIGHT COLUMN ===== -->
@@ -514,98 +783,147 @@ if (empty($all_images) && !empty($post['image'])) {
                 }
                 ?>
 
-                <!-- Message Farmer Button -->
-                <?php if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$post['farmer_id']): ?>
-                    <div style="margin-bottom:12px;">
-                        <a href="<?php echo BASE_URL; ?>messages_chat.php?user=<?php echo (int)$post['farmer_id']; ?>"
-                            style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
-                              padding:12px 18px;border-radius:12px;border:2px solid #d1fae5;
-                              background:#f0fdf4;color:#059669;
-                              font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;"
-                            onmouseover="this.style.background='#dcfce7';this.style.borderColor='#6ee7b7';"
-                            onmouseout="this.style.background='#f0fdf4';this.style.borderColor='#d1fae5';">
-                            <i class="fas fa-comments" style="font-size:1rem;"></i>
-                            Message Farmer
-                        </a>
-                    </div>
-                <?php endif; ?>
+                <div class="pd-action-stack">
+                    <!-- Message Farmer Button -->
+                    <?php if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$post['farmer_id']): ?>
+                        <div class="pd-action-item">
+                            <a href="<?php echo BASE_URL; ?>messages_chat.php?user=<?php echo (int)$post['farmer_id']; ?>"
+                                class="pd-message-farmer-btn">
+                                <i class="fas fa-comments" style="font-size:1rem;"></i>
+                                Message Farmer
+                            </a>
+                        </div>
+                    <?php endif; ?>
 
-                <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user' && !$is_ended): ?>
-                    <div style="margin-bottom:16px;">
-                        <button id="pdWlBtn"
-                            onclick="pdToggleWishlist(this)"
-                            data-post-id="<?php echo $post_id; ?>"
-                            style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+                    <?php if (isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== (int)$post['farmer_id']): ?>
+                        <div class="pd-action-item">
+                            <button id="pdFollowBtn"
+                                type="button"
+                                data-farmer-id="<?php echo (int)$post['farmer_id']; ?>"
+                                class="pd-farmer-follow-btn <?php echo $pd_is_following_farmer ? 'is-following' : ''; ?>"
+                                onclick="pdToggleFollow(this)">
+                                <i class="fas <?php echo $pd_is_following_farmer ? 'fa-user-check' : 'fa-user-plus'; ?>"></i>
+                                <span id="pdFollowText"><?php echo $pd_is_following_farmer ? 'Following Farmer' : 'Follow Farmer'; ?></span>
+                            </button>
+                            <div class="pd-farmer-follow-hint">
+                                <i class="fas fa-heart"></i> <?php echo number_format($pd_followers_count); ?> follower<?php echo $pd_followers_count === 1 ? '' : 's'; ?>
+                            </div>
+                        </div>
+                        <script>
+                            function pdToggleFollow(btn) {
+                                const farmerId = btn.dataset.farmerId;
+                                fetch('follow_farmer_handler.php', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/x-www-form-urlencoded'
+                                        },
+                                        body: 'farmer_id=' + encodeURIComponent(farmerId)
+                                    })
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        if (data.login_required) {
+                                            window.location.href = 'index.php?auth=login';
+                                            return;
+                                        }
+                                        if (!data.success) return;
+
+                                        const label = document.getElementById('pdFollowText');
+                                        const hint = btn.parentElement.querySelector('.pd-farmer-follow-hint');
+                                        if (data.following) {
+                                            btn.classList.add('is-following');
+                                            btn.querySelector('i').className = 'fas fa-user-check';
+                                            label.textContent = 'Following Farmer';
+                                        } else {
+                                            btn.classList.remove('is-following');
+                                            btn.querySelector('i').className = 'fas fa-user-plus';
+                                            label.textContent = 'Follow Farmer';
+                                        }
+                                        if (hint) {
+                                            const total = Number(data.followers || 0);
+                                            hint.innerHTML = '<i class="fas fa-heart"></i> ' + total.toLocaleString() + ' follower' + (total === 1 ? '' : 's');
+                                        }
+                                    });
+                            }
+                        </script>
+                    <?php endif; ?>
+
+                    <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user' && !$is_ended): ?>
+                        <div class="pd-action-item">
+                            <button id="pdWlBtn"
+                                onclick="pdToggleWishlist(this)"
+                                data-post-id="<?php echo $post_id; ?>"
+                                style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
                                padding:12px 18px;border-radius:12px;border:2px solid <?php echo $pd_is_wishlisted ? '#ef4444' : '#e2e8f0'; ?>;
                                background:<?php echo $pd_is_wishlisted ? '#fff1f2' : '#fff' ?>;
                                color:<?php echo $pd_is_wishlisted ? '#ef4444' : '#64748b' ?>;
                                font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;">
-                            <i class="fas fa-heart" style="font-size:1rem;"></i>
-                            <span id="pdWlText"><?php echo $pd_is_wishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'; ?></span>
-                        </button>
-                    </div>
-                    <script>
-                        function pdToggleWishlist(btn) {
-                            var postId = btn.dataset.postId;
-                            fetch('wishlist_handler.php', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/x-www-form-urlencoded'
-                                    },
-                                    body: 'action=toggle&post_id=' + postId
-                                })
-                                .then(function(r) {
-                                    return r.json();
-                                })
-                                .then(function(d) {
-                                    if (d.login_required) {
-                                        window.location.href = 'index.php?auth=login';
-                                        return;
-                                    }
-                                    if (d.success) {
-                                        var txt = document.getElementById('pdWlText');
-                                        if (d.saved) {
-                                            btn.style.borderColor = '#ef4444';
-                                            btn.style.background = '#fff1f2';
-                                            btn.style.color = '#ef4444';
-                                            txt.textContent = 'Saved to Wishlist';
-                                        } else {
-                                            btn.style.borderColor = '#e2e8f0';
-                                            btn.style.background = '#fff';
-                                            btn.style.color = '#64748b';
-                                            txt.textContent = 'Save to Wishlist';
+                                <i class="fas fa-heart" style="font-size:1rem;"></i>
+                                <span id="pdWlText"><?php echo $pd_is_wishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'; ?></span>
+                            </button>
+                        </div>
+                        <script>
+                            function pdToggleWishlist(btn) {
+                                var postId = btn.dataset.postId;
+                                fetch('wishlist_handler.php', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/x-www-form-urlencoded'
+                                        },
+                                        body: 'action=toggle&post_id=' + postId
+                                    })
+                                    .then(function(r) {
+                                        return r.json();
+                                    })
+                                    .then(function(d) {
+                                        if (d.login_required) {
+                                            window.location.href = 'index.php?auth=login';
+                                            return;
                                         }
-                                    }
-                                });
-                        }
-                    </script>
-                <?php endif; ?>
+                                        if (d.success) {
+                                            var txt = document.getElementById('pdWlText');
+                                            if (d.saved) {
+                                                btn.style.borderColor = '#ef4444';
+                                                btn.style.background = '#fff1f2';
+                                                btn.style.color = '#ef4444';
+                                                txt.textContent = 'Saved to Wishlist';
+                                            } else {
+                                                btn.style.borderColor = '#e2e8f0';
+                                                btn.style.background = '#fff';
+                                                btn.style.color = '#64748b';
+                                                txt.textContent = 'Save to Wishlist';
+                                            }
+                                        }
+                                    });
+                            }
+                        </script>
+                    <?php endif; ?>
+                </div>
 
                 <!-- Farm Location Mini Map -->
                 <?php if ($farmer_lat && $farmer_lng): ?>
-                <div class="pd-map-card" id="pd-farm-map-card">
-                    <div class="pd-map-card-head">
-                        <i class="fas fa-map-marked-alt"></i>
-                        <div>
-                            <div class="pd-map-card-title">Farm Location</div>
-                            <?php if ($farmer_loc): ?>
-                                <div class="pd-map-card-sub"><?php echo htmlspecialchars($farmer_loc); ?></div>
-                            <?php endif; ?>
+                    <div class="pd-map-card" id="pd-farm-map-card">
+                        <div class="pd-map-card-head">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <div>
+                                <div class="pd-map-card-title">Farm Location</div>
+                                <?php if ($farmer_loc): ?>
+                                    <div class="pd-map-card-sub"><?php echo htmlspecialchars($farmer_loc); ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div id="pdFarmMiniMap"></div>
+                        <div class="pd-map-card-foot">
+                            <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>#tab-about"
+                                style="font-size:.78rem;color:#059669;font-weight:600;text-decoration:none;">
+                                <i class="fas fa-user-circle"></i> View Full Farm Profile
+                            </a>
+                            <a href="https://www.openstreetmap.org/?mlat=<?php echo $farmer_lat; ?>&mlon=<?php echo $farmer_lng; ?>&zoom=14"
+                                target="_blank" rel="noopener"
+                                style="font-size:.72rem;color:#94a3b8;text-decoration:none;">
+                                <i class="fas fa-external-link-alt"></i> OSM
+                            </a>
                         </div>
                     </div>
-                    <div id="pdFarmMiniMap"></div>
-                    <div class="pd-map-card-foot">
-                        <a href="farmer/profile.php?id=<?php echo (int)$post['farmer_id']; ?>#tab-about"
-                           style="font-size:.78rem;color:#059669;font-weight:600;text-decoration:none;">
-                            <i class="fas fa-user-circle"></i> View Full Farm Profile
-                        </a>
-                        <a href="https://www.openstreetmap.org/?mlat=<?php echo $farmer_lat; ?>&mlon=<?php echo $farmer_lng; ?>&zoom=14"
-                           target="_blank" rel="noopener"
-                           style="font-size:.72rem;color:#94a3b8;text-decoration:none;">
-                            <i class="fas fa-external-link-alt"></i> OSM
-                        </a>
-                    </div>
-                </div>
                 <?php endif; ?>
 
                 <!-- Bid History Card -->
@@ -791,64 +1109,95 @@ if (empty($all_images) && !empty($post['image'])) {
 
     <!-- Leaflet mini-map for farm location -->
     <?php if ($farmer_lat && $farmer_lng): ?>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <style>
-        .pd-map-card {
-            background: #fff;
-            border-radius: 16px;
-            border: 1.5px solid #e2e8f0;
-            box-shadow: 0 2px 14px rgba(0,0,0,.06);
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-        .pd-map-card-head {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 16px;
-            font-size: .85rem;
-            font-weight: 700;
-            color: #0f172a;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .pd-map-card-head i { color: #059669; font-size: 1.1rem; }
-        .pd-map-card-title { font-size: .88rem; font-weight: 700; color: #0f172a; line-height: 1.2; }
-        .pd-map-card-sub   { font-size: .72rem; color: #94a3b8; margin-top: 1px; }
-        #pdFarmMiniMap { height: 210px; width: 100%; }
-        .pd-map-card-foot {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 16px;
-            background: #f8fafc;
-        }
-    </style>
-    <script>
-    (function() {
-        const lat  = <?php echo $farmer_lat; ?>;
-        const lng  = <?php echo $farmer_lng; ?>;
-        const name = <?php echo json_encode($farmer_farm); ?>;
-        const loc  = <?php echo json_encode($farmer_loc); ?>;
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+            .pd-map-card {
+                background: #fff;
+                border-radius: 16px;
+                border: 1.5px solid #e2e8f0;
+                box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
+                overflow: hidden;
+                margin-bottom: 16px;
+            }
 
-        const map = L.map('pdFarmMiniMap', { scrollWheelZoom: false, zoomControl: false }).setView([lat, lng], 13);
-        L.control.zoom({ position: 'topright' }).addTo(map);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap', maxZoom: 19
-        }).addTo(map);
+            .pd-map-card-head {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 14px 16px;
+                font-size: .85rem;
+                font-weight: 700;
+                color: #0f172a;
+                border-bottom: 1px solid #f1f5f9;
+            }
 
-        const greenIcon = L.divIcon({
-            className: '',
-            html: '<div style="width:32px;height:32px;background:linear-gradient(135deg,#059669,#065f46);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 4px 12px rgba(5,150,105,.5);"><span style="display:block;width:9px;height:9px;background:#fff;border-radius:50%;margin:8px auto;"></span></div>',
-            iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -34]
-        });
+            .pd-map-card-head i {
+                color: #059669;
+                font-size: 1.1rem;
+            }
 
-        const marker = L.marker([lat, lng], { icon: greenIcon }).addTo(map);
-        marker.bindPopup('<b>🌾 ' + name + '</b>' + (loc ? '<br><small>' + loc + '</small>' : '')).openPopup();
-        map.on('click', () => map.scrollWheelZoom.enable());
-        map.on('mouseout', () => map.scrollWheelZoom.disable());
-    })();
-    </script>
+            .pd-map-card-title {
+                font-size: .88rem;
+                font-weight: 700;
+                color: #0f172a;
+                line-height: 1.2;
+            }
+
+            .pd-map-card-sub {
+                font-size: .72rem;
+                color: #94a3b8;
+                margin-top: 1px;
+            }
+
+            #pdFarmMiniMap {
+                height: 210px;
+                width: 100%;
+            }
+
+            .pd-map-card-foot {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 10px 16px;
+                background: #f8fafc;
+            }
+        </style>
+        <script>
+            (function() {
+                const lat = <?php echo $farmer_lat; ?>;
+                const lng = <?php echo $farmer_lng; ?>;
+                const name = <?php echo json_encode($farmer_farm); ?>;
+                const loc = <?php echo json_encode($farmer_loc); ?>;
+
+                const map = L.map('pdFarmMiniMap', {
+                    scrollWheelZoom: false,
+                    zoomControl: false
+                }).setView([lat, lng], 13);
+                L.control.zoom({
+                    position: 'topright'
+                }).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap',
+                    maxZoom: 19
+                }).addTo(map);
+
+                const greenIcon = L.divIcon({
+                    className: '',
+                    html: '<div style="width:32px;height:32px;background:linear-gradient(135deg,#059669,#065f46);border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 4px 12px rgba(5,150,105,.5);"><span style="display:block;width:9px;height:9px;background:#fff;border-radius:50%;margin:8px auto;"></span></div>',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -34]
+                });
+
+                const marker = L.marker([lat, lng], {
+                    icon: greenIcon
+                }).addTo(map);
+                marker.bindPopup('<b>🌾 ' + name + '</b>' + (loc ? '<br><small>' + loc + '</small>' : '')).openPopup();
+                map.on('click', () => map.scrollWheelZoom.enable());
+                map.on('mouseout', () => map.scrollWheelZoom.disable());
+            })();
+        </script>
     <?php endif; ?>
 
     <script>

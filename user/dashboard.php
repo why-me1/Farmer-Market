@@ -2,6 +2,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
+require_once '../includes/discovery.php';
 check_login();
 
 if ($_SESSION['role'] !== 'user') {
@@ -136,6 +137,14 @@ $wl_stmt->bind_param("i", $user_id);
 $wl_stmt->execute();
 $wishlist_items = $wl_stmt->get_result();
 $wishlist_count = $wishlist_items->num_rows;
+
+// Followed farmers
+discoveryEnsureFollowTable();
+$follow_stmt = $conn->prepare("\n    SELECT u.id AS farmer_id,\n           u.username,\n           u.farm_name,\n           u.profile_picture,\n           u.location,\n           ff.created_at AS followed_at,\n           (SELECT COUNT(*) FROM posts p WHERE p.farmer_id = u.id AND p.is_approved = 1 AND p.status = 'active') AS active_listings,\n           (SELECT AVG(r.rating)\n            FROM reviews r\n            JOIN posts p2 ON p2.id = r.product_id\n            WHERE p2.farmer_id = u.id) AS avg_rating\n    FROM farmer_follows ff\n    JOIN users u ON ff.farmer_id = u.id\n    WHERE ff.user_id = ?\n    ORDER BY ff.created_at DESC\n");
+$follow_stmt->bind_param("i", $user_id);
+$follow_stmt->execute();
+$followed_farmers = $follow_stmt->get_result();
+$followed_farmers_count = $followed_farmers->num_rows;
 
 // Greeting
 $hour = (int)date('H');
@@ -760,6 +769,119 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             color: #fff;
         }
 
+        .ud-follow-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 24px;
+            border-bottom: 1px solid #f6f8fb;
+            transition: background .15s;
+        }
+
+        .ud-follow-row:last-child {
+            border-bottom: none;
+        }
+
+        .ud-follow-row:hover {
+            background: #fafbff;
+        }
+
+        .ud-follow-avatar {
+            width: 58px;
+            height: 58px;
+            border-radius: 14px;
+            object-fit: cover;
+            border: 1px solid #edf0f6;
+            flex-shrink: 0;
+        }
+
+        .ud-follow-avatar-ph {
+            width: 58px;
+            height: 58px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #e8faf3, #d0f5e8);
+            color: #11998e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .ud-follow-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ud-follow-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .ud-follow-name:hover {
+            color: #11998e;
+        }
+
+        .ud-follow-meta {
+            font-size: 12px;
+            color: #8b98a6;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .ud-follow-meta span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ud-follow-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .ud-follow-btn {
+            border: 1px solid #e4e8f0;
+            background: #f4f6fb;
+            color: #4a5568;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all .2s;
+        }
+
+        .ud-follow-btn:hover {
+            background: #e8ecf4;
+            color: #4a5568;
+            transform: translateY(-1px);
+        }
+
+        .ud-follow-btn-danger {
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #be123c;
+        }
+
+        .ud-follow-btn-danger:hover {
+            background: #ffe4e6;
+            color: #be123c;
+        }
+
         /* EMPTY STATE */
         .ud-empty {
             text-align: center;
@@ -1074,6 +1196,10 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             <i class="fas fa-heart"></i> Wishlist
                             <span class="tab-cnt"><?php echo $wishlist_count; ?></span>
                         </button>
+                        <button class="nav-link" id="tab-following" data-bs-toggle="tab" data-bs-target="#pane-following" type="button" role="tab">
+                            <i class="fas fa-user-check"></i> Following Farmers
+                            <span class="tab-cnt"><?php echo $followed_farmers_count; ?></span>
+                        </button>
                     </div>
 
                     <!-- Tab Content -->
@@ -1246,6 +1372,74 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             </div>
                         </div>
 
+                        <!-- FOLLOWING FARMERS -->
+                        <div class="tab-pane fade" id="pane-following" role="tabpanel">
+                            <div class="ud-panel">
+                                <div class="ud-panel-head">
+                                    <div class="ph-icon" style="background:linear-gradient(135deg,#e8faf3,#d0f5e8);color:#11998e;"><i class="fas fa-user-check"></i></div>
+                                    <h5>Following Farmers <span class="ph-sub">(favorite sellers)</span></h5>
+                                </div>
+
+                                <?php if ($followed_farmers_count > 0): ?>
+                                    <?php $followed_farmers->data_seek(0);
+                                    while ($farmer = $followed_farmers->fetch_assoc()):
+                                        $farmer_name = !empty($farmer['farm_name']) ? $farmer['farm_name'] : $farmer['username'];
+                                        $farmer_initial = strtoupper(substr($farmer['username'], 0, 1));
+                                        $farmer_has_avatar = !empty($farmer['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $farmer['profile_picture']);
+                                        $farmer_avatar_url = $farmer_has_avatar ? $base_url . $farmer['profile_picture'] : null;
+                                        $avg_rating_text = $farmer['avg_rating'] !== null ? number_format((float)$farmer['avg_rating'], 1) : 'N/A';
+                                    ?>
+                                        <div class="ud-follow-row">
+                                            <?php if ($farmer_avatar_url): ?>
+                                                <img src="<?php echo htmlspecialchars($farmer_avatar_url); ?>" class="ud-follow-avatar" alt="<?php echo htmlspecialchars($farmer_name); ?>">
+                                            <?php else: ?>
+                                                <div class="ud-follow-avatar-ph"><i class="fas fa-user"></i></div>
+                                            <?php endif; ?>
+
+                                            <div class="ud-follow-info">
+                                                <a class="ud-follow-name" href="<?php echo $base_url; ?>farmer/profile.php?id=<?php echo (int)$farmer['farmer_id']; ?>">
+                                                    <?php echo htmlspecialchars($farmer_name); ?>
+                                                    <small style="color:#8b98a6;font-weight:500;">@<?php echo htmlspecialchars($farmer['username']); ?></small>
+                                                </a>
+                                                <div class="ud-follow-meta">
+                                                    <span><i class="fas fa-seedling"></i> <?php echo (int)$farmer['active_listings']; ?> active listing<?php echo ((int)$farmer['active_listings']) !== 1 ? 's' : ''; ?></span>
+                                                    <span><i class="fas fa-star"></i> Rating <?php echo $avg_rating_text; ?>/5</span>
+                                                    <span><i class="fas fa-calendar-alt"></i> Followed <?php echo date('M j, Y', strtotime($farmer['followed_at'])); ?></span>
+                                                    <?php if (!empty($farmer['location'])): ?>
+                                                        <span><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($farmer['location']); ?></span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </div>
+
+                                            <div class="ud-follow-actions">
+                                                <a class="ud-follow-btn" href="<?php echo $base_url; ?>farmer/profile.php?id=<?php echo (int)$farmer['farmer_id']; ?>">
+                                                    <i class="fas fa-user"></i> View Profile
+                                                </a>
+                                                <a class="ud-follow-btn" href="<?php echo $base_url; ?>messages_chat.php?user=<?php echo (int)$farmer['farmer_id']; ?>">
+                                                    <i class="fas fa-comment-dots"></i> Message
+                                                </a>
+                                                <button type="button"
+                                                    class="ud-follow-btn ud-follow-btn-danger"
+                                                    data-farmer-id="<?php echo (int)$farmer['farmer_id']; ?>"
+                                                    onclick="unfollowFarmerFromDashboard(this)">
+                                                    <i class="fas fa-user-minus"></i> Unfollow
+                                                </button>
+                                            </div>
+                                        </div>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <div class="ud-empty">
+                                        <div class="ud-empty-icon"><i class="fas fa-user-check"></i></div>
+                                        <h5>No followed farmers yet</h5>
+                                        <p>Follow farmers from product or profile pages to build your favorite seller list.</p>
+                                        <a href="<?php echo $base_url; ?>browse.php" class="ud-btn-primary">
+                                            <i class="fas fa-store"></i> Discover Farmers
+                                        </a>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
                     </div><!-- /tab-content -->
                 </div>
 
@@ -1284,6 +1478,14 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             <div class="udql-text">
                                 <div class="ql-title">My Wishlist</div>
                                 <div class="ql-sub"><?php echo $wishlist_count; ?> saved item<?php echo $wishlist_count != 1 ? 's' : ''; ?></div>
+                            </div>
+                            <i class="fas fa-chevron-right udql-arrow"></i>
+                        </a>
+                        <a href="#pane-following" onclick="document.getElementById('tab-following').click();window.scrollTo({top:document.getElementById('udTabs').offsetTop-80,behavior:'smooth'});return false;" class="ud-quick-link">
+                            <div class="udql-icon green"><i class="fas fa-user-check"></i></div>
+                            <div class="udql-text">
+                                <div class="ql-title">Following Farmers</div>
+                                <div class="ql-sub"><?php echo $followed_farmers_count; ?> farmer<?php echo $followed_farmers_count != 1 ? 's' : ''; ?> followed</div>
                             </div>
                             <i class="fas fa-chevron-right udql-arrow"></i>
                         </a>
@@ -1369,6 +1571,52 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                     }
                                 }
                             }, 320);
+                        }
+                    }
+                });
+        }
+
+        function unfollowFarmerFromDashboard(btn) {
+            const farmerId = btn.dataset.farmerId;
+            fetch('<?php echo $base_url; ?>follow_farmer_handler.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'farmer_id=' + encodeURIComponent(farmerId)
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.login_required) {
+                        window.location.href = '<?php echo $base_url; ?>index.php?auth=login';
+                        return;
+                    }
+                    if (!d.success || d.following) return;
+
+                    const row = btn.closest('.ud-follow-row');
+                    const badge = document.querySelector('#tab-following .tab-cnt');
+                    if (row) {
+                        row.style.transition = 'opacity .3s, transform .3s';
+                        row.style.opacity = '0';
+                        row.style.transform = 'translateX(20px)';
+                        setTimeout(() => row.remove(), 300);
+                    }
+                    if (badge) {
+                        const cur = parseInt(badge.textContent, 10) || 0;
+                        const next = Math.max(0, cur - 1);
+                        badge.textContent = next;
+
+                        if (next === 0) {
+                            const panel = document.querySelector('#pane-following .ud-panel');
+                            const existing = panel.querySelectorAll('.ud-follow-row');
+                            existing.forEach(el => el.remove());
+                            const emptyHtml = '<div class="ud-empty">' +
+                                '<div class="ud-empty-icon"><i class="fas fa-user-check"></i></div>' +
+                                '<h5>No followed farmers yet</h5>' +
+                                '<p>Follow farmers from product or profile pages to build your favorite seller list.</p>' +
+                                '<a href="<?php echo $base_url; ?>browse.php" class="ud-btn-primary">' +
+                                '<i class="fas fa-store"></i> Discover Farmers</a></div>';
+                            panel.insertAdjacentHTML('beforeend', emptyHtml);
                         }
                     }
                 });

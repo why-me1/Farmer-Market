@@ -9,6 +9,8 @@ if (session_status() == PHP_SESSION_NONE) {
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
+require_once '../includes/discovery.php';
+require_once '../includes/notification_functions.php';
 
 // Enable error reporting for debugging
 ini_set('display_errors', 1);
@@ -94,6 +96,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if ($stmt->execute()) {
             $new_post_id = $stmt->insert_id;
+
+            // Notify followers that this farmer listed a new product
+            $follower_ids = discoveryGetFarmerFollowerIds($farmer_id);
+            foreach ($follower_ids as $follower_id) {
+                createNotification($follower_id, $new_post_id, null, 'followed_farmer_post');
+            }
 
             // Save each image to post_images table
             if (!empty($saved_images)) {

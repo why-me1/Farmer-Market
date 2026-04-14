@@ -253,6 +253,31 @@ function getNotificationMessage($notification)
                 return "🎉 Congratulations! You won the bid for '{$product_name}'";
             }
 
+        case 'followed_farmer_post':
+            $start_label = '';
+            $stmt = $conn->prepare("SELECT auction_start_date, auction_end_date FROM posts WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $post_id);
+            $stmt->execute();
+            $post_row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            if ($post_row) {
+                $now = time();
+                $auction_start = strtotime($post_row['auction_start_date']);
+                $auction_end = strtotime($post_row['auction_end_date']);
+
+                if ($auction_start <= $now && $auction_end > $now) {
+                    return "A farmer you follow just listed '{$product_name}' and it is live now";
+                }
+
+                if ($auction_start > $now) {
+                    $start_label = date('M j, g:i A', $auction_start);
+                    return "A farmer you follow scheduled '{$product_name}' to start on {$start_label}";
+                }
+            }
+
+            return "A farmer you follow listed '{$product_name}'";
+
         default:
             return "New notification about '{$product_name}'";
     }

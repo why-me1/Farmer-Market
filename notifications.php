@@ -35,6 +35,7 @@ function notifMeta($type)
     $map = [
         'comment'           => ['icon' => 'fa-comment-dots',   'color' => '#6366f1', 'bg' => '#ede9fe', 'label' => 'Comment'],
         'comment_approved'  => ['icon' => 'fa-check-circle',   'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'Approved'],
+        'followed_farmer_post' => ['icon' => 'fa-seedling',    'color' => '#10b981', 'bg' => '#dcfce7', 'label' => 'New Listing'],
         'bid'               => ['icon' => 'fa-gavel',           'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Bid'],
         'sale'              => ['icon' => 'fa-shopping-bag',    'color' => '#10b981', 'bg' => '#d1fae5', 'label' => 'Sale'],
         'order'             => ['icon' => 'fa-box',             'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Order'],
