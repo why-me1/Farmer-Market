@@ -26,12 +26,14 @@ $sort          = (isset($_GET['sort']) && in_array($_GET['sort'], ['newest', 'pr
 $status_filter = (isset($_GET['status']) && in_array($_GET['status'], ['all', 'live', 'upcoming', 'ended']))           ? $_GET['status'] : 'all';
 $min_price     = (isset($_GET['min_price']) && is_numeric($_GET['min_price'])) ? (float)$_GET['min_price'] : '';
 $max_price     = (isset($_GET['max_price']) && is_numeric($_GET['max_price'])) ? (float)$_GET['max_price'] : '';
+$location_filter = isset($_GET['location']) ? sanitize($_GET['location']) : '';
 
 $active_filter_count = 0;
 if ($sort !== 'newest')       $active_filter_count++;
 if ($status_filter !== 'all') $active_filter_count++;
 if ($min_price !== '')        $active_filter_count++;
 if ($max_price !== '')        $active_filter_count++;
+if ($location_filter !== '')  $active_filter_count++;
 
 // Category meta: icon + gradient colours
 $cat_meta = [
@@ -219,6 +221,51 @@ $light = $meta['light'];
             vertical-align: middle;
         }
 
+        .filter-chips-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 0 0 14px;
+        }
+
+        .filter-chip-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 2px;
+        }
+
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            background: #f0fdf4;
+            border: 1px solid rgba(5, 150, 105, 0.25);
+            border-radius: 999px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #065f46;
+            text-decoration: none;
+        }
+
+        .filter-chip .chip-remove {
+            color: #059669;
+            font-size: 10px;
+            margin-left: 2px;
+            opacity: 0.7;
+        }
+
+        .filter-chip:hover {
+            background: #dcfce7;
+            border-color: #059669;
+            text-decoration: none;
+            color: #065f46;
+        }
+
         /* ── Wishlist heart button ── */
         .wl-btn {
             position: absolute;
@@ -335,7 +382,7 @@ $light = $meta['light'];
                     $c = $cat_meta[$cat];
                     $isActive = $cat === $category;
                 ?>
-                    <a href="browse.php?category=<?php echo urlencode($cat); ?>"
+                    <a href="browse.php?category=<?php echo urlencode($cat); ?><?php echo $location_filter !== '' ? '&location=' . urlencode($location_filter) : ''; ?>"
                         class="br-tab <?php echo $isActive ? 'br-tab-active' : ''; ?>"
                         title="<?php echo $cat; ?>">
                         <i class="fas <?php echo $c['icon']; ?> br-tab-icon"></i>
@@ -408,6 +455,15 @@ $light = $meta['light'];
                             <input type="number" name="max_price" placeholder="Max" min="0" step="1"
                                 value="<?php echo $max_price !== '' ? (int)$max_price : ''; ?>">
                         </div>
+                    </div>
+
+                    <!-- Farmer Location -->
+                    <div class="br-filter-section">
+                        <div class="br-filter-title">Farmer Location</div>
+                        <div class="br-price-row">
+                            <input type="text" name="location" placeholder="e.g. Dhaka, Chittagong"
+                                value="<?php echo htmlspecialchars($location_filter); ?>">
+                        </div>
                         <button type="submit" class="br-apply-btn"><i class="fas fa-check"></i> Apply</button>
                     </div>
 
@@ -443,6 +499,11 @@ $light = $meta['light'];
                     $where_clauses[] = "posts.price <= ?";
                     $params[] = $max_price;
                     $types .= "d";
+                }
+                if ($location_filter !== '') {
+                    $where_clauses[] = "users.location LIKE ?";
+                    $params[] = '%' . $location_filter . '%';
+                    $types .= "s";
                 }
 
                 $status_condition = '';
@@ -484,6 +545,35 @@ $light = $meta['light'];
                         <input type="text" id="br-search" placeholder="Search <?php echo strtolower($category); ?>…">
                     </div>
                 </div>
+
+                <?php if ($active_filter_count > 0): ?>
+                    <div class="filter-chips-row">
+                        <span class="filter-chip-label"><i class="fas fa-filter"></i> Active:</span>
+                        <?php if ($sort !== 'newest'): ?>
+                            <a href="browse.php?category=<?php echo urlencode($category); ?>&status=<?php echo urlencode($status_filter); ?>&min_price=<?php echo $min_price !== '' ? (int)$min_price : ''; ?>&max_price=<?php echo $max_price !== '' ? (int)$max_price : ''; ?>&location=<?php echo urlencode($location_filter); ?>" class="filter-chip">
+                                <i class="fas fa-sort"></i> Sort: <?php echo htmlspecialchars(str_replace('_', ' ', $sort)); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($status_filter !== 'all'): ?>
+                            <a href="browse.php?category=<?php echo urlencode($category); ?>&sort=<?php echo urlencode($sort); ?>&min_price=<?php echo $min_price !== '' ? (int)$min_price : ''; ?>&max_price=<?php echo $max_price !== '' ? (int)$max_price : ''; ?>&location=<?php echo urlencode($location_filter); ?>" class="filter-chip">
+                                <i class="fas fa-circle"></i> <?php echo htmlspecialchars(ucfirst($status_filter)); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($min_price !== '' || $max_price !== ''): ?>
+                            <a href="browse.php?category=<?php echo urlencode($category); ?>&sort=<?php echo urlencode($sort); ?>&status=<?php echo urlencode($status_filter); ?>&location=<?php echo urlencode($location_filter); ?>" class="filter-chip">
+                                <i class="fas fa-tag"></i> ৳<?php echo $min_price !== '' ? (int)$min_price : 0; ?> &ndash; ৳<?php echo $max_price !== '' ? (int)$max_price : 0; ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
+                            </a>
+                        <?php endif; ?>
+                        <?php if ($location_filter !== ''): ?>
+                            <a href="browse.php?category=<?php echo urlencode($category); ?>&sort=<?php echo urlencode($sort); ?>&status=<?php echo urlencode($status_filter); ?>&min_price=<?php echo $min_price !== '' ? (int)$min_price : ''; ?>&max_price=<?php echo $max_price !== '' ? (int)$max_price : ''; ?>" class="filter-chip">
+                                <i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($location_filter); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
+                            </a>
+                        <?php endif; ?>
+                        <a href="browse.php?category=<?php echo urlencode($category); ?>" class="filter-chip" style="background:#fff5f5;border-color:rgba(220,38,38,0.2);color:#b91c1c;">
+                            <i class="fas fa-redo"></i> Clear all
+                        </a>
+                    </div>
+                <?php endif; ?>
 
                 <?php if ($total_products > 0): ?>
 

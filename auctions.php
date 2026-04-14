@@ -22,6 +22,12 @@ if (isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'user') {
 
 // Which tab was requested?
 $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-soon' : 'all';
+$location_filter = isset($_GET['location']) ? sanitize($_GET['location']) : '';
+$location_sql = '';
+if ($location_filter !== '') {
+    $location_escaped = $conn->real_escape_string($location_filter);
+    $location_sql = " AND users.location LIKE '%{$location_escaped}%'";
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -304,18 +310,22 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
     <!-- ══ TAB BAR ══════════════════════════════════════════════════════════ -->
     <?php
     // Count totals for tab badges
-    $total_all_stmt = $conn->prepare("SELECT COUNT(*) FROM posts 
-    WHERE is_approved=1 AND status='active' 
-    AND auction_start_date <= NOW() AND auction_end_date > NOW()");
+    $total_all_stmt = $conn->prepare("SELECT COUNT(*) FROM posts
+    JOIN users ON posts.farmer_id = users.id
+    WHERE is_approved=1 AND status='active'
+    AND auction_start_date <= NOW() AND auction_end_date > NOW()
+    {$location_sql}");
     $total_all_stmt->execute();
     $total_all_stmt->bind_result($total_all_count);
     $total_all_stmt->fetch();
     $total_all_stmt->close();
 
-    $total_ending_stmt = $conn->prepare("SELECT COUNT(*) FROM posts 
-    WHERE is_approved=1 AND status='active' 
+    $total_ending_stmt = $conn->prepare("SELECT COUNT(*) FROM posts
+    JOIN users ON posts.farmer_id = users.id
+    WHERE is_approved=1 AND status='active'
     AND auction_start_date <= NOW() AND auction_end_date > NOW()
-    AND UNIX_TIMESTAMP(auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400");
+    AND UNIX_TIMESTAMP(auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+    {$location_sql}");
     $total_ending_stmt->execute();
     $total_ending_stmt->bind_result($total_ending_count);
     $total_ending_stmt->fetch();
@@ -323,13 +333,13 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
     ?>
     <div class="auctions-tab-bar">
         <div class="container">
-            <a href="auctions.php?tab=all"
+            <a href="auctions.php?tab=all<?php echo $location_filter !== '' ? '&location=' . urlencode($location_filter) : ''; ?>"
                 class="auctions-tab-btn <?php echo $active_tab === 'all' ? 'active' : ''; ?>">
                 <i class="fas fa-gavel"></i>
                 All Live Auctions
                 <span class="auctions-tab-badge"><?php echo $total_all_count; ?></span>
             </a>
-            <a href="auctions.php?tab=ending-soon"
+            <a href="auctions.php?tab=ending-soon<?php echo $location_filter !== '' ? '&location=' . urlencode($location_filter) : ''; ?>"
                 class="auctions-tab-btn <?php echo $active_tab === 'ending-soon' ? 'active' : ''; ?>">
                 <i class="fas fa-fire"></i>
                 Ending Soon
@@ -352,11 +362,19 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
                 <!-- Filter Bar -->
                 <div class="filter-bar-live mb-4">
                     <div class="auction-filter-wrap">
+                        <form method="GET" action="auctions.php" class="d-inline-flex align-items-center gap-2 me-2">
+                            <input type="hidden" name="tab" value="all">
+                            <input type="text" name="location" class="form-control form-control-sm" style="min-width:220px;"
+                                placeholder="Filter by farmer location" value="<?php echo htmlspecialchars($location_filter); ?>">
+                            <button class="btn btn-sm btn-outline-success" type="submit"><i class="fas fa-map-marker-alt"></i></button>
+                        </form>
                         <button class="filter-btn active" data-filter="all">All</button>
                         <?php
-                        $all_cats = $conn->prepare("SELECT DISTINCT category FROM posts 
+                        $all_cats = $conn->prepare("SELECT DISTINCT posts.category FROM posts
+                    JOIN users ON posts.farmer_id = users.id
                     WHERE is_approved=1 AND status='active'
                     AND auction_start_date <= NOW() AND auction_end_date > NOW()
+                    {$location_sql}
                     ORDER BY category ASC");
                         $all_cats->execute();
                         $all_cats_res = $all_cats->get_result();
@@ -387,6 +405,7 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
                 WHERE posts.is_approved=1 AND posts.status='active'
                 AND posts.auction_start_date <= NOW()
                 AND posts.auction_end_date > NOW()
+                {$location_sql}
                 ORDER BY posts.auction_end_date ASC");
                     $all_stmt->execute();
                     $all_result = $all_stmt->get_result();
@@ -500,12 +519,20 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
                 <!-- Filter Bar -->
                 <div class="filter-bar-live mb-4">
                     <div class="auction-filter-wrap">
+                        <form method="GET" action="auctions.php" class="d-inline-flex align-items-center gap-2 me-2">
+                            <input type="hidden" name="tab" value="ending-soon">
+                            <input type="text" name="location" class="form-control form-control-sm" style="min-width:220px;"
+                                placeholder="Filter by farmer location" value="<?php echo htmlspecialchars($location_filter); ?>">
+                            <button class="btn btn-sm btn-outline-success" type="submit"><i class="fas fa-map-marker-alt"></i></button>
+                        </form>
                         <button class="filter-btn active" data-filter="all">All</button>
                         <?php
-                        $es_cats = $conn->prepare("SELECT DISTINCT category FROM posts
+                        $es_cats = $conn->prepare("SELECT DISTINCT posts.category FROM posts
+                    JOIN users ON posts.farmer_id = users.id
                     WHERE is_approved=1 AND status='active'
                     AND auction_start_date <= NOW() AND auction_end_date > NOW()
                     AND UNIX_TIMESTAMP(auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+                    {$location_sql}
                     ORDER BY category ASC");
                         $es_cats->execute();
                         $es_cats_res = $es_cats->get_result();
@@ -530,6 +557,7 @@ $active_tab = isset($_GET['tab']) && $_GET['tab'] === 'ending-soon' ? 'ending-so
                 AND posts.auction_start_date <= NOW()
                 AND posts.auction_end_date > NOW()
                 AND UNIX_TIMESTAMP(posts.auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+                {$location_sql}
                 ORDER BY posts.auction_end_date ASC");
                     $es_stmt->execute();
                     $es_result = $es_stmt->get_result();

@@ -8,6 +8,7 @@ require_once 'includes/functions.php';
 // Get search parameters
 $search_query = isset($_GET['q']) ? sanitize($_GET['q']) : '';
 $category_filter = isset($_GET['category']) ? sanitize($_GET['category']) : '';
+$location_filter = isset($_GET['location']) ? sanitize($_GET['location']) : '';
 $min_price = isset($_GET['min_price']) ? (int)$_GET['min_price'] : 0;
 $max_price = isset($_GET['max_price']) ? (int)$_GET['max_price'] : 100000;
 $status_filter = isset($_GET['status']) ? sanitize($_GET['status']) : '';
@@ -53,6 +54,12 @@ if (!empty($category_filter) && in_array($category_filter, $valid_categories)) {
     $where_conditions[] = "posts.category = '$category_escaped'";
 }
 
+// Add location filter (farmer location)
+if (!empty($location_filter)) {
+    $location_escaped = $conn->real_escape_string($location_filter);
+    $where_conditions[] = "users.location LIKE '%$location_escaped%'";
+}
+
 // Add price filter
 $where_conditions[] = "posts.price BETWEEN $min_price AND $max_price";
 
@@ -73,7 +80,9 @@ if (!empty($status_filter)) {
 $where_clause = implode(" AND ", $where_conditions);
 
 // Get total count
-$count_query = "SELECT COUNT(*) as total FROM posts WHERE $where_clause";
+$count_query = "SELECT COUNT(*) as total FROM posts
+                JOIN users ON posts.farmer_id = users.id
+                WHERE $where_clause";
 $count_result = $conn->query($count_query);
 $total_results = $count_result->fetch_assoc()['total'];
 $total_pages = ceil($total_results / $per_page);
@@ -253,29 +262,28 @@ $categories_result = $conn->query($categories_query);
 
         /* ── Filters Sidebar ── */
         .filters-sidebar {
-            background: white;
-            padding: 22px 20px;
-            border-radius: 12px;
-            height: fit-content;
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            padding: 18px 16px;
             position: sticky;
             top: 20px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-            border: 1px solid #ebebeb;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
         }
 
         .filters-sidebar>h5 {
-            font-size: 15px;
+            font-size: .88rem;
             font-weight: 700;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 14px;
-            border-bottom: 2px solid #f0f0f0;
+            color: #0f172a;
+            margin-bottom: 14px;
+            padding-bottom: 0;
+            border-bottom: none;
         }
 
         .filter-section {
-            margin-bottom: 22px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f1f5f9;
         }
 
         .filter-section:last-child {
@@ -285,40 +293,40 @@ $categories_result = $conn->query($categories_query);
         }
 
         .filter-title {
+            font-size: .68rem;
             font-weight: 700;
-            font-size: 12px;
-            margin-bottom: 12px;
-            color: #888;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #94a3b8;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 7px;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
         }
 
         .filter-title i {
-            color: #059669;
-            font-size: 13px;
+            color: #64748b;
+            font-size: .75rem;
         }
 
         .filter-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 5px 0;
-            margin-bottom: 0;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            margin-bottom: 2px;
+            transition: background .15s;
         }
 
-        .filter-item+.filter-item {
-            border-top: 1px solid #fafafa;
+        .filter-item:hover {
+            background: #f8fafc;
         }
 
         .filter-item input[type="radio"] {
             flex-shrink: 0;
             cursor: pointer;
-            width: 16px;
-            height: 16px;
-            accent-color: #059669;
+            accent-color: #16a34a;
             margin: 0;
         }
 
@@ -326,88 +334,81 @@ $categories_result = $conn->query($categories_query);
             margin-bottom: 0;
             cursor: pointer;
             flex: 1;
-            font-size: 14px;
-            color: #555;
-            transition: color 0.2s;
+            font-size: .82rem;
+            color: #475569;
             line-height: 1.4;
         }
 
-        .filter-item label:hover,
         .filter-item input[type="radio"]:checked+label {
-            color: #059669;
+            color: #15803d;
             font-weight: 600;
         }
 
         /* ── Price Range ── */
-        .price-range-container {
-            margin-top: 4px;
-        }
-
         .price-input-group {
             display: flex;
-            gap: 8px;
-            margin-bottom: 0;
+            gap: 6px;
+            align-items: center;
+            margin-top: 6px;
         }
 
         .price-input-group input {
             width: 100%;
-            padding: 9px 10px;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 7px;
-            font-size: 13px;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            background: #fafafa;
+            min-width: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 8px;
+            font-size: .78rem;
+            outline: none;
+            transition: border-color .15s;
+            background: #fff;
         }
 
         .price-input-group input:focus {
-            outline: none;
-            border-color: #059669;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+            border-color: #16a34a;
         }
 
         /* ── Filter Buttons ── */
         .btn-apply-filters {
             width: 100%;
-            padding: 11px;
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: #16a34a;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            padding: 8px;
+            font-size: .8rem;
             font-weight: 600;
-            transition: all 0.3s;
-            margin-top: 18px;
-            box-shadow: 0 3px 10px rgba(5, 150, 105, 0.28);
+            transition: background .15s;
+            margin-top: 8px;
+            box-shadow: none;
         }
 
         .btn-apply-filters:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(5, 150, 105, 0.38);
+            background: #15803d;
         }
 
         .clear-filters-btn {
             display: block;
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             background: transparent;
-            border: 1.5px solid #e0e0e0;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: .76rem;
             font-weight: 500;
-            color: #777;
-            transition: all 0.25s;
+            color: #ef4444;
+            transition: all .15s;
             margin-top: 8px;
             text-align: center;
             text-decoration: none !important;
         }
 
         .clear-filters-btn:hover {
-            background: #f5f5f5;
-            border-color: #ccc;
-            color: #444;
+            background: #fff1f2;
+            border-color: #fecdd3;
+            color: #dc2626;
             text-decoration: none !important;
         }
 
@@ -643,6 +644,9 @@ $categories_result = $conn->query($categories_query);
                         <?php if (!empty($category_filter)): ?>
                             <input type="hidden" name="category" value="<?php echo htmlspecialchars($category_filter); ?>">
                         <?php endif; ?>
+                        <?php if (!empty($location_filter)): ?>
+                            <input type="hidden" name="location" value="<?php echo htmlspecialchars($location_filter); ?>">
+                        <?php endif; ?>
                         <?php if (!empty($status_filter)): ?>
                             <input type="hidden" name="status" value="<?php echo htmlspecialchars($status_filter); ?>">
                         <?php endif; ?>
@@ -654,23 +658,28 @@ $categories_result = $conn->query($categories_query);
             </div>
 
             <?php
-            $has_active_filters = !empty($category_filter) || $min_price > 0 || $max_price < 100000 || !empty($status_filter);
+            $has_active_filters = !empty($category_filter) || !empty($location_filter) || $min_price > 0 || $max_price < 100000 || !empty($status_filter);
             if ($has_active_filters):
             ?>
                 <div class="filter-chips-row">
                     <span class="filter-chip-label"><i class="fas fa-filter"></i> Active:</span>
                     <?php if (!empty($category_filter)): ?>
-                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>&status=<?php echo urlencode($status_filter); ?>" class="filter-chip">
+                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&location=<?php echo urlencode($location_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>&status=<?php echo urlencode($status_filter); ?>" class="filter-chip">
                             <i class="fas fa-th"></i> <?php echo htmlspecialchars($category_filter); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
                         </a>
                     <?php endif; ?>
+                    <?php if (!empty($location_filter)): ?>
+                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>&status=<?php echo urlencode($status_filter); ?>" class="filter-chip">
+                            <i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($location_filter); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
+                        </a>
+                    <?php endif; ?>
                     <?php if ($min_price > 0 || $max_price < 100000): ?>
-                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&status=<?php echo urlencode($status_filter); ?>" class="filter-chip">
+                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&location=<?php echo urlencode($location_filter); ?>&status=<?php echo urlencode($status_filter); ?>" class="filter-chip">
                             <i class="fas fa-tag"></i> ৳<?php echo $min_price; ?> &ndash; ৳<?php echo $max_price; ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
                         </a>
                     <?php endif; ?>
                     <?php if (!empty($status_filter)): ?>
-                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>" class="filter-chip">
+                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&location=<?php echo urlencode($location_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>" class="filter-chip">
                             <i class="fas fa-circle"></i> <?php echo ucfirst(str_replace('_', ' ', $status_filter)); ?> <span class="chip-remove"><i class="fas fa-times"></i></span>
                         </a>
                     <?php endif; ?>
@@ -758,6 +767,17 @@ $categories_result = $conn->query($categories_query);
                                     <label for="status_ending">
                                         <i class="fas fa-fire" style="color:#dc2626;font-size:11px;"></i> Ending Soon
                                     </label>
+                                </div>
+                            </div>
+
+                            <!-- Location Filter -->
+                            <div class="filter-section">
+                                <div class="filter-title">
+                                    <i class="fas fa-map-marker-alt"></i> Location
+                                </div>
+                                <div class="price-input-group">
+                                    <input type="text" name="location" placeholder="e.g. Dhaka, Sylhet"
+                                        value="<?php echo htmlspecialchars($location_filter); ?>">
                                 </div>
                             </div>
 
@@ -854,7 +874,7 @@ $categories_result = $conn->query($categories_query);
                             <?php if ($total_pages > 1): ?>
                                 <div class="pagination-container">
                                     <?php if ($page < $total_pages): ?>
-                                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>&status=<?php echo urlencode($status_filter); ?>&page=<?php echo $page + 1; ?>"
+                                        <a href="search.php?q=<?php echo urlencode($search_query); ?>&category=<?php echo urlencode($category_filter); ?>&location=<?php echo urlencode($location_filter); ?>&min_price=<?php echo $min_price; ?>&max_price=<?php echo $max_price; ?>&status=<?php echo urlencode($status_filter); ?>&page=<?php echo $page + 1; ?>"
                                             class="load-more-btn">
                                             <i class="fas fa-plus me-2"></i> Load More (Page <?php echo $page + 1; ?> of <?php echo $total_pages; ?>)
                                         </a>
