@@ -175,7 +175,26 @@ function notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_nam
  */
 function notifyBuyerOutbid($buyer_id, $post_id, $product_name)
 {
-    // Create notification for outbid user
+    // Keep one unread outbid notification per product for the buyer and increment count.
+    global $conn;
+
+    ensureNotificationSchema();
+
+    $check = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment' AND is_read = 0 LIMIT 1");
+    $check->bind_param("ii", $buyer_id, $post_id);
+    $check->execute();
+    $existing = $check->get_result()->fetch_assoc();
+    $check->close();
+
+    if ($existing) {
+        $update = $conn->prepare("UPDATE notifications SET group_count = group_count + 1, created_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $update->bind_param("i", $existing['id']);
+        $update->execute();
+        $update->close();
+
+        return true;
+    }
+
     return createNotification($buyer_id, $post_id, null, 'comment');
 }
 
@@ -310,6 +329,9 @@ function getNotificationMessage($notification)
                 return "New bid placed on {$product_name}";
             } else {
                 // Buyer receives notification about being outbid
+                if ($group_count > 1) {
+                    return "You were outbid {$group_count} times on {$product_name} - place a higher bid now.";
+                }
                 return "You were outbid on {$product_name} - place a higher bid now.";
             }
 

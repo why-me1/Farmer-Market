@@ -53,46 +53,70 @@ $auctions_stmt = $conn->prepare("SELECT COUNT(DISTINCT c.post_id)
                                   JOIN posts p ON c.post_id = p.id
                                   WHERE c.user_id = ?
                                   AND (p.status IN ('sold', 'delivered')
-                                       OR (p.expiry_date IS NOT NULL AND p.expiry_date <= UNIX_TIMESTAMP(NOW())))");
+                                OR (p.auction_end_date IS NOT NULL AND p.auction_end_date <= UNIX_TIMESTAMP(NOW())))");
 $auctions_stmt->bind_param("i", $user_id);
 $auctions_stmt->execute();
 $auctions_stmt->bind_result($total_auctions_participated);
 $auctions_stmt->fetch();
 $auctions_stmt->close();
 
-// Pending bids
+// Ongoing bids
 $pending_stmt = $conn->prepare("SELECT COUNT(*) FROM comments c
                                 JOIN posts p ON c.post_id = p.id
                                 WHERE c.user_id = ?
-                                AND c.is_approved = 0
                                 AND p.status = 'active'
-                                AND (p.expiry_date IS NULL OR p.expiry_date > UNIX_TIMESTAMP(NOW()))");
+                                AND (p.auction_end_date IS NULL OR p.auction_end_date > UNIX_TIMESTAMP(NOW()))");
 $pending_stmt->bind_param("i", $user_id);
 $pending_stmt->execute();
 $pending_stmt->bind_result($pending_bids);
 $pending_stmt->fetch();
 $pending_stmt->close();
 
-// All bids
+// Bid summaries (one row per product)
 $my_bids_stmt = $conn->prepare("
-    SELECT comments.id AS comment_id,
-           comments.comment_text AS bid_amount,
-           comments.is_approved,
-           comments.created_at AS bid_date,
-           posts.id AS post_id,
-           posts.product_name,
-           posts.price AS asking_price,
-           posts.image,
-           users.username AS farmer_username
-    FROM comments
-    JOIN posts ON comments.post_id = posts.id
-    JOIN users ON posts.farmer_id = users.id
-    WHERE comments.user_id = ?
-    ORDER BY comments.created_at DESC
+    SELECT p.id AS post_id,
+           p.product_name,
+           p.image,
+           p.status,
+           p.auction_end_date,
+           u.username AS farmer_username,
+           (
+               SELECT CAST(c_latest.comment_text AS DECIMAL(10,2))
+               FROM comments c_latest
+               WHERE c_latest.post_id = p.id AND c_latest.user_id = ?
+               ORDER BY c_latest.created_at DESC, c_latest.id DESC
+               LIMIT 1
+           ) AS latest_bid_amount,
+           (
+               SELECT c_latest.created_at
+               FROM comments c_latest
+               WHERE c_latest.post_id = p.id AND c_latest.user_id = ?
+               ORDER BY c_latest.created_at DESC, c_latest.id DESC
+               LIMIT 1
+           ) AS latest_bid_date,
+           (
+               SELECT MAX(CAST(c_high.comment_text AS DECIMAL(10,2)))
+               FROM comments c_high
+               WHERE c_high.post_id = p.id
+           ) AS highest_bid_amount,
+           (
+               SELECT c_top.user_id
+               FROM comments c_top
+               WHERE c_top.post_id = p.id
+               ORDER BY CAST(c_top.comment_text AS DECIMAL(10,2)) DESC, c_top.created_at DESC, c_top.id DESC
+               LIMIT 1
+           ) AS highest_bidder_id
+    FROM posts p
+    JOIN users u ON p.farmer_id = u.id
+    WHERE EXISTS (
+        SELECT 1 FROM comments c2 WHERE c2.post_id = p.id AND c2.user_id = ?
+    )
+    ORDER BY latest_bid_date DESC
 ");
-$my_bids_stmt->bind_param("i", $user_id);
+$my_bids_stmt->bind_param("iii", $user_id, $user_id, $user_id);
 $my_bids_stmt->execute();
 $my_bids = $my_bids_stmt->get_result();
+$my_bid_products_count = $my_bids->num_rows;
 
 // Purchase history (approved bids) + delivery info
 $purchases_stmt = $conn->prepare("
@@ -811,7 +835,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             letter-spacing: 6px;
             color: #b45309;
             line-height: 1.1;
-            text-shadow: 0 1px 4px rgba(180,83,9,.15);
+            text-shadow: 0 1px 4px rgba(180, 83, 9, .15);
         }
 
         .buyer-otp-hint {
@@ -1252,8 +1276,8 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                         <div class="ud-stat-icon s-amber"><i class="fas fa-hourglass-half"></i></div>
                         <div class="ud-stat-body">
                             <div class="ud-stat-value"><?php echo $pending_bids; ?></div>
-                            <div class="ud-stat-label">Pending Bids</div>
-                            <div class="ud-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#d4900a;"></i> Awaiting review</div>
+                            <div class="ud-stat-label">Ongoing Bids</div>
+                            <div class="ud-stat-sub"><i class="fas fa-circle" style="font-size:6px;color:#d4900a;"></i> Active auctions</div>
                         </div>
                     </div>
                 </div>
@@ -1277,7 +1301,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                     <div class="ud-tab-nav" id="udTabs" role="tablist">
                         <button class="nav-link active" id="tab-bids" data-bs-toggle="tab" data-bs-target="#pane-bids" type="button" role="tab">
                             <i class="fas fa-gavel"></i> My Bids
-                            <span class="tab-cnt"><?php echo $total_bids; ?></span>
+                            <span class="tab-cnt"><?php echo $my_bid_products_count; ?></span>
                         </button>
                         <button class="nav-link" id="tab-purchases" data-bs-toggle="tab" data-bs-target="#pane-purchases" type="button" role="tab">
                             <i class="fas fa-shopping-bag"></i> Purchases
@@ -1301,10 +1325,16 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             <div class="ud-panel">
                                 <div class="ud-panel-head">
                                     <div class="ph-icon"><i class="fas fa-gavel"></i></div>
-                                    <h5>All My Bids</h5>
+                                    <h5>My Bid Status</h5>
                                 </div>
                                 <?php if ($my_bids->num_rows > 0): ?>
                                     <?php while ($bid = $my_bids->fetch_assoc()): ?>
+                                        <?php
+                                        $is_active_auction = ($bid['status'] === 'active') && (empty($bid['auction_end_date']) || (int)$bid['auction_end_date'] > time());
+                                        $is_winning = $is_active_auction && ((int)$bid['highest_bidder_id'] === (int)$user_id);
+                                        $latest_bid_amount = (float)$bid['latest_bid_amount'];
+                                        $highest_bid_amount = (float)$bid['highest_bid_amount'];
+                                        ?>
                                         <div class="ud-item-row">
                                             <?php if ($bid['image']): ?>
                                                 <img src="<?php echo $base_url; ?>assets/images/<?php echo htmlspecialchars($bid['image']); ?>"
@@ -1317,21 +1347,30 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                                     <?php echo htmlspecialchars($bid['product_name']); ?>
                                                 </a>
                                                 <div class="ud-item-meta">
-                                                    <span><i class="fas fa-user-tie"></i> <?php echo htmlspecialchars($bid['farmer_username']); ?></span>
-                                                    <span><i class="fas fa-tag"></i> Ask: &#2547;<?php echo number_format($bid['asking_price'], 2); ?></span>
+                                                    <span><i class="fas fa-user-tie"></i> Farmer : <?php echo htmlspecialchars($bid['farmer_username']); ?></span>
+                                                </div>
+                                                <div class="ud-item-meta">
+                                                    <span>Your latest bid: &#2547;<?php echo number_format($latest_bid_amount, 2); ?></span>
+                                                    <?php if (!$is_winning): ?>
+                                                        <span>Highest bid: &#2547;<?php echo number_format($highest_bid_amount, 2); ?></span>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
-                                            <div class="ud-price">
-                                                <div class="pl">Your Bid</div>
-                                                <div class="pv">&#2547;<?php echo number_format($bid['bid_amount'], 2); ?></div>
-                                            </div>
                                             <div class="ud-status">
-                                                <?php if ($bid['is_approved'] == 1): ?>
-                                                    <span class="ud-pill approved"><i class="fas fa-check"></i> Approved</span>
+                                                <?php if ($is_winning): ?>
+                                                    <span class="ud-pill" style="background:#ecfdf5;color:#065f46;">🟢 You are currently winning!</span>
+                                                    <div class="mt-2">
+                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>" class="ud-btn-review">View Auction</a>
+                                                    </div>
+                                                <?php elseif ($is_active_auction): ?>
+                                                    <span class="ud-pill" style="background:#fef2f2;color:#b91c1c;">🔴 Outbid! Current highest: &#2547;<?php echo number_format($highest_bid_amount, 2); ?></span>
+                                                    <div class="mt-2">
+                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>#bid-form" class="ud-btn-review">Bid Again</a>
+                                                    </div>
                                                 <?php else: ?>
-                                                    <span class="ud-pill pending"><i class="fas fa-clock"></i> Pending</span>
+                                                    <span class="ud-pill pending"><i class="fas fa-flag-checkered"></i> Auction Ended</span>
                                                 <?php endif; ?>
-                                                <div class="ud-date"><?php echo date('M j, Y', strtotime($bid['bid_date'])); ?></div>
+                                                <div class="ud-date"><?php echo date('M j, Y', strtotime($bid['latest_bid_date'])); ?></div>
                                             </div>
                                         </div>
                                     <?php endwhile; ?>
@@ -1379,14 +1418,14 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                                 <div class="ask">Ask &#2547;<?php echo number_format($purchase['asking_price'], 2); ?></div>
                                             </div>
                                             <?php
-                                                // Fetch OTP record for this purchase (local delivery)
-                                                $d_stmt = $conn->prepare("SELECT otp_code, is_used, expires_at FROM delivery_otps WHERE post_id = ? AND buyer_id = ? LIMIT 1");
-                                                $d_stmt->bind_param("ii", $purchase['post_id'], $user_id);
-                                                $d_stmt->execute();
-                                                $d_otp = $d_stmt->get_result()->fetch_assoc();
-                                                $d_stmt->close();
-                                                $dtype = $purchase['delivery_type'] ?? null;
-                                                $order_status = $purchase['order_status'] ?? 'sold';
+                                            // Fetch OTP record for this purchase (local delivery)
+                                            $d_stmt = $conn->prepare("SELECT otp_code, is_used, expires_at FROM delivery_otps WHERE post_id = ? AND buyer_id = ? LIMIT 1");
+                                            $d_stmt->bind_param("ii", $purchase['post_id'], $user_id);
+                                            $d_stmt->execute();
+                                            $d_otp = $d_stmt->get_result()->fetch_assoc();
+                                            $d_stmt->close();
+                                            $dtype = $purchase['delivery_type'] ?? null;
+                                            $order_status = $purchase['order_status'] ?? 'sold';
                                             ?>
                                             <div class="ud-status" style="min-width:160px;text-align:left;">
                                                 <?php if ($order_status === 'delivered'): ?>

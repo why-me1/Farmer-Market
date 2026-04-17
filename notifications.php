@@ -689,7 +689,7 @@ include 'includes/nav.php';
                                         <?php echo htmlspecialchars($notification['product_name']); ?>
                                     </span>
                                 <?php endif; ?>
-                                <?php if ($notification['type'] === 'comment' && $_SESSION['role'] === 'farmer' && $group_count > 1): ?>
+                                <?php if ($notification['type'] === 'comment' && $group_count > 1): ?>
                                     <span class="notif-priority-chip info">x<?php echo $group_count; ?></span>
                                 <?php endif; ?>
                                 <span class="notif-time">
