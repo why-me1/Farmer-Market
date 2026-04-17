@@ -11,42 +11,21 @@ if ($_SESSION['role'] !== 'farmer') {
 }
 
 $farmer_id = $_SESSION['user_id'];
+$focus_post_id = isset($_GET['focus_post']) ? (int)$_GET['focus_post'] : 0;
 
-// Handle delivery status update
-if (isset($_POST['update_delivery']) && isset($_POST['product_id']) && isset($_POST['status'])) {
-    $product_id = intval($_POST['product_id']);
-    $status = sanitize($_POST['status']);
+// Keep order statuses in sync: if a winner is approved but post is still active,
+// mark it as sold so it appears in manage orders and delivery workflow.
+$sync_stmt = $conn->prepare("UPDATE posts p
+                                                        JOIN comments c ON p.id = c.post_id
+                                                        SET p.status = 'sold'
+                                                        WHERE p.farmer_id = ?
+                                                            AND c.is_approved = 1
+                                                            AND p.status NOT IN ('sold', 'delivered')");
+$sync_stmt->bind_param("i", $farmer_id);
+$sync_stmt->execute();
+$sync_stmt->close();
 
-    // Get product name and buyer info BEFORE updating status
-    $stmt = $conn->prepare("SELECT p.product_name, c.user_id FROM posts p 
-                          JOIN comments c ON p.id = c.post_id 
-                          WHERE p.id = ? AND p.farmer_id = ? AND c.is_approved = 1 
-                          LIMIT 1");
-    $stmt->bind_param("ii", $product_id, $farmer_id);
-    $stmt->execute();
-    $stmt->bind_result($product_name, $buyer_id);
-    $stmt->fetch();
-    $stmt->close();
-
-    // Update product status
-    $stmt = $conn->prepare("UPDATE posts SET status = ? WHERE id = ? AND farmer_id = ?");
-    $stmt->bind_param("sii", $status, $product_id, $farmer_id);
-    $success = $stmt->execute();
-    $stmt->close();
-
-    // Send delivery update notification to buyer
-    if ($success && $buyer_id && $product_name) {
-        notifyBuyerDeliveryUpdate($buyer_id, $product_id, $product_name, $status);
-    }
-
-    // When farmer marks as delivered, record payment and recalculate buyer score
-    if ($success && $status === 'delivered' && $buyer_id) {
-        record_buyer_payment($buyer_id, $product_id);
-    }
-
-    header("Location: manage_orders.php");
-    exit();
-}
+// No more direct POST delivery update — handled by delivery_handler.php via AJAX
 
 // Handle farmer rating a buyer after delivery
 if (isset($_POST['rate_buyer'])) {
@@ -270,6 +249,13 @@ foreach ($rated_rows as $rr) {
             background: #fafffe;
         }
 
+        .order-row-focus {
+            background: #effaf5;
+            border: 2px solid #38ef7d;
+            box-shadow: 0 0 0 4px rgba(56, 239, 125, .12);
+            border-radius: 14px;
+        }
+
         .order-thumb {
             width: 70px;
             height: 70px;
@@ -354,7 +340,7 @@ foreach ($rated_rows as $rr) {
         /* ── Unified right-side column ── */
         .order-right {
             flex-shrink: 0;
-            width: 160px;
+            width: 220px;
             display: flex;
             flex-direction: column;
             align-items: stretch;
@@ -407,6 +393,253 @@ foreach ($rated_rows as $rr) {
         .btn-deliver:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 18px rgba(17, 153, 142, .42);
+        }
+
+        /* ── Delivery Type Selector ── */
+        .delivery-type-card {
+            background: #f8fffc;
+            border: 1.5px solid #b2e8d6;
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 4px;
+        }
+
+        .delivery-type-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #0d6b5e;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .delivery-type-btns {
+            display: flex;
+            gap: 6px;
+        }
+
+        .btn-dtype {
+            flex: 1;
+            padding: 8px 4px;
+            border: 1.5px solid #c9e8df;
+            border-radius: 8px;
+            background: white;
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .btn-dtype i {
+            font-size: 16px;
+        }
+
+        .btn-dtype:hover,
+        .btn-dtype.active {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 3px 10px rgba(17, 153, 142, .28);
+        }
+
+        /* OTP Panel */
+        .otp-panel {
+            background: #fffbeb;
+            border: 1.5px solid #fde68a;
+            border-radius: 10px;
+            padding: 11px 12px;
+            margin-top: 6px;
+            display: none;
+        }
+
+        .otp-display {
+            font-family: 'Poppins', monospace;
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 6px;
+            color: #b45309;
+            text-align: center;
+            background: white;
+            border: 2px dashed #fbbf24;
+            border-radius: 8px;
+            padding: 8px 4px;
+            margin: 8px 0;
+        }
+
+        .otp-hint {
+            font-size: 10px;
+            color: #92400e;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .otp-input-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .otp-input {
+            width: 100%;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 6px;
+            text-align: center;
+            outline: none;
+            color: #1a1a2e;
+            box-sizing: border-box;
+            background: white;
+        }
+
+        .otp-input:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, .15);
+        }
+
+        .btn-verify-otp {
+            width: 100%;
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 0;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 3px 10px rgba(245, 158, 11, .3);
+            transition: opacity .15s, transform .1s;
+        }
+
+        .btn-verify-otp:hover {
+            opacity: .88;
+            transform: translateY(-1px);
+        }
+
+        /* Courier Panel */
+        .courier-panel {
+            background: #eff6ff;
+            border: 1.5px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .courier-panel label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #1e40af;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .courier-panel input {
+            width: 100%;
+            border: 1.5px solid #bfdbfe;
+            border-radius: 7px;
+            padding: 7px 9px;
+            font-size: 12px;
+            color: #1a1a2e;
+            outline: none;
+            margin-bottom: 6px;
+        }
+
+        .courier-panel input:focus {
+            border-color: #3b82f6;
+        }
+
+        .btn-save-courier {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 0;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: opacity .15s, transform .1s;
+        }
+
+        .btn-save-courier:hover {
+            opacity: .88;
+            transform: translateY(-1px);
+        }
+
+        /* Alert messages */
+        .delivery-msg {
+            font-size: 11px;
+            padding: 7px 10px;
+            border-radius: 7px;
+            margin-top: 6px;
+            display: none;
+            font-weight: 600;
+        }
+
+        .delivery-msg.success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .delivery-msg.error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        /* Courier info display */
+        .courier-info-card {
+            background: #eff6ff;
+            border: 1.5px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-top: 4px;
+        }
+
+        .courier-info-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #1e40af;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .courier-info-val {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+
+        .courier-info-sub {
+            font-size: 10px;
+            color: #64748b;
         }
 
         /* ── Empty State ── */
@@ -540,6 +773,52 @@ foreach ($rated_rows as $rr) {
             display: block;
         }
 
+        /* OTP Sent Notice (farmer side — no code shown) */
+        .otp-sent-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: #ecfdf5;
+            border: 1.5px solid #a7f3d0;
+            border-radius: 9px;
+            padding: 9px 11px;
+            margin-bottom: 8px;
+            margin-top: 6px;
+        }
+
+        .otp-sent-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        /* Courier Tip */
+        .courier-tip {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 7px;
+            padding: 7px 10px;
+            font-size: 10px;
+            color: #1e40af;
+            line-height: 1.5;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        .courier-tip i {
+            margin-top: 1px;
+            flex-shrink: 0;
+        }
+
         @media (max-width: 768px) {
             .order-row {
                 flex-wrap: wrap;
@@ -634,7 +913,7 @@ foreach ($rated_rows as $rr) {
                     </div>
                 <?php else: ?>
                     <?php foreach ($orders as $order): ?>
-                        <div class="order-row">
+                        <div class="order-row <?php echo $focus_post_id === (int)$order['id'] ? 'order-row-focus' : ''; ?>" id="order-row-<?php echo (int)$order['id']; ?>">
 
                             <?php if (!empty($order['image'])): ?>
                                 <img src="<?php echo $base_url; ?>assets/images/<?php echo htmlspecialchars($order['image']); ?>"
@@ -668,17 +947,107 @@ foreach ($rated_rows as $rr) {
                             </div>
 
                             <div class="order-right">
+                                <?php
+                                // Fetch delivery OTP record for this order
+                                $otp_stmt = $conn->prepare("SELECT otp_code, is_used, expires_at FROM delivery_otps WHERE post_id = ? AND farmer_id = ? LIMIT 1");
+                                $otp_stmt->bind_param("ii", $order['id'], $farmer_id);
+                                $otp_stmt->execute();
+                                $otp_record = $otp_stmt->get_result()->fetch_assoc();
+                                $otp_stmt->close();
+                                ?>
                                 <?php if ($order['status'] !== 'delivered'): ?>
                                     <span class="status-pill sold">
                                         <i class="fas fa-clock" style="font-size:9px;"></i> Pending
                                     </span>
-                                    <form method="POST">
-                                        <input type="hidden" name="product_id" value="<?php echo $order['id']; ?>">
-                                        <input type="hidden" name="status" value="delivered">
-                                        <button type="submit" name="update_delivery" class="btn-deliver">
-                                            <i class="fas fa-truck"></i> Mark Delivered
-                                        </button>
-                                    </form>
+
+                                    <?php if (!empty($order['delivery_type']) && $order['delivery_type'] === 'local' && $otp_record && !$otp_record['is_used']): ?>
+                                        <!-- OTP generated — farmer DOES NOT see it. Buyer sees it on their dashboard. -->
+                                        <div class="otp-panel" style="display:block;" id="otpPanel_<?php echo $order['id']; ?>">
+                                            <div class="otp-sent-notice">
+                                                <div class="otp-sent-icon"><i class="fas fa-mobile-alt"></i></div>
+                                                <div>
+                                                    <div style="font-size:11px;font-weight:700;color:#065f46;">OTP sent to buyer!</div>
+                                                    <div style="font-size:10px;color:#6b7280;">Buyer sees their OTP on their dashboard.<br>Ask them to tell you the code at delivery.</div>
+                                                </div>
+                                            </div>
+                                            <div class="otp-hint" style="margin-top:8px;"><strong>Ask buyer for their OTP &amp; enter below:</strong></div>
+                                            <div class="otp-input-row">
+                                                <input type="text" class="otp-input" id="otpVerifyInput_<?php echo $order['id']; ?>"
+                                                    maxlength="6" placeholder="______" autocomplete="off">
+                                                <button class="btn-verify-otp" onclick="verifyOTP(<?php echo $order['id']; ?>)">
+                                                    <i class="fas fa-check"></i> Confirm
+                                                </button>
+                                            </div>
+                                            <div class="delivery-msg" id="otpMsg_<?php echo $order['id']; ?>"></div>
+                                            <div class="otp-hint" style="margin-top:6px;color:#9ca3af;">Expires: <?php echo date('M j, g:i A', strtotime($otp_record['expires_at'])); ?></div>
+                                        </div>
+
+                                    <?php elseif (!empty($order['delivery_type']) && $order['delivery_type'] === 'courier'): ?>
+                                        <!-- Courier info saved, waiting for delivery -->
+                                        <div class="courier-info-card">
+                                            <div class="courier-info-label"><i class="fas fa-shipping-fast"></i> Courier Dispatched</div>
+                                            <div class="courier-info-val"><?php echo htmlspecialchars($order['courier_company'] ?? ''); ?></div>
+                                            <div class="courier-info-sub">Tracking: <?php echo htmlspecialchars($order['courier_tracking'] ?? ''); ?></div>
+                                        </div>
+
+                                    <?php else: ?>
+                                        <!-- Fresh order — show delivery type chooser -->
+                                        <div class="delivery-type-card" id="deliveryCard_<?php echo $order['id']; ?>">
+                                            <div class="delivery-type-label"><i class="fas fa-truck"></i> How are you delivering?</div>
+                                            <div class="delivery-type-btns">
+                                                <button class="btn-dtype" onclick="showDeliveryPanel(<?php echo $order['id']; ?>, 'local')">
+                                                    <i class="fas fa-person-walking"></i>
+                                                    Local
+                                                </button>
+                                                <button class="btn-dtype" onclick="showDeliveryPanel(<?php echo $order['id']; ?>, 'courier')">
+                                                    <i class="fas fa-shipping-fast"></i>
+                                                    Courier
+                                                </button>
+                                            </div>
+
+                                            <!-- LOCAL: OTP panel -->
+                                            <div class="otp-panel" id="otpPanel_<?php echo $order['id']; ?>">
+                                                <div class="otp-hint"><i class="fas fa-mobile-alt"></i> A secret OTP will be sent to the buyer's dashboard. At delivery, ask them to read it to you.</div>
+                                                <button class="btn-deliver" onclick="initiateLocal(<?php echo $order['id']; ?>)" id="otpGenerateBtn_<?php echo $order['id']; ?>">
+                                                    <i class="fas fa-lock"></i> Generate OTP &amp; Initiate
+                                                </button>
+                                                <!-- After generation: only show verify row, NOT the OTP code -->
+                                                <div id="otpSentNotice_<?php echo $order['id']; ?>" style="display:none;">
+                                                    <div class="otp-sent-notice">
+                                                        <div class="otp-sent-icon"><i class="fas fa-mobile-alt"></i></div>
+                                                        <div>
+                                                            <div style="font-size:11px;font-weight:700;color:#065f46;">OTP sent to buyer!</div>
+                                                            <div style="font-size:10px;color:#6b7280;">Ask buyer to tell you their OTP code.</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="otp-hint" style="margin-top:6px;display:none;" id="otpVerifyHint_<?php echo $order['id']; ?>">
+                                                    <strong>Enter buyer's OTP to confirm delivery:</strong>
+                                                </div>
+                                                <div class="otp-input-row" id="otpVerifyRow_<?php echo $order['id']; ?>" style="display:none;">
+                                                    <input type="text" class="otp-input" id="otpVerifyInput_<?php echo $order['id']; ?>"
+                                                        maxlength="6" placeholder="______" autocomplete="off">
+                                                    <button class="btn-verify-otp" onclick="verifyOTP(<?php echo $order['id']; ?>)">
+                                                        <i class="fas fa-check"></i> Confirm
+                                                    </button>
+                                                </div>
+                                                <div class="delivery-msg" id="otpMsg_<?php echo $order['id']; ?>"></div>
+                                            </div>
+
+                                            <!-- COURIER: tracking panel -->
+                                            <div class="courier-panel" id="courierPanel_<?php echo $order['id']; ?>">
+                                                <div class="courier-tip"><i class="fas fa-info-circle"></i> Drop your product at the courier office. They will give you a waybill/receipt containing the tracking number. Enter it below.</div>
+                                                <label>Courier Company</label>
+                                                <input type="text" id="courierCompany_<?php echo $order['id']; ?>" placeholder="e.g. Sundarban, Pathao, SA Paribahan">
+                                                <label>Tracking No. (from waybill)</label>
+                                                <input type="text" id="courierTracking_<?php echo $order['id']; ?>" placeholder="e.g. SB-2024-XXXXX">
+                                                <button class="btn-save-courier" onclick="saveCourier(<?php echo $order['id']; ?>)">
+                                                    <i class="fas fa-paper-plane"></i> Save &amp; Notify Buyer
+                                                </button>
+                                                <div class="delivery-msg" id="courierMsg_<?php echo $order['id']; ?>"></div>
+                                            </div>
+                                        </div>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="status-pill delivered">
                                         <i class="fas fa-check" style="font-size:9px;"></i> Delivered
@@ -722,6 +1091,153 @@ foreach ($rated_rows as $rr) {
     </div>
 
     <?php include '../includes/footer.php'; ?>
+
+    <script>
+        const HANDLER = '../delivery_handler.php';
+        const FOCUS_POST_ID = <?php echo (int)$focus_post_id; ?>;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!FOCUS_POST_ID) return;
+            const row = document.getElementById('order-row-' + FOCUS_POST_ID);
+            if (row) {
+                row.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+        });
+
+        function showDeliveryPanel(postId, type) {
+            const otpPanel = document.getElementById('otpPanel_' + postId);
+            const courierPanel = document.getElementById('courierPanel_' + postId);
+            const btns = document.querySelectorAll('#deliveryCard_' + postId + ' .btn-dtype');
+
+            // Reset active states
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (type === 'local') {
+                btns[0].classList.add('active');
+                if (otpPanel) {
+                    otpPanel.style.display = 'block';
+                }
+                if (courierPanel) {
+                    courierPanel.style.display = 'none';
+                }
+            } else {
+                btns[1].classList.add('active');
+                if (otpPanel) {
+                    otpPanel.style.display = 'none';
+                }
+                if (courierPanel) {
+                    courierPanel.style.display = 'block';
+                }
+            }
+        }
+
+        function initiateLocal(postId) {
+            const fd = new FormData();
+            fd.append('action', 'initiate_delivery');
+            fd.append('post_id', postId);
+            fd.append('delivery_type', 'local');
+
+            fetch(HANDLER, {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        showMsg('otpMsg', postId, data.message, 'error');
+                        return;
+                    }
+                    // Hide the generate button
+                    const btn = document.getElementById('otpGenerateBtn_' + postId);
+                    if (btn) btn.style.display = 'none';
+
+                    // Show "OTP sent to buyer" notice — do NOT display the OTP code here
+                    const notice = document.getElementById('otpSentNotice_' + postId);
+                    if (notice) notice.style.display = 'block';
+
+                    // Show the verify input so farmer can enter what buyer tells them
+                    const hint = document.getElementById('otpVerifyHint_' + postId);
+                    if (hint) hint.style.display = 'block';
+
+                    const row = document.getElementById('otpVerifyRow_' + postId);
+                    if (row) row.style.display = 'flex';
+                })
+                .catch(() => showMsg('otpMsg', postId, 'Network error. Please try again.', 'error'));
+        }
+
+        function verifyOTP(postId) {
+            const input = document.getElementById('otpVerifyInput_' + postId);
+            if (!input || !input.value.trim()) {
+                showMsg('otpMsg', postId, 'Please enter the OTP.', 'error');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'verify_otp');
+            fd.append('post_id', postId);
+            fd.append('otp_code', input.value.trim());
+
+            fetch(HANDLER, {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        showMsg('otpMsg', postId, data.message, 'error');
+                        input.style.borderColor = '#ef4444';
+                        return;
+                    }
+                    showMsg('otpMsg', postId, '✅ ' + data.message, 'success');
+                    // Reload after a brief pause to refresh the order status
+                    setTimeout(() => location.reload(), 1800);
+                })
+                .catch(() => showMsg('otpMsg', postId, 'Network error. Please try again.', 'error'));
+        }
+
+        function saveCourier(postId) {
+            const company = document.getElementById('courierCompany_' + postId)?.value.trim();
+            const tracking = document.getElementById('courierTracking_' + postId)?.value.trim();
+
+            if (!company || !tracking) {
+                showMsg('courierMsg', postId, 'Please fill in both fields.', 'error');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('action', 'initiate_delivery');
+            fd.append('post_id', postId);
+            fd.append('delivery_type', 'courier');
+            fd.append('courier_company', company);
+            fd.append('courier_tracking', tracking);
+
+            fetch(HANDLER, {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        showMsg('courierMsg', postId, data.message, 'error');
+                        return;
+                    }
+                    showMsg('courierMsg', postId, '✅ ' + data.message, 'success');
+                    setTimeout(() => location.reload(), 1800);
+                })
+                .catch(() => showMsg('courierMsg', postId, 'Network error. Please try again.', 'error'));
+        }
+
+        function showMsg(prefix, postId, text, type) {
+            const el = document.getElementById(prefix + '_' + postId);
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'delivery-msg ' + type;
+            el.style.display = 'block';
+        }
+    </script>
 
 </body>
 

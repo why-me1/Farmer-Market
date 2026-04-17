@@ -85,7 +85,8 @@ function discoveryFetchPostsByIds($ids, $limit = null)
     $sql = "SELECT posts.*, users.username,
                    (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) AS total_bids,
                    (SELECT COUNT(*) FROM reviews WHERE product_id = posts.id) AS total_reviews,
-                   (SELECT MAX(CAST(comment_text AS DECIMAL(12,2))) FROM comments WHERE post_id = posts.id) AS highest_bid
+                                     (SELECT MAX(CAST(comment_text AS DECIMAL(12,2))) FROM comments WHERE post_id = posts.id) AS highest_bid,
+                                     EXISTS(SELECT 1 FROM comments WHERE post_id = posts.id AND is_approved = 1) AS has_winner
             FROM posts
             JOIN users ON posts.farmer_id = users.id
             WHERE posts.id IN ($idList)

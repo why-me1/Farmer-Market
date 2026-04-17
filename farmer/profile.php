@@ -213,7 +213,11 @@ $fp_is_following = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== 
             color: #fff;
             border: none;
             border-radius: 10px;
-            padding: 9px 20px;
+            padding: 8px 14px;
+            width: min(184px, 100%);
+            min-height: 38px;
+            justify-content: center;
+            text-align: center;
             font-size: 13.5px;
             font-weight: 700;
             text-decoration: none;
@@ -246,7 +250,11 @@ $fp_is_following = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== 
             align-items: center;
             gap: 8px;
             border-radius: 10px;
-            padding: 9px 16px;
+            padding: 8px 14px;
+            width: min(184px, 100%);
+            min-height: 38px;
+            justify-content: center;
+            text-align: center;
             border: 1.5px solid #d1fae5;
             background: #f0fdf4;
             color: #059669;

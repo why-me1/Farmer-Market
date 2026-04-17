@@ -263,12 +263,12 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
 
         <!-- 2. LIVE AUCTIONS TEASER BANNER -->
         <?php
-        $teaser_all = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW()");
+        $teaser_all = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW() AND CAST(posts.id AS CHAR) NOT IN (SELECT CAST(post_id AS CHAR) FROM comments WHERE is_approved = 1)");
         $teaser_all->execute();
         $teaser_all->bind_result($teaser_all_count);
         $teaser_all->fetch();
         $teaser_all->close();
-        $teaser_end = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW() AND UNIX_TIMESTAMP(auction_end_date)-UNIX_TIMESTAMP(NOW()) <= 86400");
+        $teaser_end = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW() AND UNIX_TIMESTAMP(auction_end_date)-UNIX_TIMESTAMP(NOW()) <= 86400 AND posts.id NOT IN (SELECT post_id FROM comments WHERE is_approved = 1)");
         $teaser_end->execute();
         $teaser_end->bind_result($teaser_end_count);
         $teaser_end->fetch();
@@ -436,7 +436,7 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                     'Root Vegetables' => ['bg' => '#efebe9', 'border' => '#bcaaa4', 'icon_bg' => '#5d4037', 'text' => '#4e342e'],
                 ];
                 foreach ($all_categories as $category_name => $meta):
-                    $count_stmt = $conn->prepare("SELECT COUNT(*) as c FROM posts WHERE is_approved=1 AND status='active' AND category=?");
+                    $count_stmt = $conn->prepare("SELECT COUNT(*) as c FROM posts WHERE is_approved=1 AND status IN ('active', 'sold', 'delivered') AND category=?");
                     $count_stmt->bind_param("s", $category_name);
                     $count_stmt->execute();
                     $count = $count_stmt->get_result()->fetch_assoc()['c'];
@@ -515,10 +515,11 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                 <?php
                 $recent_stmt = $conn->prepare("SELECT posts.*, users.username,
                                               (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
-                                              (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
+                                              (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid,
+                                              EXISTS(SELECT 1 FROM comments WHERE post_id = posts.id AND is_approved = 1) as has_winner
                                               FROM posts 
                                               JOIN users ON posts.farmer_id = users.id 
-                                              WHERE posts.is_approved = 1 AND posts.status = 'active'
+                                              WHERE posts.is_approved = 1 AND posts.status IN ('active', 'sold', 'delivered')
                                               ORDER BY posts.created_at DESC
                                               LIMIT 8");
                 $recent_stmt->execute();
@@ -531,7 +532,8 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                         $auction_start_time = strtotime($post['auction_start_date']);
                         $auction_end_time = strtotime($post['auction_end_date']);
 
-                        $is_ended = ($current_time >= $auction_end_time);
+                        $is_sold  = (in_array($post['status'], ['sold', 'delivered'], true) || (int)$post['has_winner'] === 1);
+                        $is_ended = ($is_sold || $current_time >= $auction_end_time);
                         $is_live  = (!$is_ended && $current_time >= $auction_start_time);
 
                         $total_bids = $post['total_bids'];
@@ -549,7 +551,11 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                     <div class="br-view-overlay">
                                         <span class="br-view-btn"><i class="fas fa-eye"></i> View Details</span>
                                     </div>
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-status-badge br-ended">
+                                            <i class="fas fa-check-circle"></i> SOLD
+                                        </div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-status-badge br-ended">
                                             <i class="fas fa-flag-checkered"></i> Ended
                                         </div>
@@ -601,7 +607,12 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                         <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
                                         <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
                                     </div>
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-ended-pill">
+                                            <i class="fas fa-trophy"></i>
+                                            <span>Sold</span>
+                                        </div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-ended-pill">
                                             <i class="fas fa-gavel"></i>
                                             <span>Auction Ended</span>
@@ -648,7 +659,8 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                         $current_time = time();
                         $auction_start_time = strtotime($post['auction_start_date']);
                         $auction_end_time = strtotime($post['auction_end_date']);
-                        $is_ended = ($current_time >= $auction_end_time);
+                        $is_sold = (in_array($post['status'], ['sold', 'delivered'], true) || (int)($post['has_winner'] ?? 0) === 1);
+                        $is_ended = ($is_sold || $current_time >= $auction_end_time);
                         $is_live = (!$is_ended && $current_time >= $auction_start_time);
                         $total_bids = (int)($post['total_bids'] ?? 0);
                         $max_bid = $post['highest_bid'] ?? null;
@@ -662,7 +674,9 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                         <div class="br-card-img-placeholder"><i class="fas fa-leaf"></i></div>
                                     <?php endif; ?>
                                     <div class="br-view-overlay"><span class="br-view-btn"><i class="fas fa-eye"></i> View Details</span></div>
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-status-badge br-ended"><i class="fas fa-check-circle"></i> SOLD</div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-status-badge br-ended"><i class="fas fa-flag-checkered"></i> Ended</div>
                                     <?php elseif ($is_live): ?>
                                         <div class="br-status-badge br-live"><span class="br-live-dot"></span> LIVE</div>
@@ -695,7 +709,9 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                         <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
                                         <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
                                     </div>
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-ended-pill"><i class="fas fa-trophy"></i><span>Sold</span></div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-ended-pill"><i class="fas fa-gavel"></i><span>Auction Ended</span></div>
                                     <?php elseif ($is_live): ?>
                                         <div class="br-countdown" data-end="<?php echo $auction_end_time; ?>"><i class="fas fa-clock"></i><span class="br-cd-label">Ends in</span><span class="br-cd-text">–</span></div>

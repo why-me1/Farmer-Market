@@ -312,8 +312,9 @@ if ($location_filter !== '') {
     // Count totals for tab badges
     $total_all_stmt = $conn->prepare("SELECT COUNT(*) FROM posts
     JOIN users ON posts.farmer_id = users.id
-    WHERE is_approved=1 AND status='active'
-    AND auction_start_date <= NOW() AND auction_end_date > NOW()
+    WHERE posts.is_approved=1 AND posts.status='active'
+    AND posts.auction_start_date <= NOW() AND posts.auction_end_date > NOW()
+    AND posts.id NOT IN (SELECT post_id FROM comments WHERE is_approved = 1)
     {$location_sql}");
     $total_all_stmt->execute();
     $total_all_stmt->bind_result($total_all_count);
@@ -322,9 +323,10 @@ if ($location_filter !== '') {
 
     $total_ending_stmt = $conn->prepare("SELECT COUNT(*) FROM posts
     JOIN users ON posts.farmer_id = users.id
-    WHERE is_approved=1 AND status='active'
-    AND auction_start_date <= NOW() AND auction_end_date > NOW()
-    AND UNIX_TIMESTAMP(auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+    WHERE posts.is_approved=1 AND posts.status='active'
+    AND posts.auction_start_date <= NOW() AND posts.auction_end_date > NOW()
+    AND UNIX_TIMESTAMP(posts.auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+    AND posts.id NOT IN (SELECT post_id FROM comments WHERE is_approved = 1)
     {$location_sql}");
     $total_ending_stmt->execute();
     $total_ending_stmt->bind_result($total_ending_count);
@@ -405,6 +407,7 @@ if ($location_filter !== '') {
                 WHERE posts.is_approved=1 AND posts.status='active'
                 AND posts.auction_start_date <= NOW()
                 AND posts.auction_end_date > NOW()
+                AND posts.id NOT IN (SELECT post_id FROM comments WHERE is_approved = 1)
                 {$location_sql}
                 ORDER BY posts.auction_end_date ASC");
                     $all_stmt->execute();
@@ -557,6 +560,7 @@ if ($location_filter !== '') {
                 AND posts.auction_start_date <= NOW()
                 AND posts.auction_end_date > NOW()
                 AND UNIX_TIMESTAMP(posts.auction_end_date) - UNIX_TIMESTAMP(NOW()) <= 86400
+                AND posts.id NOT IN (SELECT post_id FROM comments WHERE is_approved = 1)
                 {$location_sql}
                 ORDER BY posts.auction_end_date ASC");
                     $es_stmt->execute();

@@ -919,7 +919,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
                     <?php endif; ?>
                 </a>
                 <!-- Notifications -->
-                <a class="fm-icon-btn" href="<?php echo $base_url; ?>notifications.php" title="Notifications">
+                <a class="fm-icon-btn" href="<?php echo $base_url; ?>notifications.php?action=mark_all_read&redirect=<?php echo urlencode('notifications.php'); ?>" title="Notifications">
                     <i class="fas fa-bell <?php echo $notification_count > 0 ? 'bell-ring' : ''; ?>"></i>
                     <?php if ($notification_count > 0): ?>
                         <span class="fm-badge" id="notifCount">
@@ -968,7 +968,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
                                     <span style="margin-left:auto;background:#059669;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;"><?php echo $unread_messages; ?></span>
                                 <?php endif; ?>
                             </a>
-                            <a class="fm-dropdown-item" href="<?php echo $base_url; ?>notifications.php">
+                            <a class="fm-dropdown-item" href="<?php echo $base_url; ?>notifications.php?action=mark_all_read&redirect=<?php echo urlencode('notifications.php'); ?>">
                                 <i class="fas fa-bell"></i> Notifications
                                 <?php if ($notification_count > 0): ?>
                                     <span style="margin-left:auto;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;"><?php echo $notification_count; ?></span>
@@ -1021,7 +1021,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
                 <span style="margin-left:auto;background:#059669;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;" id="mobileMsgBadge"><?php echo $unread_messages; ?></span>
             <?php endif; ?>
         </a>
-        <a class="fm-mobile-link" href="<?php echo $base_url; ?>notifications.php">
+        <a class="fm-mobile-link" href="<?php echo $base_url; ?>notifications.php?action=mark_all_read&redirect=<?php echo urlencode('notifications.php'); ?>">
             <i class="fas fa-bell"></i> Notifications
             <?php if ($notification_count > 0): ?>
                 <span style="margin-left:auto;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:10px;"><?php echo $notification_count; ?></span>

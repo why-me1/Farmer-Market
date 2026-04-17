@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once 'includes/config.php';
 require_once 'includes/notification_functions.php';
 
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
@@ -11,8 +12,17 @@ $user_id = $_SESSION['user_id'];
 
 // Handle mark as read action
 if (isset($_GET['action']) && $_GET['action'] === 'mark_read' && isset($_GET['id'])) {
-    markNotificationAsRead($_GET['id'], $user_id);
-    header('Location: notifications.php');
+    $notification_id = (int)$_GET['id'];
+    $redirect_target = isset($_GET['redirect']) ? trim((string)$_GET['redirect']) : 'notifications.php';
+    $is_safe_redirect = $redirect_target !== ''
+        && strpos($redirect_target, '://') === false
+        && strpos($redirect_target, "\n") === false
+        && strpos($redirect_target, "\r") === false;
+
+    if ($notification_id > 0) {
+        markNotificationAsRead($notification_id, $user_id);
+    }
+    header('Location: ' . ($is_safe_redirect ? $redirect_target : 'notifications.php'));
     exit;
 }
 
@@ -33,8 +43,21 @@ $read_count    = $total_count - $unread_count;
 function notifMeta($type)
 {
     $map = [
-        'comment'           => ['icon' => 'fa-comment-dots',   'color' => '#6366f1', 'bg' => '#ede9fe', 'label' => 'Comment'],
-        'comment_approved'  => ['icon' => 'fa-check-circle',   'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'Approved'],
+        'comment'           => ['icon' => 'fa-comment-dots',   'color' => '#6366f1', 'bg' => '#ede9fe', 'label' => 'Bid Update'],
+        'auction_won'       => ['icon' => 'fa-trophy',         'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
+        'comment_approved'  => ['icon' => 'fa-check-circle',   'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
+        'product_sold'      => ['icon' => 'fa-hands-helping',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Action Required'],
+        'delivery_local_selected'    => ['icon' => 'fa-map-marker-alt', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Local Selected'],
+        'delivery_courier_selected'  => ['icon' => 'fa-shipping-fast',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Courier Selected'],
+        'delivery_tracking_added'    => ['icon' => 'fa-barcode',        'color' => '#0284c7', 'bg' => '#e0f2fe', 'label' => 'Tracking Added'],
+        'delivery_local_otp_required' => ['icon' => 'fa-key',            'color' => '#d97706', 'bg' => '#fef3c7', 'label' => 'OTP Required'],
+        'farmer_delivery_local_selected' => ['icon' => 'fa-map-marker-alt', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Local Selected'],
+        'farmer_delivery_courier_selected' => ['icon' => 'fa-shipping-fast', 'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Courier Selected'],
+        'farmer_tracking_added' => ['icon' => 'fa-barcode', 'color' => '#0284c7', 'bg' => '#e0f2fe', 'label' => 'Tracking Added'],
+        'farmer_order_delivered' => ['icon' => 'fa-check-double', 'color' => '#16a34a', 'bg' => '#dcfce7', 'label' => 'Delivered'],
+        'delivery_local_initiated'   => ['icon' => 'fa-shield-alt',     'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Local Delivery'],
+        'delivery_courier_initiated' => ['icon' => 'fa-shipping-fast',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Shipped'],
+        'delivery_delivered'         => ['icon' => 'fa-check-double',   'color' => '#16a34a', 'bg' => '#dcfce7', 'label' => 'Delivered'],
         'followed_farmer_post' => ['icon' => 'fa-seedling',    'color' => '#10b981', 'bg' => '#dcfce7', 'label' => 'New Listing'],
         'bid'               => ['icon' => 'fa-gavel',           'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Bid'],
         'sale'              => ['icon' => 'fa-shopping-bag',    'color' => '#10b981', 'bg' => '#d1fae5', 'label' => 'Sale'],
@@ -42,6 +65,42 @@ function notifMeta($type)
         'review'            => ['icon' => 'fa-star',            'color' => '#f59e0b', 'bg' => '#fef9c3', 'label' => 'Review'],
     ];
     return $map[$type] ?? ['icon' => 'fa-bell', 'color' => '#6b7280', 'bg' => '#f3f4f6', 'label' => ucfirst(str_replace('_', ' ', $type))];
+}
+
+function notifPriority($type)
+{
+    $success = ['auction_won', 'comment_approved', 'delivery_delivered', 'farmer_order_delivered'];
+    $warning = ['delivery_local_otp_required'];
+
+    if (in_array($type, $success, true)) return 'success';
+    if (in_array($type, $warning, true)) return 'warning';
+    return 'info';
+}
+
+function notifReadUrl($notification)
+{
+    $type = (string)($notification['type'] ?? '');
+    $post_id = (int)($notification['post_id'] ?? 0);
+    $base = 'notifications.php?action=mark_read&id=' . (int)$notification['id'];
+    $current_user_role = $_SESSION['role'] ?? 'user';
+
+    $farmer_focus_types = [
+        'product_sold',
+        'farmer_delivery_local_selected',
+        'farmer_delivery_courier_selected',
+        'farmer_tracking_added',
+        'farmer_order_delivered',
+    ];
+
+    if ($post_id > 0) {
+        if ($current_user_role === 'farmer' && in_array($type, $farmer_focus_types, true)) {
+            $base .= '&redirect=' . urlencode('farmer/manage_orders.php?focus_post=' . $post_id);
+        } else {
+            $base .= '&redirect=' . urlencode('product_detail.php?id=' . $post_id);
+        }
+    }
+
+    return $base;
 }
 
 // Relative time helper
@@ -284,6 +343,57 @@ include 'includes/nav.php';
         background: #059669;
     }
 
+    .notif-item.priority-success {
+        border-color: #bbf7d0;
+    }
+
+    .notif-item.priority-info {
+        border-color: #bfdbfe;
+    }
+
+    .notif-item.priority-warning {
+        border-color: #fde68a;
+    }
+
+    .notif-item.unread.priority-success::before {
+        background: #16a34a;
+    }
+
+    .notif-item.unread.priority-info::before {
+        background: #0284c7;
+    }
+
+    .notif-item.unread.priority-warning::before {
+        background: #d97706;
+    }
+
+    .notif-priority-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .notif-priority-chip.success {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .notif-priority-chip.info {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .notif-priority-chip.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
     /* ── Notif Icon ── */
     .notif-icon-wrap {
         width: 44px;
@@ -308,6 +418,11 @@ include 'includes/nav.php';
         font-weight: 500;
         line-height: 1.45;
         margin-bottom: 6px;
+    }
+
+    .notif-message a:hover {
+        text-decoration: underline !important;
+        color: #059669;
     }
 
     .notif-item.unread .notif-message {
@@ -527,7 +642,9 @@ include 'includes/nav.php';
                 $prev_date = '';
                 foreach ($notifications as $notification):
                     $meta     = notifMeta($notification['type']);
+                    $priority = notifPriority($notification['type']);
                     $is_read  = (bool)$notification['is_read'];
+                    $group_count = (int)($notification['group_count'] ?? 1);
                     $date_key = date('Y-m-d', strtotime($notification['created_at']));
                     $today    = date('Y-m-d');
                     $yesterday = date('Y-m-d', strtotime('-1 day'));
@@ -542,7 +659,7 @@ include 'includes/nav.php';
             <?php echo $is_read ? 'filter-read' : 'filter-unread'; ?>"><?php echo $group_label; ?></div>
                     <?php endif; ?>
 
-                    <div class="notif-item <?php echo $is_read ? '' : 'unread'; ?> notif-filter-item <?php echo $is_read ? 'filter-read' : 'filter-unread'; ?>">
+                    <div class="notif-item priority-<?php echo $priority; ?> <?php echo $is_read ? '' : 'unread'; ?> notif-filter-item <?php echo $is_read ? 'filter-read' : 'filter-unread'; ?>">
                         <!-- Icon -->
                         <div class="notif-icon-wrap" style="background:<?php echo $meta['bg']; ?>;color:<?php echo $meta['color']; ?>;">
                             <i class="fas <?php echo $meta['icon']; ?>"></i>
@@ -551,17 +668,29 @@ include 'includes/nav.php';
                         <!-- Body -->
                         <div class="notif-body">
                             <div class="notif-message">
-                                <?php echo htmlspecialchars(getNotificationMessage($notification)); ?>
+                                <?php if (!empty($notification['post_id'])): ?>
+                                    <a href="<?php echo htmlspecialchars(notifReadUrl($notification)); ?>" style="color:inherit; text-decoration:none;">
+                                        <?php echo htmlspecialchars(getNotificationMessage($notification)); ?>
+                                    </a>
+                                <?php else: ?>
+                                    <?php echo htmlspecialchars(getNotificationMessage($notification)); ?>
+                                <?php endif; ?>
                             </div>
                             <div class="notif-meta-row">
                                 <span class="notif-type-tag" style="background:<?php echo $meta['bg']; ?>;color:<?php echo $meta['color']; ?>;">
                                     <?php echo $meta['label']; ?>
+                                </span>
+                                <span class="notif-priority-chip <?php echo $priority; ?>">
+                                    <?php echo ucfirst($priority); ?>
                                 </span>
                                 <?php if (!empty($notification['product_name'])): ?>
                                     <span class="notif-product">
                                         <i class="fas fa-seedling" style="color:#059669;font-size:0.7rem;"></i>
                                         <?php echo htmlspecialchars($notification['product_name']); ?>
                                     </span>
+                                <?php endif; ?>
+                                <?php if ($notification['type'] === 'comment' && $_SESSION['role'] === 'farmer' && $group_count > 1): ?>
+                                    <span class="notif-priority-chip info">x<?php echo $group_count; ?></span>
                                 <?php endif; ?>
                                 <span class="notif-time">
                                     <i class="far fa-clock"></i>
@@ -572,7 +701,7 @@ include 'includes/nav.php';
 
                         <!-- Action -->
                         <?php if (!$is_read): ?>
-                            <a href="notifications.php?action=mark_read&id=<?php echo $notification['id']; ?>"
+                            <a href="<?php echo htmlspecialchars(notifReadUrl($notification)); ?>"
                                 class="notif-read-btn" title="Mark as read">
                                 <i class="fas fa-check"></i>
                             </a>

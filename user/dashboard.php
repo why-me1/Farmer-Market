@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
@@ -52,7 +52,7 @@ $auctions_stmt = $conn->prepare("SELECT COUNT(DISTINCT c.post_id)
                                   FROM comments c
                                   JOIN posts p ON c.post_id = p.id
                                   WHERE c.user_id = ?
-                                  AND (p.status = 'sold'
+                                  AND (p.status IN ('sold', 'delivered')
                                        OR (p.expiry_date IS NOT NULL AND p.expiry_date <= UNIX_TIMESTAMP(NOW())))");
 $auctions_stmt->bind_param("i", $user_id);
 $auctions_stmt->execute();
@@ -94,7 +94,7 @@ $my_bids_stmt->bind_param("i", $user_id);
 $my_bids_stmt->execute();
 $my_bids = $my_bids_stmt->get_result();
 
-// Purchase history (approved bids)
+// Purchase history (approved bids) + delivery info
 $purchases_stmt = $conn->prepare("
     SELECT comments.id AS comment_id,
            comments.comment_text AS bid_amount,
@@ -103,7 +103,12 @@ $purchases_stmt = $conn->prepare("
            posts.product_name,
            posts.price AS asking_price,
            posts.image,
-           users.username AS farmer_username
+           posts.status AS order_status,
+           posts.delivery_type,
+           posts.courier_company,
+           posts.courier_tracking,
+           users.username AS farmer_username,
+           users.id AS farmer_id
     FROM comments
     JOIN posts ON comments.post_id = posts.id
     JOIN users ON posts.farmer_id = users.id
@@ -152,9 +157,16 @@ if ($hour < 12)      $greeting = "Good morning";
 elseif ($hour < 17)  $greeting = "Good afternoon";
 else                 $greeting = "Good evening";
 
+// Ensure total participated is AT LEAST the number of auctions won, mathematically
+$total_auctions_participated = max($total_auctions_participated, $auctions_won);
+
 $success_rate = $total_auctions_participated > 0
     ? round(($auctions_won / $total_auctions_participated) * 100)
     : 0;
+
+// Hard cap at 100% just to be absolutely safe
+if ($success_rate > 100) $success_rate = 100;
+
 $initials      = strtoupper(substr($user['username'], 0, 2));
 $has_avatar    = !empty($user['profile_picture']) && file_exists(dirname(__DIR__) . '/' . $user['profile_picture']);
 $avatar_url    = $has_avatar ? $base_url . $user['profile_picture'] : null;
@@ -769,6 +781,85 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             color: #fff;
         }
 
+        /* ── Buyer Delivery OTP Box ── */
+        .buyer-otp-box {
+            background: #fffbeb;
+            border: 2px dashed #fbbf24;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .buyer-otp-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #92400e;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .buyer-otp-code {
+            font-family: 'Poppins', monospace;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: #b45309;
+            line-height: 1.1;
+            text-shadow: 0 1px 4px rgba(180,83,9,.15);
+        }
+
+        .buyer-otp-hint {
+            font-size: 9px;
+            color: #78350f;
+            margin-top: 3px;
+        }
+
+        .buyer-otp-exp {
+            font-size: 9px;
+            color: #a16207;
+            margin-top: 2px;
+        }
+
+        /* ── Buyer Courier Box ── */
+        .buyer-courier-box {
+            background: #eff6ff;
+            border: 1.5px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-top: 6px;
+        }
+
+        .buyer-courier-label {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #1e40af;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .buyer-courier-company {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
+        .buyer-courier-tracking {
+            font-size: 10px;
+            color: #3b82f6;
+            margin-top: 2px;
+            word-break: break-all;
+        }
+
         .ud-follow-row {
             display: flex;
             align-items: center;
@@ -1287,14 +1378,59 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                                 <div class="pv">&#2547;<?php echo number_format($purchase['bid_amount'], 2); ?></div>
                                                 <div class="ask">Ask &#2547;<?php echo number_format($purchase['asking_price'], 2); ?></div>
                                             </div>
-                                            <div class="ud-status">
-                                                <span class="ud-pill purchased"><i class="fas fa-check"></i> Purchased</span>
-                                                <div class="ud-date mt-2">
-                                                    <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $purchase['post_id']; ?>#review-section"
-                                                        class="ud-btn-review">
-                                                        <i class="fas fa-star"></i> Review
-                                                    </a>
-                                                </div>
+                                            <?php
+                                                // Fetch OTP record for this purchase (local delivery)
+                                                $d_stmt = $conn->prepare("SELECT otp_code, is_used, expires_at FROM delivery_otps WHERE post_id = ? AND buyer_id = ? LIMIT 1");
+                                                $d_stmt->bind_param("ii", $purchase['post_id'], $user_id);
+                                                $d_stmt->execute();
+                                                $d_otp = $d_stmt->get_result()->fetch_assoc();
+                                                $d_stmt->close();
+                                                $dtype = $purchase['delivery_type'] ?? null;
+                                                $order_status = $purchase['order_status'] ?? 'sold';
+                                            ?>
+                                            <div class="ud-status" style="min-width:160px;text-align:left;">
+                                                <?php if ($order_status === 'delivered'): ?>
+                                                    <span class="ud-pill" style="background:#ecfdf5;color:#065f46;"><i class="fas fa-check-circle"></i> Delivered</span>
+                                                    <div class="ud-date mt-2">
+                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $purchase['post_id']; ?>#review-section"
+                                                            class="ud-btn-review">
+                                                            <i class="fas fa-star"></i> Review
+                                                        </a>
+                                                    </div>
+
+                                                <?php elseif ($dtype === 'local' && $d_otp && !$d_otp['is_used']): ?>
+                                                    <!-- LOCAL delivery: buyer sees their OTP -->
+                                                    <span class="ud-pill" style="background:#fff8e1;color:#b45309;margin-bottom:6px;display:inline-flex;align-items:center;gap:5px;"><i class="fas fa-truck"></i> Delivery Coming</span>
+                                                    <div class="buyer-otp-box">
+                                                        <div class="buyer-otp-label"><i class="fas fa-key"></i> Your Delivery OTP</div>
+                                                        <div class="buyer-otp-code"><?php echo htmlspecialchars($d_otp['otp_code']); ?></div>
+                                                        <div class="buyer-otp-hint">Show this to the delivery person</div>
+                                                        <div class="buyer-otp-exp">Expires: <?php echo date('M j, g:i A', strtotime($d_otp['expires_at'])); ?></div>
+                                                    </div>
+
+                                                <?php elseif ($dtype === 'courier'): ?>
+                                                    <!-- COURIER delivery: buyer sees tracking info -->
+                                                    <span class="ud-pill" style="background:#eff6ff;color:#1e40af;margin-bottom:6px;display:inline-flex;align-items:center;gap:5px;"><i class="fas fa-shipping-fast"></i> On the Way</span>
+                                                    <div class="buyer-courier-box">
+                                                        <div class="buyer-courier-label"><i class="fas fa-box"></i> Courier Info</div>
+                                                        <div class="buyer-courier-company"><?php echo htmlspecialchars($purchase['courier_company'] ?? '—'); ?></div>
+                                                        <div class="buyer-courier-tracking">Tracking: <strong><?php echo htmlspecialchars($purchase['courier_tracking'] ?? '—'); ?></strong></div>
+                                                    </div>
+
+                                                <?php elseif ($dtype === 'local' && $d_otp && $d_otp['is_used']): ?>
+                                                    <span class="ud-pill" style="background:#ecfdf5;color:#065f46;"><i class="fas fa-check-circle"></i> Delivered</span>
+                                                    <div class="ud-date mt-2">
+                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $purchase['post_id']; ?>#review-section"
+                                                            class="ud-btn-review">
+                                                            <i class="fas fa-star"></i> Review
+                                                        </a>
+                                                    </div>
+
+                                                <?php else: ?>
+                                                    <!-- No delivery initiated yet -->
+                                                    <span class="ud-pill purchased"><i class="fas fa-box"></i> Awaiting Dispatch</span>
+                                                    <div class="ud-date mt-2" style="font-size:10px;color:#aab3bd;">Farmer will initiate delivery soon</div>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     <?php endwhile; ?>

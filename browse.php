@@ -486,7 +486,7 @@ $light = $meta['light'];
 
                 <?php
                 // Build dynamic query
-                $where_clauses = ["posts.is_approved = 1", "posts.status = 'active'", "posts.category = ?"];
+                $where_clauses = ["posts.is_approved = 1", "posts.status IN ('active', 'sold', 'delivered')", "posts.category = ?"];
                 $params = [$category];
                 $types  = "s";
 
@@ -507,9 +507,13 @@ $light = $meta['light'];
                 }
 
                 $status_condition = '';
-                if ($status_filter === 'live')         $status_condition = " AND posts.auction_start_date <= NOW() AND posts.auction_end_date > NOW()";
-                elseif ($status_filter === 'upcoming') $status_condition = " AND posts.auction_start_date > NOW()";
-                elseif ($status_filter === 'ended')    $status_condition = " AND posts.auction_end_date <= NOW()";
+                if ($status_filter === 'live') {
+                    $status_condition = " AND posts.status = 'active' AND posts.auction_start_date <= NOW() AND posts.auction_end_date > NOW()";
+                } elseif ($status_filter === 'upcoming') {
+                    $status_condition = " AND posts.status = 'active' AND posts.auction_start_date > NOW()";
+                } elseif ($status_filter === 'ended') {
+                    $status_condition = " AND (posts.status IN ('sold', 'delivered') OR posts.auction_end_date <= NOW())";
+                }
 
                 if ($sort === 'price_asc')      $sort_sql = 'posts.price ASC';
                 elseif ($sort === 'price_desc') $sort_sql = 'posts.price DESC';
@@ -519,7 +523,8 @@ $light = $meta['light'];
                 $where_str = implode(' AND ', $where_clauses) . $status_condition;
                 $sql = "SELECT posts.*, users.username,
                            (SELECT COUNT(*) FROM comments WHERE post_id = posts.id) as total_bids,
-                           (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid
+                          (SELECT MAX(comment_text) FROM comments WHERE post_id = posts.id) as max_bid,
+                          EXISTS(SELECT 1 FROM comments WHERE post_id = posts.id AND is_approved = 1) as has_winner
                     FROM posts
                     JOIN users ON posts.farmer_id = users.id
                     WHERE {$where_str}
@@ -583,7 +588,8 @@ $light = $meta['light'];
                             $current_time     = time();
                             $auction_start    = strtotime($post['auction_start_date']);
                             $auction_end      = strtotime($post['auction_end_date']);
-                            $is_ended         = ($current_time >= $auction_end);
+                            $is_sold          = (in_array($post['status'], ['sold', 'delivered'], true) || (int)$post['has_winner'] === 1);
+                            $is_ended         = ($is_sold || $current_time >= $auction_end);
                             $is_live          = (!$is_ended && $current_time >= $auction_start);
                             $total_bids       = (int)$post['total_bids'];
                             $max_bid          = $post['max_bid'];
@@ -620,7 +626,11 @@ $light = $meta['light'];
                                     </div>
 
                                     <!-- Status overlay badge -->
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-status-badge br-ended">
+                                            <i class="fas fa-check-circle"></i> SOLD
+                                        </div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-status-badge br-ended">
                                             <i class="fas fa-flag-checkered"></i> Ended
                                         </div>
@@ -680,7 +690,12 @@ $light = $meta['light'];
                                         <span class="br-farmer-name"><?php echo htmlspecialchars($post['username']); ?></span>
                                         <i class="fas fa-external-link-alt br-farmer-link-icon"></i>
                                     </div>
-                                    <?php if ($is_ended): ?>
+                                    <?php if ($is_sold): ?>
+                                        <div class="br-ended-pill">
+                                            <i class="fas fa-trophy"></i>
+                                            <span>Sold</span>
+                                        </div>
+                                    <?php elseif ($is_ended): ?>
                                         <div class="br-ended-pill">
                                             <i class="fas fa-gavel"></i>
                                             <span>Auction Ended</span>

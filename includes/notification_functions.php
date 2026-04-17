@@ -7,6 +7,14 @@
 
 require_once 'db.php';
 
+function ensureNotificationSchema()
+{
+    global $conn;
+
+    $conn->query("ALTER TABLE `notifications`
+        ADD COLUMN IF NOT EXISTS `group_count` INT NOT NULL DEFAULT 1");
+}
+
 /**
  * Create a new notification
  * @param int $user_id - Receiver ID
@@ -19,7 +27,9 @@ function createNotification($user_id, $post_id = null, $comment_id = null, $type
 {
     global $conn;
 
-    $stmt = $conn->prepare("INSERT INTO notifications (user_id, post_id, comment_id, type) VALUES (?, ?, ?, ?)");
+    ensureNotificationSchema();
+
+    $stmt = $conn->prepare("INSERT INTO notifications (user_id, post_id, comment_id, type, group_count) VALUES (?, ?, ?, ?, 1)");
     $stmt->bind_param("iiis", $user_id, $post_id, $comment_id, $type);
     $result = $stmt->execute();
     $stmt->close();
@@ -119,7 +129,28 @@ function markAllNotificationsAsRead($user_id)
  */
 function notifyFarmerBidPlaced($farmer_id, $post_id, $buyer_name, $bid_amount, $product_name)
 {
-    // Create notification with type 'comment' for new bid
+    // Keep only one unread bid notification per product for the farmer.
+    // When more bids arrive, refresh the timestamp instead of stacking duplicates.
+    global $conn;
+
+    ensureNotificationSchema();
+
+    $check = $conn->prepare("SELECT id, group_count FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment' AND is_read = 0 LIMIT 1");
+    $check->bind_param("ii", $farmer_id, $post_id);
+    $check->execute();
+    $existing = $check->get_result()->fetch_assoc();
+    $check->close();
+
+    if ($existing) {
+        $update = $conn->prepare("UPDATE notifications SET group_count = group_count + 1, created_at = CURRENT_TIMESTAMP WHERE id = ?");
+        $update->bind_param("i", $existing['id']);
+        $update->execute();
+        $update->close();
+
+        return true;
+    }
+
+    // Create notification with type 'comment' for the first/new unread bid alert
     return createNotification($farmer_id, $post_id, null, 'comment');
 }
 
@@ -156,8 +187,8 @@ function notifyBuyerOutbid($buyer_id, $post_id, $product_name)
  */
 function notifyBuyerWonBid($buyer_id, $post_id, $product_name)
 {
-    // Create notification for bid winner
-    return createNotification($buyer_id, $post_id, null, 'comment_approved');
+    // Create a dedicated winner notification with next-step context
+    return createNotification($buyer_id, $post_id, null, 'auction_won');
 }
 
 /**
@@ -169,8 +200,41 @@ function notifyBuyerWonBid($buyer_id, $post_id, $product_name)
  */
 function notifyBuyerDeliveryUpdate($buyer_id, $post_id, $product_name, $status)
 {
-    // Create notification for delivery update
-    return createNotification($buyer_id, $post_id, null, 'comment_approved');
+    // Create notification for specific delivery stage
+    $status = strtolower(trim((string)$status));
+    if ($status === 'local') {
+        return createNotification($buyer_id, $post_id, null, 'delivery_local_selected');
+    }
+    if ($status === 'courier') {
+        return createNotification($buyer_id, $post_id, null, 'delivery_courier_selected');
+    }
+    if ($status === 'delivered') {
+        return createNotification($buyer_id, $post_id, null, 'delivery_delivered');
+    }
+
+    return createNotification($buyer_id, $post_id, null, 'order');
+}
+
+/**
+ * Get delivery fields for a post to build contextual messages.
+ * @param int $post_id
+ * @return array|null
+ */
+function getPostDeliveryMeta($post_id)
+{
+    global $conn;
+
+    if (empty($post_id)) {
+        return null;
+    }
+
+    $stmt = $conn->prepare("SELECT courier_company, courier_tracking, delivery_type FROM posts WHERE id = ? LIMIT 1");
+    $stmt->bind_param("i", $post_id);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
+    return $row ?: null;
 }
 
 /**
@@ -230,6 +294,7 @@ function getNotificationMessage($notification)
     $type = $notification['type'];
     $product_name = $notification['product_name'] ?? 'a product';
     $post_id = $notification['post_id'];
+    $group_count = (int)($notification['group_count'] ?? 1);
 
     // Get the current user's role from session to determine message context
     $current_user_role = $_SESSION['role'] ?? 'user';
@@ -238,45 +303,87 @@ function getNotificationMessage($notification)
         case 'comment':
             if ($current_user_role == 'farmer') {
                 // Farmer receives notification about new bid
-                return "New bid placed on '{$product_name}'";
+                if ($group_count > 1) {
+                    return "{$group_count} new bids placed on {$product_name}";
+                }
+
+                return "New bid placed on {$product_name}";
             } else {
                 // Buyer receives notification about being outbid
-                return "You've been outbid on '{$product_name}' - Place a higher bid!";
+                return "You were outbid on {$product_name} - place a higher bid now.";
             }
+
+        case 'auction_won':
+            return "You won the bid for {$product_name} 🌽 - farmer will update delivery soon.";
 
         case 'comment_approved':
-            if ($current_user_role == 'farmer') {
-                // This shouldn't happen anymore, but just in case
-                return "Sale completed for '{$product_name}'";
-            } else {
-                // Buyer won the bid
-                return "🎉 Congratulations! You won the bid for '{$product_name}'";
+            // Backward compatibility for old winner records.
+            return "You won the bid for {$product_name} 🌽 - farmer will update delivery soon.";
+
+        case 'product_sold':
+            return "Your auction for {$product_name} is successful. Choose delivery method now (Local or Courier).";
+
+        case 'delivery_local_selected':
+            return "Farmer selected Local Delivery for {$product_name} - delivery agent will contact you.";
+
+        case 'delivery_courier_selected':
+            return "Farmer selected Courier Delivery 🚚 for {$product_name}.";
+
+        case 'delivery_tracking_added':
+            $delivery_meta = getPostDeliveryMeta((int)$post_id);
+            $tracking_id = $delivery_meta['courier_tracking'] ?? '';
+            if (!empty($tracking_id)) {
+                return "Tracking ID {$tracking_id} added 🚚 - track your order.";
             }
+            return "Tracking ID added 🚚 - track your order.";
+
+        case 'delivery_local_otp_required':
+            return "Delivery agent will ask for OTP on delivery for {$product_name}.";
+
+        case 'farmer_delivery_local_selected':
+            return "You selected Local Delivery for {$product_name}.";
+
+        case 'farmer_delivery_courier_selected':
+            return "You selected Courier Delivery for {$product_name} 🚚.";
+
+        case 'farmer_tracking_added':
+            $delivery_meta = getPostDeliveryMeta((int)$post_id);
+            $tracking_id = $delivery_meta['courier_tracking'] ?? '';
+            if (!empty($tracking_id)) {
+                return "Tracking ID {$tracking_id} added successfully.";
+            }
+            return "Tracking ID added successfully.";
+
+        case 'farmer_order_delivered':
+            return "Order for {$product_name} marked as delivered.";
+
+        case 'delivery_local_initiated':
+            // Backward compatibility for old records.
+            return "Farmer selected Local Delivery for {$product_name} - delivery agent will contact you.";
+
+        case 'delivery_courier_initiated':
+            // Backward compatibility for old records.
+            return "Farmer selected Courier Delivery 🚚 for {$product_name}.";
+
+        case 'delivery_delivered':
+            return "Delivery completed for {$product_name}. Please rate your experience.";
 
         case 'followed_farmer_post':
-            $start_label = '';
-            $stmt = $conn->prepare("SELECT auction_start_date, auction_end_date FROM posts WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT u.username, p.auction_start_date FROM posts p JOIN users u ON p.farmer_id = u.id WHERE p.id = ? LIMIT 1");
             $stmt->bind_param("i", $post_id);
             $stmt->execute();
             $post_row = $stmt->get_result()->fetch_assoc();
             $stmt->close();
 
             if ($post_row) {
-                $now = time();
+                $farmer_name = ucfirst($post_row['username']);
                 $auction_start = strtotime($post_row['auction_start_date']);
-                $auction_end = strtotime($post_row['auction_end_date']);
+                $start_label = date('M j \a\t g:i A', $auction_start);
 
-                if ($auction_start <= $now && $auction_end > $now) {
-                    return "A farmer you follow just listed '{$product_name}' and it is live now";
-                }
-
-                if ($auction_start > $now) {
-                    $start_label = date('M j, g:i A', $auction_start);
-                    return "A farmer you follow scheduled '{$product_name}' to start on {$start_label}";
-                }
+                return "New auction: {$product_name} by {$farmer_name} 🌽 - starts {$start_label}. View auction now.";
             }
 
-            return "A farmer you follow listed '{$product_name}'";
+            return "New auction listed: {$product_name} 🌽. View auction now.";
 
         default:
             return "New notification about '{$product_name}'";

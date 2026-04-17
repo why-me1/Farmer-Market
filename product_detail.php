@@ -55,18 +55,6 @@ $current_time = time();
 $auction_start_time = strtotime($post['auction_start_date']);
 $auction_end_time = strtotime($post['auction_end_date']);
 
-// Determine auction status
-$is_live = false;
-$is_ended = false;
-$time_remaining = 0;
-
-if ($current_time >= $auction_start_time && $current_time < $auction_end_time) {
-    $is_live = true;
-    $time_remaining = $auction_end_time - $current_time;
-} elseif ($current_time >= $auction_end_time) {
-    $is_ended = true;
-}
-
 // Get bid count and highest bid
 $comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(CAST(comment_text AS DECIMAL(12,2))) as max_bid FROM comments WHERE post_id = ?");
 $comment_count_stmt->bind_param("i", $post_id);
@@ -77,23 +65,70 @@ $total_bids = $comment_data['total_bids'];
 $max_bid = $comment_data['max_bid'];
 $comment_count_stmt->close();
 
+// Calculate actual auction end time (with 2-minute extension for 5+ bids)
+$actual_auction_end_time = $auction_end_time;
+
+// If there are 5 or more bids, activate 2-minute countdown from 5th bid
+if ($total_bids >= 5) {
+    $fifth_bid_stmt = $conn->prepare("SELECT created_at FROM comments WHERE post_id = ? ORDER BY created_at ASC LIMIT 4, 1");
+    $fifth_bid_stmt->bind_param("i", $post_id);
+    $fifth_bid_stmt->execute();
+    $fifth_bid_result = $fifth_bid_stmt->get_result();
+
+    if ($fifth_bid_result->num_rows > 0) {
+        $fifth_bid = $fifth_bid_result->fetch_assoc();
+        $fifth_bid_time = strtotime($fifth_bid['created_at']);
+        // Set actual end time to 2 minutes after 5th bid
+        $actual_auction_end_time = $fifth_bid_time + (2 * 60);
+    }
+    $fifth_bid_stmt->close();
+}
+
 $is_sold = false;
 $is_unsold = false;
 
-// Check if auction ended with winning bid
-if ($is_ended && $total_bids >= 5 && $max_bid >= $post['price']) {
+// Check if product is already sold (has an approved bid)
+$check_sold_stmt = $conn->prepare("SELECT id FROM comments WHERE post_id = ? AND is_approved = 1 LIMIT 1");
+$check_sold_stmt->bind_param("i", $post_id);
+$check_sold_stmt->execute();
+$check_sold_result = $check_sold_stmt->get_result();
+$already_sold = $check_sold_result->num_rows > 0;
+$check_sold_stmt->close();
+
+// Determine auction status using actual end time
+$is_live = false;
+$is_ended = false;
+$time_remaining = 0;
+
+// If already sold, auction is ended and sold
+if ($already_sold) {
+    $is_ended = true;
     $is_sold = true;
-    // Approve only ONE winner — earliest bidder at the highest amount (tie-break: first come, first served)
-    $approve_stmt = $conn->prepare(
-        "UPDATE comments SET is_approved = 1
-         WHERE post_id = ? AND CAST(comment_text AS DECIMAL(12,2)) = ?
-         ORDER BY created_at ASC LIMIT 1"
-    );
-    $approve_stmt->bind_param("id", $post_id, $max_bid);
-    $approve_stmt->execute();
-    $approve_stmt->close();
-} elseif ($is_ended && $total_bids < 5) {
-    $is_unsold = true;
+} else {
+    // Otherwise, check time-based status
+    if ($current_time >= $auction_start_time && $current_time < $actual_auction_end_time) {
+        $is_live = true;
+        $time_remaining = $actual_auction_end_time - $current_time;
+    } elseif ($current_time >= $actual_auction_end_time) {
+        $is_ended = true;
+
+        // Check if auction ended with winning bid (and approve if not already done)
+        if ($total_bids >= 5 && $max_bid >= $post['price']) {
+            $is_sold = true;
+            // Approve only ONE winner — earliest bidder at the highest amount (tie-break: first come, first served)
+            $approve_stmt = $conn->prepare(
+                "UPDATE comments SET is_approved = 1
+                 WHERE post_id = ? AND CAST(comment_text AS DECIMAL(12,2)) = ?
+                 AND is_approved = 0
+                 ORDER BY created_at ASC LIMIT 1"
+            );
+            $approve_stmt->bind_param("id", $post_id, $max_bid);
+            $approve_stmt->execute();
+            $approve_stmt->close();
+        } elseif ($total_bids < 5) {
+            $is_unsold = true;
+        }
+    }
 }
 
 // Send notifications and adjust ratings if needed
@@ -109,7 +144,7 @@ if ($is_sold) {
     // Send notifications if winner found
     if ($winner_user_id) {
         // Check if notification already exists before creating
-        $check_notif = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type = 'comment_approved' LIMIT 1");
+        $check_notif = $conn->prepare("SELECT id FROM notifications WHERE user_id = ? AND post_id = ? AND type IN ('auction_won', 'comment_approved') LIMIT 1");
         $check_notif->bind_param("ii", $winner_user_id, $post_id);
         $check_notif->execute();
         $notif_result = $check_notif->get_result();
@@ -117,6 +152,9 @@ if ($is_sold) {
         if ($notif_result->num_rows == 0) {
             // Notify buyer about winning bid
             notifyBuyerWonBid($winner_user_id, $post_id, $post['product_name']);
+
+            // Notify farmer that their product was sold
+            createNotification($post['farmer_id'], $post_id, null, 'product_sold');
 
             // Adjust farmer rating for successful sale
             adjust_rating_for_sale($post['farmer_id'], $post_id, $max_bid);
@@ -1202,9 +1240,9 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
 
     <script>
         // Live countdown timer
-        <?php if ($is_live && $auction_end_time > $current_time): ?>
+        <?php if ($is_live && $actual_auction_end_time > $current_time): ?>
                 (function() {
-                    const endTime = <?php echo $auction_end_time; ?>;
+                    const endTime = <?php echo $actual_auction_end_time; ?>;
                     const textEl = document.getElementById('pd-countdown-text');
 
                     function pad(n) {
