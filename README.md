@@ -1,53 +1,47 @@
-# 🌾 Farmers' Market
+# Farmers' Market
 
-**Farmers' Market** is a web-based marketplace that connects local farmers and buyers directly.  
-Farmers list agricultural products for auction; buyers compete with bids; the platform automatically resolves winners, tracks deliveries, and maintains reputation scores for both sides — creating a transparent and efficient ecosystem for agricultural trade.
+Farmers' Market is a web marketplace where farmers list products and buyers place auction bids. The system automatically resolves winners, supports delivery workflows, and maintains reputation scores for buyers and farmers.
 
----
+## Features
 
-## 🚀 Features
+- Live auctions with countdown timers
+- Automatic winner selection (highest numeric bid)
+- Tie-break rule (earliest bidder wins on equal highest bid)
+- Buyer and farmer reputation scores on a 0-5 scale
+- Buyer reviews and farmer-to-buyer ratings
+- Delivery updates and transaction tracking
+- Notifications for bids, auction wins, delivery, and followed farmer posts
+- Messaging/chat between users
+- Wishlist for buyers
+- Follow/favorite farmer support
+- Search and filtering (category, location, price, status)
+- Admin tools for users, posts, statistics, and market prices
 
-### Auction & Bidding
+## Tech Stack
 
-- ⏱️ **Live Auction Countdown** — Real-time timers on every product listing
-- 🏆 **Automatic Winner Selection** — When an auction ends, the highest numeric bid wins automatically; no farmer intervention required
-- 🔢 **Tie-break fairness** — If two buyers bid the same amount, the earliest bidder wins
-- 🚫 **No manual approval** — Farmers cannot override or cherry-pick winning bids
+- Backend: PHP (procedural)
+- Database: MySQL / MariaDB
+- Frontend: Bootstrap 4, JavaScript, CSS
+- Server: Apache (XAMPP)
 
+## Reputation
 
-### Reputation System (0–5 stars)
+See [RATING_SYSTEM_README.md](RATING_SYSTEM_README.md) for full scoring details.
 
-- ⭐ **Buyer Score** — Calculated from bid fairness, purchase completion, payment speed, and farmer feedback
-- 🌱 **Farmer Score** — Calculated from buyer reviews, sale success rate, listing engagement, and delivery reliability
-- 🔄 **Always up-to-date** — Scores are fully recalculated from live data on every relevant event, not accumulated deltas
-- 📝 **Farmer rates buyer** — After marking an order delivered, farmers can leave a 1–5 star rating for the buyer
-- 🛒 **Buyer rates farmer** — Buyers can leave a product review after purchase, which directly feeds the farmer's score
+- Buyer score formula:
+  5 x (0.35 x BidFairness + 0.30 x PurchaseCompletion + 0.20 x PaymentSpeed + 0.15 x FarmerFeedback)
+- Farmer score formula:
+  5 x (0.40 x BuyerRatings + 0.25 x SaleSuccessRate + 0.20 x Engagement + 0.15 x DeliveryReliability)
+- Score range: 0.0 to 5.0
+- Default score for new users: 2.5
 
+## Quick Setup
 
----
+1. Place this project in your XAMPP htdocs directory.
+2. Start Apache and MySQL from XAMPP.
+3. Create a database in phpMyAdmin.
+4. Import [database.sql](database.sql). If needed, also import [delivery_migration.sql](delivery_migration.sql) and [farmer_market.sql](farmer_market.sql).
+5. Update database settings in [includes/config.php](includes/config.php) if your local credentials differ.
+6. Open http://localhost/demo in your browser.
 
-
-## ⚙️ Tech Stack
-
-| Layer      | Technology                                                 |
-| ---------- | ---------------------------------------------------------- |
-| Backend    | PHP (procedural)                                           |
-| Database   | MySQL / MariaDB 10.4                                       |
-| Frontend   | Bootstrap 4, Font Awesome 6, Google Fonts (Inter, Poppins) |
-| Server     | Apache via XAMPP                                           |
-| Animations | Lottie (login page)                                        |
-
-## ⭐ Reputation Algorithm
-
-See [RATING_SYSTEM_README.md](RATING_SYSTEM_README.md) for the full documentation.
-
-**Summary:**
-
-- **Buyer score** = 5 × (0.35 × BidFairness + 0.30 × PurchaseCompletion + 0.20 × PaymentSpeed + 0.15 × FarmerFeedback)
-- **Farmer score** = 5 × (0.40 × BuyerRatings + 0.25 × SaleSuccessRate + 0.20 × Engagement + 0.15 × DeliveryReliability)
-- Scale: **0.0 – 5.0 stars**
-- Default for new users: **2.5** (neutral)
-
----
-
-_Last Updated: March 9, 2026_
+Last updated: April 23, 2026.

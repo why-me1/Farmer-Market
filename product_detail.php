@@ -220,7 +220,7 @@ $min_bid = $post['price'];
 if ($max_bid && $max_bid > $post['price']) {
     $min_bid = $max_bid;
 }
-$min_bid += 0.01;
+$min_bid += 1;
 
 // Fetch all product images (post_images table, fall back to posts.image)
 $all_images = [];
@@ -582,7 +582,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                     <div class="pd-stats-strip">
                         <div class="pd-stat-item">
                             <div class="pd-stat-label">Starting Price</div>
-                            <div class="pd-stat-value price-val"><?php echo number_format($post['price'], 2); ?>৳</div>
+                            <div class="pd-stat-value price-val"><?php echo number_format($post['price'], 0); ?>৳</div>
                         </div>
                         <div class="pd-stat-divider"></div>
                         <div class="pd-stat-item">
@@ -663,7 +663,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                                 <div class="pd-mini-title"><?php echo htmlspecialchars($similar['product_name']); ?></div>
                                                 <div class="pd-mini-sub">by <?php echo htmlspecialchars($similar['username']); ?></div>
                                                 <div class="pd-mini-meta">
-                                                    <span><?php echo number_format((float)$similar['price'], 2); ?>৳</span>
+                                                    <span><?php echo number_format((float)$similar['price'], 0); ?>৳</span>
                                                     <span><i class="fas fa-gavel"></i> <?php echo (int)($similar['total_bids'] ?? 0); ?></span>
                                                 </div>
                                             </div>
@@ -695,7 +695,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                                 <div class="pd-mini-title"><?php echo htmlspecialchars($recent['product_name']); ?></div>
                                                 <div class="pd-mini-sub">by <?php echo htmlspecialchars($recent['username']); ?></div>
                                                 <div class="pd-mini-meta">
-                                                    <span><?php echo number_format((float)$recent['price'], 2); ?>৳</span>
+                                                    <span><?php echo number_format((float)$recent['price'], 0); ?>৳</span>
                                                     <span><i class="fas fa-eye"></i> Open</span>
                                                 </div>
                                             </div>
@@ -729,7 +729,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                             <?php if ($max_bid): ?>
                                 <div class="pd-bid-highlight">
                                     <span class="pd-bid-highlight-label">Current Highest Bid</span>
-                                    <span class="pd-bid-highlight-amount"><?php echo number_format($max_bid, 2); ?>৳</span>
+                                    <span class="pd-bid-highlight-amount"><?php echo number_format($max_bid, 0); ?>৳</span>
                                 </div>
                             <?php else: ?>
                                 <div class="pd-no-bid-msg">
@@ -747,17 +747,17 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                     <span class="pd-currency-sym">৳</span>
                                     <input type="number" name="comment_text"
                                         class="pd-bid-input"
-                                        placeholder="0.00"
-                                        required step="0.01" min="0.01"
-                                        value="<?php echo $min_bid; ?>">
-                                </div>
-                                <p class="pd-min-bid-hint">
-                                    <i class="fas fa-info-circle"></i>
-                                    Minimum bid: <strong><?php echo number_format($min_bid, 2); ?>৳</strong>
-                                </p>
-                                <button type="submit" class="pd-place-bid-btn">
-                                    <i class="fas fa-gavel"></i> Place Bid
-                                </button>
+                                        placeholder="0"
+                                        required step="1" min="1"
+                                        value="<?php echo intval($min_bid); ?>"
+                                        </div>
+                                    <p class="pd-min-bid-hint">
+                                        <i class="fas fa-info-circle"></i>
+                                        Minimum bid: <strong><?php echo number_format($min_bid, 0); ?>৳</strong>
+                                    </p>
+                                    <button type="submit" class="pd-place-bid-btn">
+                                        <i class="fas fa-gavel"></i> Place Bid
+                                    </button>
                             </form>
                         <?php else: ?>
                             <div class="pd-login-prompt">
@@ -787,7 +787,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                             <p class="pd-sold-sub">This product was sold!</p>
                             <?php if ($max_bid): ?>
                                 <div class="pd-sold-final-price">
-                                    Final Price: <strong><?php echo number_format($max_bid, 2); ?>৳</strong>
+                                    Final Price: <strong><?php echo number_format($max_bid, 0); ?>৳</strong>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -990,7 +990,7 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                             <i class="fas fa-crown pd-winner-crown" title="Winner"></i>
                                         <?php endif; ?>
                                     </span>
-                                    <span class="pd-bid-amount-col"><?php echo number_format($bid['comment_text'], 2); ?>৳</span>
+                                    <span class="pd-bid-amount-col"><?php echo number_format($bid['comment_text'], 0); ?>৳</span>
                                     <span class="pd-bid-time-col"><?php echo date("h:i A", strtotime($bid['created_at'])); ?></span>
                                 </div>
                             <?php
