@@ -67,6 +67,22 @@ function ratings_ensure_schema()
         `paid_at`    TIMESTAMP NULL DEFAULT NULL,
         UNIQUE KEY `unique_transaction` (`post_id`, `buyer_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    // Keep a transparent audit trail for score increases/decreases.
+    $conn->query("CREATE TABLE IF NOT EXISTS `rating_score_history` (
+        `id`             INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        `user_id`        INT NOT NULL,
+        `score_type`     VARCHAR(40) NOT NULL,
+        `trigger_event`  VARCHAR(80) NOT NULL,
+        `old_score`      DECIMAL(3,1) NOT NULL,
+        `new_score`      DECIMAL(3,1) NOT NULL,
+        `delta`          DECIMAL(4,1) NOT NULL,
+        `breakdown_json` TEXT NULL,
+        `context_json`   TEXT NULL,
+        `created_at`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_rsh_user_created` (`user_id`, `created_at`),
+        INDEX `idx_rsh_user_type` (`user_id`, `score_type`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
@@ -107,6 +123,174 @@ function update_user_rating($user_id, $delta)
     return save_user_rating($user_id, get_user_automatic_rating($user_id) + $delta);
 }
 
+function rating_factor_signal($score_01)
+{
+    $score_01 = (float)$score_01;
+    if ($score_01 >= 0.75) return 'strong';
+    if ($score_01 >= 0.50) return 'neutral';
+    return 'weak';
+}
+
+function rating_event_label($event)
+{
+    $map = [
+        'bid_placed' => 'Bid placed',
+        'auction_won' => 'Auction won',
+        'delivery_confirmed' => 'Delivery confirmed',
+        'farmer_feedback_submitted' => 'Farmer feedback submitted',
+        'review_submitted' => 'Product review submitted',
+        'listing_activity' => 'Listing activity changed',
+        'listing_unsold' => 'Listing ended unsold',
+        'listing_engagement_updated' => 'Listing engagement updated',
+        'system_recalculation' => 'System recalculation'
+    ];
+    return isset($map[$event]) ? $map[$event] : ucwords(str_replace('_', ' ', (string)$event));
+}
+
+function rating_event_reason($trigger_event, $score_type, $context = null)
+{
+    $ctx = is_array($context) ? $context : [];
+
+    if ($trigger_event === 'bid_placed') {
+        $bid = isset($ctx['bid_amount']) ? (float)$ctx['bid_amount'] : null;
+        $asking = isset($ctx['asking_price']) ? (float)$ctx['asking_price'] : null;
+        if ($bid !== null && $asking !== null && $asking > 0) {
+            $pct_below = (($asking - $bid) / $asking) * 100.0;
+            if ($pct_below <= 10) return 'Your bid was close to asking price, which supports Bid Fairness.';
+            if ($pct_below <= 30) return 'Your bid was moderately below asking price, slightly reducing Bid Fairness.';
+            if ($pct_below <= 50) return 'Your bid was far below asking price, lowering Bid Fairness.';
+            return 'Your bid was very low versus asking price, strongly reducing Bid Fairness.';
+        }
+        return 'A newly placed bid recalculated your Bid Fairness.';
+    }
+
+    if ($trigger_event === 'review_submitted') {
+        $rating = isset($ctx['rating']) ? (float)$ctx['rating'] : null;
+        if ($rating !== null) {
+            return 'A new product review of ' . number_format($rating, 1) . '/5 updated your Buyer Ratings factor.';
+        }
+        return 'A new product review recalculated your Buyer Ratings factor.';
+    }
+
+    if ($trigger_event === 'farmer_feedback_submitted') {
+        $rating = isset($ctx['rating']) ? (float)$ctx['rating'] : null;
+        if ($rating !== null) {
+            return 'Farmer feedback of ' . number_format($rating, 1) . '/5 updated your Farmer Feedback factor.';
+        }
+        return 'New farmer feedback recalculated your Farmer Feedback factor.';
+    }
+
+    if ($trigger_event === 'delivery_confirmed') {
+        if ($score_type === 'buyer_reputation') {
+            return 'Delivery confirmation updated your payment speed and completion-related signals.';
+        }
+        return 'Delivery confirmation improved delivery reliability and completion-related signals.';
+    }
+
+    if ($trigger_event === 'auction_won') {
+        if ($score_type === 'buyer_reputation') {
+            return 'A recorded auction win updated your purchase completion progress.';
+        }
+        return 'A recorded auction result updated your sale success and activity signals.';
+    }
+
+    if ($trigger_event === 'listing_engagement_updated') {
+        return 'Bidder activity on your listing changed your Engagement Score.';
+    }
+
+    if ($trigger_event === 'listing_unsold') {
+        return 'An unsold listing affected your sale-success related factors.';
+    }
+
+    if ($trigger_event === 'listing_activity') {
+        return 'Listing activity changed your marketplace performance factors.';
+    }
+
+    return 'Your reputation was recalculated from the latest marketplace activity.';
+}
+
+function log_rating_score_change($user_id, $score_type, $trigger_event, $old_score, $new_score, array $breakdown = [], array $context = [])
+{
+    global $conn;
+
+    $old_score = clamp_rating($old_score);
+    $new_score = clamp_rating($new_score);
+    $delta = round($new_score - $old_score, 1);
+
+    // Skip no-op rows to keep history readable.
+    if (abs($delta) < 0.1) {
+        return;
+    }
+
+    $breakdown_json = !empty($breakdown) ? json_encode($breakdown) : null;
+    $context_json = !empty($context) ? json_encode($context) : null;
+
+    $stmt = $conn->prepare(
+        "INSERT INTO rating_score_history
+         (user_id, score_type, trigger_event, old_score, new_score, delta, breakdown_json, context_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    if (!$stmt) {
+        return;
+    }
+
+    $stmt->bind_param(
+        "issdddss",
+        $user_id,
+        $score_type,
+        $trigger_event,
+        $old_score,
+        $new_score,
+        $delta,
+        $breakdown_json,
+        $context_json
+    );
+    $stmt->execute();
+    $stmt->close();
+}
+
+function get_rating_change_history($user_id, $score_type = null, $limit = 15)
+{
+    global $conn;
+    ratings_ensure_schema();
+
+    $limit = max(1, min(50, (int)$limit));
+
+    if ($score_type) {
+        $stmt = $conn->prepare(
+            "SELECT id, score_type, trigger_event, old_score, new_score, delta, breakdown_json, context_json, created_at
+             FROM rating_score_history
+             WHERE user_id = ? AND score_type = ?
+             ORDER BY created_at DESC, id DESC
+             LIMIT ?"
+        );
+        $stmt->bind_param("isi", $user_id, $score_type, $limit);
+    } else {
+        $stmt = $conn->prepare(
+            "SELECT id, score_type, trigger_event, old_score, new_score, delta, breakdown_json, context_json, created_at
+             FROM rating_score_history
+             WHERE user_id = ?
+             ORDER BY created_at DESC, id DESC
+             LIMIT ?"
+        );
+        $stmt->bind_param("ii", $user_id, $limit);
+    }
+
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    foreach ($rows as &$row) {
+        $row['event_label'] = rating_event_label($row['trigger_event']);
+        $row['direction'] = ((float)$row['delta'] > 0) ? 'increase' : 'decrease';
+        $row['breakdown'] = !empty($row['breakdown_json']) ? json_decode($row['breakdown_json'], true) : null;
+        $row['context'] = !empty($row['context_json']) ? json_decode($row['context_json'], true) : null;
+        $row['reason'] = rating_event_reason($row['trigger_event'], $row['score_type'], $row['context']);
+    }
+
+    return $rows;
+}
+
 // ─── Market price helpers (public API unchanged) ─────────────────────────────
 
 function get_market_price_for_product($product_name)
@@ -132,6 +316,126 @@ function set_market_price_for_product($product_name, $price, $admin_id = null)
     $stmt->bind_param("sdi", $product_name, $price, $admin_id);
     $stmt->execute();
     $stmt->close();
+}
+
+function get_buyer_reputation_breakdown($buyer_id)
+{
+    $bid_fairness        = _buyer_bid_fairness($buyer_id);
+    $purchase_completion = _buyer_purchase_completion($buyer_id);
+    $payment_speed       = _buyer_payment_speed($buyer_id);
+    $farmer_feedback     = _buyer_farmer_feedback($buyer_id);
+
+    $factors = [
+        [
+            'key' => 'bid_fairness',
+            'label' => 'Bid Fairness',
+            'weight' => 0.35,
+            'score_01' => round($bid_fairness, 4),
+            'signal' => rating_factor_signal($bid_fairness),
+            'note' => 'How close your bids are to asking prices.'
+        ],
+        [
+            'key' => 'purchase_completion',
+            'label' => 'Purchase Completion',
+            'weight' => 0.30,
+            'score_01' => round($purchase_completion, 4),
+            'signal' => rating_factor_signal($purchase_completion),
+            'note' => 'Delivered wins divided by all wins.'
+        ],
+        [
+            'key' => 'payment_speed',
+            'label' => 'Payment Speed',
+            'weight' => 0.20,
+            'score_01' => round($payment_speed, 4),
+            'signal' => rating_factor_signal($payment_speed),
+            'note' => 'How quickly wins are marked completed.'
+        ],
+        [
+            'key' => 'farmer_feedback',
+            'label' => 'Farmer Feedback',
+            'weight' => 0.15,
+            'score_01' => round($farmer_feedback, 4),
+            'signal' => rating_factor_signal($farmer_feedback),
+            'note' => 'Ratings from farmers after deliveries.'
+        ]
+    ];
+
+    $weighted_total = 0.0;
+    foreach ($factors as &$factor) {
+        $weighted = $factor['weight'] * $factor['score_01'];
+        $factor['weighted_01'] = round($weighted, 4);
+        $factor['weighted_05'] = round($weighted * 5.0, 2);
+        $factor['score_05'] = round($factor['score_01'] * 5.0, 2);
+        $weighted_total += $weighted;
+    }
+
+    return [
+        'score_type' => 'buyer_reputation',
+        'title' => 'Buyer Reputation',
+        'score' => clamp_rating(5.0 * $weighted_total),
+        'factors' => $factors,
+        'formula' => '5 × (0.35×BidFairness + 0.30×PurchaseCompletion + 0.20×PaymentSpeed + 0.15×FarmerFeedback)'
+    ];
+}
+
+function get_farmer_reputation_breakdown($farmer_id)
+{
+    $buyer_ratings        = _farmer_buyer_ratings($farmer_id);
+    $sale_success         = _farmer_sale_success_rate($farmer_id);
+    $engagement           = _farmer_engagement($farmer_id);
+    $delivery_reliability = _farmer_delivery_reliability($farmer_id);
+
+    $factors = [
+        [
+            'key' => 'buyer_ratings',
+            'label' => 'Buyer Ratings',
+            'weight' => 0.40,
+            'score_01' => round($buyer_ratings, 4),
+            'signal' => rating_factor_signal($buyer_ratings),
+            'note' => 'Average buyer review rating for your listings.'
+        ],
+        [
+            'key' => 'sale_success_rate',
+            'label' => 'Sale Success Rate',
+            'weight' => 0.25,
+            'score_01' => round($sale_success, 4),
+            'signal' => rating_factor_signal($sale_success),
+            'note' => 'Sold or delivered listings divided by approved listings.'
+        ],
+        [
+            'key' => 'engagement_score',
+            'label' => 'Engagement Score',
+            'weight' => 0.20,
+            'score_01' => round($engagement, 4),
+            'signal' => rating_factor_signal($engagement),
+            'note' => 'Unique bidder participation per listing.'
+        ],
+        [
+            'key' => 'delivery_reliability',
+            'label' => 'Delivery Reliability',
+            'weight' => 0.15,
+            'score_01' => round($delivery_reliability, 4),
+            'signal' => rating_factor_signal($delivery_reliability),
+            'note' => 'Delivered sales divided by all completed sales.'
+        ]
+    ];
+
+    $weighted_total = 0.0;
+    foreach ($factors as &$factor) {
+        $weighted = $factor['weight'] * $factor['score_01'];
+        $factor['weighted_01'] = round($weighted, 4);
+        $factor['weighted_05'] = round($weighted * 5.0, 2);
+        $factor['score_05'] = round($factor['score_01'] * 5.0, 2);
+        $weighted_total += $weighted;
+    }
+
+    return [
+        'score_type' => 'farmer_reputation',
+        'title' => 'Farmer Reputation',
+        'score' => clamp_rating(5.0 * $weighted_total),
+        'factors' => $factors,
+        'formula' => '5 × (0.40×BuyerRatings + 0.25×SaleSuccessRate + 0.20×EngagementScore + 0.15×DeliveryReliability)'
+    ];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -276,23 +580,15 @@ function _buyer_farmer_feedback($buyer_id)
  *                   + 0.20 × PaymentSpeed
  *                   + 0.15 × FarmerFeedback)
  */
-function calculate_buyer_reputation($buyer_id)
+function calculate_buyer_reputation($buyer_id, $trigger_event = 'system_recalculation', array $context = [])
 {
     ratings_ensure_schema();
 
-    $bid_fairness        = _buyer_bid_fairness($buyer_id);
-    $purchase_completion = _buyer_purchase_completion($buyer_id);
-    $payment_speed       = _buyer_payment_speed($buyer_id);
-    $farmer_feedback     = _buyer_farmer_feedback($buyer_id);
-
-    $score = 5.0 * (
-        0.35 * $bid_fairness
-        + 0.30 * $purchase_completion
-        + 0.20 * $payment_speed
-        + 0.15 * $farmer_feedback
-    );
-
-    return save_user_rating($buyer_id, $score);
+    $old_score = get_user_automatic_rating($buyer_id);
+    $breakdown = get_buyer_reputation_breakdown($buyer_id);
+    $new_score = save_user_rating($buyer_id, $breakdown['score']);
+    log_rating_score_change($buyer_id, 'buyer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+    return $new_score;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -432,23 +728,15 @@ function _farmer_delivery_reliability($farmer_id)
  *                    + 0.20 × EngagementScore
  *                    + 0.15 × DeliveryReliability)
  */
-function calculate_farmer_reputation($farmer_id)
+function calculate_farmer_reputation($farmer_id, $trigger_event = 'system_recalculation', array $context = [])
 {
     ratings_ensure_schema();
 
-    $buyer_ratings        = _farmer_buyer_ratings($farmer_id);
-    $sale_success         = _farmer_sale_success_rate($farmer_id);
-    $engagement           = _farmer_engagement($farmer_id);
-    $delivery_reliability = _farmer_delivery_reliability($farmer_id);
-
-    $score = 5.0 * (
-        0.40 * $buyer_ratings
-        + 0.25 * $sale_success
-        + 0.20 * $engagement
-        + 0.15 * $delivery_reliability
-    );
-
-    return save_user_rating($farmer_id, $score);
+    $old_score = get_user_automatic_rating($farmer_id);
+    $breakdown = get_farmer_reputation_breakdown($farmer_id);
+    $new_score = save_user_rating($farmer_id, $breakdown['score']);
+    log_rating_score_change($farmer_id, 'farmer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+    return $new_score;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -487,7 +775,7 @@ function record_buyer_payment($buyer_id, $post_id)
     $stmt->bind_param("ii", $buyer_id, $post_id);
     $stmt->execute();
     $stmt->close();
-    return calculate_buyer_reputation($buyer_id);
+    return calculate_buyer_reputation($buyer_id, 'delivery_confirmed', ['post_id' => (int)$post_id]);
 }
 
 /**
@@ -507,7 +795,11 @@ function add_farmer_buyer_rating($farmer_id, $buyer_id, $post_id, $rating)
     $stmt->bind_param("iiid", $farmer_id, $buyer_id, $post_id, $rating);
     $stmt->execute();
     $stmt->close();
-    return calculate_buyer_reputation($buyer_id);
+    return calculate_buyer_reputation(
+        $buyer_id,
+        'farmer_feedback_submitted',
+        ['post_id' => (int)$post_id, 'farmer_id' => (int)$farmer_id, 'rating' => (float)$rating]
+    );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -518,12 +810,20 @@ function add_farmer_buyer_rating($farmer_id, $buyer_id, $post_id, $rating)
 
 function adjust_rating_for_bid($user_id, $bid_amount, $farmer_price)
 {
-    return calculate_buyer_reputation($user_id);
+    return calculate_buyer_reputation(
+        $user_id,
+        'bid_placed',
+        ['bid_amount' => (float)$bid_amount, 'asking_price' => (float)$farmer_price]
+    );
 }
 
 function adjust_rating_for_post($farmer_id, $post_price, $product_name)
 {
-    return calculate_farmer_reputation($farmer_id);
+    return calculate_farmer_reputation(
+        $farmer_id,
+        'listing_activity',
+        ['post_price' => (float)$post_price, 'product_name' => (string)$product_name]
+    );
 }
 
 function adjust_rating_for_sale($farmer_id, $post_id, $final_bid_amount)
@@ -540,20 +840,28 @@ function adjust_rating_for_sale($farmer_id, $post_id, $final_bid_amount)
 
     if ($row) {
         record_auction_win($row['user_id'], $post_id, $farmer_id);
-        calculate_buyer_reputation($row['user_id']);
+        calculate_buyer_reputation($row['user_id'], 'auction_won', ['post_id' => (int)$post_id]);
     }
 
-    return calculate_farmer_reputation($farmer_id);
+    return calculate_farmer_reputation(
+        $farmer_id,
+        'auction_won',
+        ['post_id' => (int)$post_id, 'final_bid_amount' => (float)$final_bid_amount]
+    );
 }
 
 function adjust_rating_for_unsold($farmer_id, $post_id)
 {
-    return calculate_farmer_reputation($farmer_id);
+    return calculate_farmer_reputation($farmer_id, 'listing_unsold', ['post_id' => (int)$post_id]);
 }
 
 function adjust_rating_for_bidding_activity($farmer_id, $post_id, $bid_count)
 {
-    return calculate_farmer_reputation($farmer_id);
+    return calculate_farmer_reputation(
+        $farmer_id,
+        'listing_engagement_updated',
+        ['post_id' => (int)$post_id, 'bid_count' => (int)$bid_count]
+    );
 }
 
 // Bootstrap schema on first include

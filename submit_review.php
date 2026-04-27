@@ -35,7 +35,11 @@ if ($stmt->execute()) {
     $farmer_row = $farmer_stmt->get_result()->fetch_assoc();
     $farmer_stmt->close();
     if ($farmer_row && $farmer_row['farmer_id']) {
-        calculate_farmer_reputation($farmer_row['farmer_id']);
+        calculate_farmer_reputation(
+            $farmer_row['farmer_id'],
+            'review_submitted',
+            ['product_id' => (int)$product_id, 'reviewer_id' => (int)$user_id, 'rating' => (int)$rating]
+        );
     }
 
     // Set success message in session

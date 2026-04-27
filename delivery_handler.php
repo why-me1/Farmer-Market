@@ -148,7 +148,7 @@ if ($action === 'initiate_delivery' && $user_role === 'farmer') {
 
     // Update reputation scores
     record_buyer_payment($buyer_id, $post_id);
-    calculate_farmer_reputation($user_id);
+    calculate_farmer_reputation($user_id, 'delivery_confirmed', ['post_id' => (int)$post_id]);
 
     echo json_encode([
         'success'       => true,
@@ -229,7 +229,7 @@ if ($action === 'verify_otp' && $user_role === 'farmer') {
 
     // Update reputation scores
     record_buyer_payment($buyer_id, $post_id);
-    calculate_farmer_reputation($user_id);
+    calculate_farmer_reputation($user_id, 'delivery_confirmed', ['post_id' => (int)$post_id]);
 
     echo json_encode([
         'success' => true,

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
@@ -782,6 +782,22 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             color: #64748b;
         }
 
+        .score-insights-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            font-size: .72rem;
+            font-weight: 700;
+            color: #0f766e;
+            text-decoration: none;
+        }
+
+        .score-insights-link:hover {
+            color: #0c5f5a;
+            text-decoration: none;
+        }
+
         /* Section heading */
         .section-heading {
             font-size: .78rem;
@@ -892,10 +908,15 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                         <?php echo number_format($fairness_rating, 1); ?>
                         <span style="font-size:.9rem;color:#94a3b8;font-weight:500;">/5</span>
                     </div>
-                    <div class="rating-label-sm">Bidding Fairness</div>
+                    <div class="rating-label-sm">Buyer Reputation</div>
                     <div class="rating-tag" style="background:<?php echo $rating_color; ?>18;color:<?php echo $rating_color; ?>">
                         <?php echo $rating_label; ?>
                     </div>
+                    <?php if (!empty($_SESSION['user_id']) && (int)$_SESSION['user_id'] === $userId): ?>
+                        <a href="<?php echo $base_url; ?>score_insights.php" class="score-insights-link">
+                            <i class="bi bi-graph-up-arrow"></i> Score Insights
+                        </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

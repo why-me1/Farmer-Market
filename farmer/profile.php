@@ -1256,6 +1256,11 @@ $fp_is_following = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== 
                                 </div>
                                 <div class="rp-val"><?php echo number_format($fairness_rating, 1); ?><span style="font-size:.7rem;font-weight:500;color:#94a3b8;">/5</span></div>
                                 <div class="rp-sub">Seller reputation</div>
+                                <?php if (!empty($_SESSION['user_id']) && (int)$_SESSION['user_id'] === $farmerId): ?>
+                                <a href="<?php echo $base_url; ?>score_insights.php" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:.72rem;font-weight:700;color:#0f766e;text-decoration:none;">
+                                    <i class="fas fa-chart-line"></i> Score Insights
+                                </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -1440,6 +1445,11 @@ $fp_is_following = isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] !== 
                             <div class="fp-bar-track" style="margin-bottom:0;">
                                 <div class="fp-bar-fill" style="width:<?php echo $fairness_rating / 5 * 100; ?>%;background:linear-gradient(90deg,#10b981,#059669);"></div>
                             </div>
+                            <?php if (!empty($_SESSION['user_id']) && (int)$_SESSION['user_id'] === $farmerId): ?>
+                                <a href="<?php echo $base_url; ?>score_insights.php" style="display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:.72rem;font-weight:700;color:#0f766e;text-decoration:none;">
+                                    <i class="fas fa-chart-line"></i> Score Insights
+                                </a>
+                            <?php endif; ?>
                         </div>
 
                         <!-- Trust score -->

@@ -435,6 +435,16 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             color: #4a5568;
         }
 
+        .ud-btn-insights {
+            background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+            color: #0f766e;
+        }
+
+        .ud-btn-insights:hover {
+            color: #0f766e;
+            background: linear-gradient(135deg, #bfdbfe, #bae6fd);
+        }
+
         @media(max-width:576px) {
             .ud-profile-card {
                 padding: 0 16px 18px;
@@ -1244,6 +1254,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             <i class="fas fa-star"></i>
                             Fairness: <strong><?php echo number_format($fairness_rating, 1); ?> / 5</strong>
                         </div>
+                        <a href="../score_insights.php" class="ud-btn-edit ud-btn-insights"><i class="fas fa-chart-line"></i> Score Insights</a>
                         <a href="edit_profile.php" class="ud-btn-edit"><i class="fas fa-pen"></i> Edit Profile</a>
                     </div>
                 </div>
