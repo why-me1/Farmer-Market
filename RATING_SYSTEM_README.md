@@ -37,13 +37,14 @@ Only numeric bids are included. Bids above the asking price are treated as withi
 
 ### Factor 2 — Purchase Completion (weight: 30%)
 
-Ratio of auctions the buyer actually received delivery on vs total auctions they won.
+Ratio of delivered auctions vs eligible auction wins. Includes a **3-day grace period** for items currently in transit.
 
-> PurchaseCompletion = delivered wins ÷ total wins
+> PurchaseCompletion = delivered wins ÷ eligible wins
 
-- A buyer who wins and always receives delivery scores **1.0**
-- A buyer who wins but orders are never marked delivered scores **0.0**
-- No wins yet → **0.5** (neutral)
+- A buyer who receives delivery on all completed orders scores **1.0**
+- Items won within the last 3 days (`sold` state) are assumed to be in transit and are **ignored**.
+- Items stuck in the `sold` state for **> 3 days** without an OTP confirmation are assumed stalled/ghosted, and are counted as a failure against the buyer's score.
+- No eligible wins yet → **0.5** (neutral)
 
 **Triggered by:** every bid placed; every delivery confirmed in Manage Orders
 
@@ -105,12 +106,13 @@ Average star rating (1–5) left by buyers on the farmer's products via product 
 
 ### Factor 2 — Sale Success Rate (weight: 25%)
 
-Proportion of the farmer's admin-approved listings that have been sold or delivered.
+Proportion of the farmer's resolved listings that successfully resulted in a sale.
 
-> SaleSuccessRate = (sold + delivered posts) ÷ approved posts
+> SaleSuccessRate = (sold + delivered posts) ÷ total resolved posts
 
-- Only admin-approved listings count in the denominator — posts still awaiting approval do not penalise the farmer
-- No approved posts yet → **0.5** (neutral)
+- **Active listings are completely ignored.** Farmers are not penalised for simply adding new inventory to the market.
+- Only admin-approved, non-active listings count in the denominator.
+- No resolved posts yet → **0.5** (neutral)
 
 **Triggered by:** any event that recalculates the farmer score (bid placed, auction won, delivery confirmed)
 
@@ -135,12 +137,14 @@ No listings with bids yet → **0.1**
 
 ### Factor 4 — Delivery Reliability (weight: 15%)
 
-Proportion of completed sales that the farmer has marked as delivered.
+Proportion of eligible sales that the farmer has successfully marked as delivered. Includes a **3-day grace period** for items currently in transit.
 
-> DeliveryReliability = delivered posts ÷ (sold + delivered posts)
+> DeliveryReliability = delivered posts ÷ eligible sales
 
-- A farmer who always marks delivery scores **1.0**
-- No completed sales yet → **0.5** (neutral)
+- A farmer who always delivers eligible orders scores **1.0**
+- Items sold within the last 3 days (`sold` state) are assumed to be safely on the delivery truck and are **ignored**.
+- Items stuck in the `sold` state for **> 3 days** are assumed stalled/failed, and count as a failure against the farmer's score.
+- No eligible sales yet → **0.5** (neutral)
 
 **Triggered by:** farmer marking an order as Delivered
 
@@ -208,8 +212,9 @@ Badge thresholds on profiles:
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | v1.0           | Delta-based system: fixed +/- adjustments on 0–10 scale                                                                                                                                                                                                                      |
 | v2.0           | Added sale speed, unsold penalties, bidding activity deltas                                                                                                                                                                                                                  |
-| v3.0 (current) | Full rewrite: multi-factor weighted formula, 0–5 scale, full recalculation on every event, `transactions` and `buyer_ratings` tables, farmer-rates-buyer UI, auction winner tie-break fix, sale success rate excludes unapproved posts, reviews trigger farmer recalculation |
+| v3.0           | Full rewrite: multi-factor weighted formula, 0–5 scale, full recalculation on every event, `transactions` and `buyer_ratings` tables, farmer-rates-buyer UI, auction winner tie-break fix, sale success rate excludes unapproved posts, reviews trigger farmer recalculation |
+| v3.1 (current) | Added **3-Day Grace Period** algorithm for Purchase Completion and Delivery Reliability to ensure users aren't penalised while goods are in transit. Updated **Sale Success Rate** to ignore active listings, preventing penalties for new inventory.                          |
 
 ---
 
-_Last Updated: March 9, 2026_
+_Last Updated: May 2, 2026_

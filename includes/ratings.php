@@ -490,37 +490,47 @@ function _buyer_bid_fairness(int $buyer_id): float
 
 /**
  * PurchaseCompletion (0–1)
- * Delivered auctions / total auction wins.
- * Returns 0.5 (neutral) when buyer has never won anything.
+ * Delivered auctions / eligible auction wins.
+ * Includes a 3-day grace period for 'sold' items (assumed in transit).
+ * Returns 0.5 (neutral) when buyer has no eligible wins.
  */
 function _buyer_purchase_completion(int $buyer_id): float
 {
     global $conn;
 
-    $wins = 0;
-    $completed = 0;
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE user_id = ? AND is_approved = 1");
-    $stmt->bind_param("i", $buyer_id);
-    $stmt->execute();
-    $stmt->bind_result($wins);
-    $stmt->fetch();
-    $stmt->close();
-
-    if ($wins == 0) return 0.5;
-
     $stmt = $conn->prepare(
-        "SELECT COUNT(*) FROM comments c
+        "SELECT p.status, COALESCE(t.win_at, c.created_at) as event_time
+         FROM comments c
          JOIN posts p ON p.id = c.post_id
-         WHERE c.user_id = ? AND c.is_approved = 1 AND p.status = 'delivered'"
+         LEFT JOIN transactions t ON t.post_id = p.id AND t.buyer_id = c.user_id
+         WHERE c.user_id = ? AND c.is_approved = 1"
     );
     $stmt->bind_param("i", $buyer_id);
     $stmt->execute();
-    $stmt->bind_result($completed);
-    $stmt->fetch();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
-    return (float)$completed / (float)$wins;
+    if (empty($rows)) return 0.5;
+
+    $eligible_total = 0;
+    $completed = 0;
+    $now = time();
+
+    foreach ($rows as $r) {
+        if ($r['status'] === 'delivered') {
+            $eligible_total++;
+            $completed++;
+        } elseif ($r['status'] === 'sold') {
+            // Grace Period: > 3 days (259200 seconds) implies a stalled/failed transaction
+            $event_time = strtotime($r['event_time']);
+            if (($now - $event_time) > 259200) {
+                $eligible_total++;
+            }
+        }
+    }
+
+    if ($eligible_total == 0) return 0.5;
+    return (float)$completed / (float)$eligible_total;
 }
 
 /**
@@ -623,24 +633,25 @@ function _farmer_buyer_ratings(int $farmer_id): float
 
 /**
  * SaleSuccessRate (0–1)
- * Products with status sold or delivered / total products listed.
+ * Products with status sold or delivered / total resolved products.
+ * Ignores active listings entirely.
  * Returns 0.5 (neutral) until the farmer has at least one completed sale.
  */
 function _farmer_sale_success_rate(int $farmer_id): float
 {
     global $conn;
 
-    $total = 0;
+    $total_resolved = 0;
     $sold = 0;
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND is_approved = 1");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND is_approved = 1 AND status != 'active'");
     $stmt->bind_param("i", $farmer_id);
     $stmt->execute();
-    $stmt->bind_result($total);
+    $stmt->bind_result($total_resolved);
     $stmt->fetch();
     $stmt->close();
 
-    if ($total == 0) return 0.5;
+    if ($total_resolved == 0) return 0.5;
 
     $stmt = $conn->prepare(
         "SELECT COUNT(*) FROM posts
@@ -654,7 +665,7 @@ function _farmer_sale_success_rate(int $farmer_id): float
 
     if ($sold == 0) return 0.5;
 
-    return (float)$sold / (float)$total;
+    return (float)$sold / (float)$total_resolved;
 }
 
 /**
@@ -696,38 +707,46 @@ function _farmer_engagement(int $farmer_id): float
 
 /**
  * DeliveryReliability (0–1)
- * Delivered posts / (sold + delivered posts).
- * Returns 0.5 (neutral) when farmer has no completed sales.
+ * Delivered posts / eligible (sold + delivered) posts.
+ * Includes a 3-day grace period for 'sold' items.
+ * Returns 0.5 (neutral) when farmer has no eligible sales.
  */
 function _farmer_delivery_reliability(int $farmer_id): float
 {
     global $conn;
 
-    $sold_total = 0;
+    $stmt = $conn->prepare(
+        "SELECT p.status, COALESCE(t.win_at, p.created_at) as event_time
+         FROM posts p
+         LEFT JOIN transactions t ON t.post_id = p.id
+         WHERE p.farmer_id = ? AND p.status IN ('sold', 'delivered')"
+    );
+    $stmt->bind_param("i", $farmer_id);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+
+    if (empty($rows)) return 0.5;
+
+    $eligible_total = 0;
     $delivered = 0;
+    $now = time();
 
-    $stmt = $conn->prepare(
-        "SELECT COUNT(*) FROM posts
-         WHERE farmer_id = ? AND status IN ('sold', 'delivered')"
-    );
-    $stmt->bind_param("i", $farmer_id);
-    $stmt->execute();
-    $stmt->bind_result($sold_total);
-    $stmt->fetch();
-    $stmt->close();
+    foreach ($rows as $r) {
+        if ($r['status'] === 'delivered') {
+            $eligible_total++;
+            $delivered++;
+        } elseif ($r['status'] === 'sold') {
+            // Grace Period: > 3 days (259200 seconds) implies a stalled/failed delivery
+            $event_time = strtotime($r['event_time']);
+            if (($now - $event_time) > 259200) {
+                $eligible_total++;
+            }
+        }
+    }
 
-    if ($sold_total == 0) return 0.5;
-
-    $stmt = $conn->prepare(
-        "SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND status = 'delivered'"
-    );
-    $stmt->bind_param("i", $farmer_id);
-    $stmt->execute();
-    $stmt->bind_result($delivered);
-    $stmt->fetch();
-    $stmt->close();
-
-    return (float)$delivered / (float)$sold_total;
+    if ($eligible_total == 0) return 0.5;
+    return (float)$delivered / (float)$eligible_total;
 }
 
 /**
