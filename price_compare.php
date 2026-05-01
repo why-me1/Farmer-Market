@@ -95,546 +95,583 @@ foreach ($grouped as $cat => $items) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Comparison - Farmers' Market</title>
     <meta name="description" content="Compare prices of fresh farm products across multiple farmers. Find the best deals on vegetables, fruits, dairy and more.">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/styles.css?v=<?php echo time(); ?>">
     <style>
+        :root {
+            --bg-dark: #090e17;
+            --bg-darker: #05080f;
+            --glass-bg: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent-1: #10b981; /* Emerald */
+            --accent-2: #06b6d4; /* Cyan */
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: #f0f4f8;
-            color: #1e2d3d;
+            background-color: var(--bg-dark) !important;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.08), transparent 25%) !important;
+            background-attachment: fixed !important;
+            color: var(--text-main) !important;
+            margin: 0;
+            min-height: 100vh;
         }
 
-        /* ── Hero ── */
+        /* ── HERO ── */
         .pc-hero {
-            background: linear-gradient(135deg, #0d6e5e 0%, #11998e 50%, #38ef7d 100%);
-            padding: 52px 0 80px;
-            color: #fff;
+            padding: 80px 0 130px;
             position: relative;
             overflow: hidden;
-        }
-
-        .pc-hero::before {
-            content: '';
-            position: absolute;
-            width: 380px;
-            height: 380px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, .06);
-            top: -100px;
-            right: -80px;
-            pointer-events: none;
+            border-bottom: 1px solid var(--glass-border);
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
         }
 
         .pc-hero::after {
             content: '';
             position: absolute;
-            width: 220px;
-            height: 220px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, .04);
-            bottom: -60px;
-            left: 20%;
-            pointer-events: none;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
         }
 
         .pc-hero-badge {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            background: rgba(255, 255, 255, .18);
-            border: 1px solid rgba(255, 255, 255, .3);
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             border-radius: 30px;
-            padding: 5px 15px;
+            padding: 6px 18px;
             font-size: 11px;
             font-weight: 700;
-            letter-spacing: 1.2px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
-            margin-bottom: 14px;
+            color: var(--accent-1);
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
         }
 
         .pc-hero h1 {
             font-family: 'Poppins', sans-serif;
-            font-size: clamp(26px, 4vw, 40px);
+            font-size: clamp(32px, 5vw, 56px);
             font-weight: 800;
-            margin: 0 0 10px;
-            letter-spacing: -.5px;
+            line-height: 1.1;
+            margin: 0 0 16px;
+            color: #fff;
+        }
+
+        .pc-hero h1 span {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .pc-hero .sub {
-            font-size: 15px;
-            opacity: .85;
-            max-width: 520px;
+            font-size: 16px;
+            color: var(--text-muted);
+            max-width: 600px;
+            line-height: 1.6;
         }
 
-        /* ── Search bar ── */
+        /* ── Search ── */
         .pc-search-wrap {
-            background: #fff;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
             border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, .14);
-            padding: 6px 8px 6px 20px;
+            padding: 8px 10px 8px 24px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 30px;
+            gap: 14px;
+            margin-top: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
         }
 
-        .pc-search-wrap i {
-            color: #94a3b8;
-            font-size: 15px;
+        .pc-search-wrap:focus-within {
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 8px 32px rgba(6, 182, 212, 0.15);
+        }
+
+        .pc-search-wrap > i {
+            color: var(--text-muted);
+            font-size: 18px;
         }
 
         .pc-search-wrap input {
             flex: 1;
             border: none;
             outline: none;
-            font-size: 14.5px;
-            color: #1e293b;
+            font-size: 16px;
+            color: var(--text-main);
             background: transparent;
-            padding: 8px 0;
+            padding: 12px 0;
         }
 
         .pc-search-wrap input::placeholder {
-            color: #94a3b8;
+            color: #64748b;
         }
 
         .pc-search-btn {
-            background: linear-gradient(135deg, #11998e, #38ef7d);
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
             border: none;
-            color: #fff;
-            border-radius: 10px;
-            padding: 10px 22px;
-            font-size: 14px;
+            color: #05080f;
+            border-radius: 12px;
+            padding: 12px 28px;
+            font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            transition: opacity .2s;
+            transition: all .2s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
 
         .pc-search-btn:hover {
-            opacity: .88;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
-        /* ── Category pills ── */
+        /* ── Floating Stats Bar ── */
+        .pc-float-bar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            padding: 28px 32px;
+            display: flex;
+            gap: 0;
+            flex-wrap: wrap;
+            margin-top: -60px;
+            position: relative;
+            z-index: 10;
+            margin-bottom: 40px;
+        }
+
+        .pc-float-stat {
+            flex: 1;
+            min-width: 130px;
+            padding: 0 24px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+            text-align: center;
+        }
+
+        .pc-float-stat:first-child { padding-left: 0; }
+        .pc-float-stat:last-child { border-right: none; padding-right: 0; }
+
+        .pfs-val {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        .pfs-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .pfs-accent { color: var(--accent-1); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
+
+        /* ── Category Pills ── */
         .pc-cats-wrap {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             flex-wrap: wrap;
-            margin: 28px 0 8px;
+            margin: 0 0 32px;
+            animation: fadeUp 0.6s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
         }
 
         .pc-cat-pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 7px 16px;
+            gap: 8px;
+            padding: 10px 22px;
             border-radius: 30px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            border: 1.5px solid #d1fae5;
-            background: #fff;
-            color: #059669;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-muted);
             cursor: pointer;
             text-decoration: none;
-            transition: background .18s, color .18s, transform .15s;
+            transition: all .2s ease;
+            backdrop-filter: blur(10px);
         }
 
         .pc-cat-pill:hover {
-            background: #dcfce7;
-            text-decoration: none;
-            transform: translateY(-1px);
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+            transform: translateY(-2px);
         }
 
         .pc-cat-pill.active {
-            background: linear-gradient(135deg, #11998e, #38ef7d);
+            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,182,212,0.15));
+            border-color: var(--accent-1);
             color: #fff;
-            border-color: transparent;
+            box-shadow: 0 0 20px rgba(16,185,129,0.15);
         }
 
-        .pc-cat-pill.active:hover {
-            color: #fff;
-        }
-
-        /* ── Section heading ── */
+        /* ── Section Heading ── */
         .pc-section-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin: 36px 0 18px;
-            flex-wrap: wrap;
-            gap: 12px;
+            margin: 50px 0 24px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 16px;
         }
 
         .pc-section-head h2 {
             font-family: 'Poppins', sans-serif;
-            font-size: 19px;
+            font-size: 24px;
             font-weight: 800;
-            color: #1a1a2e;
+            color: #fff;
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 10px;
-        }
-
-        .pc-section-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #11998e, #38ef7d);
-            display: inline-block;
-        }
-
-        /* ── Stat strip per category ── */
-        .pc-cat-stats {
-            display: flex;
             gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: 18px;
         }
 
-        .pc-stat-chip {
-            background: #fff;
-            border-radius: 12px;
-            padding: 10px 16px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .07);
-            border: 1px solid #e8edf4;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 110px;
+        .pc-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-1);
+            box-shadow: 0 0 12px var(--accent-1);
         }
 
-        .pc-stat-chip .chip-label {
-            font-size: 10.5px;
-            color: #94a3b8;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: .8px;
-        }
-
-        .pc-stat-chip .chip-val {
-            font-family: 'Poppins', sans-serif;
-            font-size: 17px;
-            font-weight: 800;
-            color: #1a1a2e;
-        }
-
-        .pc-stat-chip.c-green .chip-val {
-            color: #059669;
-        }
-
-        .pc-stat-chip.c-red .chip-val {
-            color: #dc2626;
-        }
-
-        .pc-stat-chip.c-blue .chip-val {
-            color: #4f46e5;
-        }
-
-        /* ── Product cards ── */
-        .pc-card {
-            background: #fff;
-            border-radius: 18px;
-            border: 1.5px solid #e8edf4;
-            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
-            overflow: hidden;
-            transition: transform .22s, box-shadow .22s;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            position: relative;
-        }
-
-        .pc-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 14px 36px rgba(0, 0, 0, .12);
-        }
-
-        .pc-card-img {
-            aspect-ratio: 4/3;
-            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .pc-card-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .pc-card-img .no-img {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            color: #86efac;
-        }
-
-        /* Price rank badge */
-        .pc-rank-badge {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            padding: 4px 11px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 800;
-            z-index: 2;
-        }
-
-        .rank-best {
-            background: linear-gradient(135deg, #059669, #38ef7d);
-            color: #fff;
-        }
-
-        .rank-high {
-            background: linear-gradient(135deg, #dc2626, #f87171);
-            color: #fff;
-        }
-
-        .rank-mid {
-            background: rgba(255, 255, 255, .9);
-            color: #4b5563;
-            border: 1px solid #e5e7eb;
-        }
-
-        /* % vs avg badge */
-        .pc-vs-avg {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, .95);
-            border-radius: 10px;
-            padding: 4px 10px;
-            font-size: 11px;
-            font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .1);
-        }
-
-        .vs-cheaper {
-            color: #059669;
-        }
-
-        .vs-pricier {
-            color: #dc2626;
-        }
-
-        .pc-card-body {
-            padding: 16px 18px 18px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .pc-card-title {
-            font-family: 'Poppins', sans-serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 0;
-        }
-
-        .pc-card-farmer {
-            font-size: 12.5px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .pc-price-row {
-            display: flex;
-            align-items: baseline;
-            gap: 6px;
-            margin-top: 4px;
-        }
-
-        .pc-price {
-            font-family: 'Poppins', sans-serif;
-            font-size: 22px;
-            font-weight: 800;
-            color: #059669;
-        }
-
-        .pc-unit {
-            font-size: 12px;
-            color: #94a3b8;
-        }
-
-        .pc-meta-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-top: 6px;
-        }
-
-        .pc-meta-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            background: #f0fdf4;
-            color: #047857;
-            border-radius: 8px;
-            padding: 4px 10px;
-            font-size: 11.5px;
-            font-weight: 600;
-        }
-
-        .pc-meta-chip.bid {
-            background: #eef2ff;
-            color: #4338ca;
-        }
-
-        .pc-meta-chip.loc {
-            background: #fff7ed;
-            color: #b45309;
-        }
-
-        /* Price bar */
-        .pc-price-bar-wrap {
-            margin-top: 10px;
-        }
-
-        .pc-price-bar-label {
-            font-size: 10.5px;
-            color: #94a3b8;
-            margin-bottom: 4px;
-        }
-
-        .pc-price-bar-track {
-            height: 6px;
-            background: #f1f5f9;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .pc-price-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            background: linear-gradient(90deg, #11998e, #38ef7d);
-            transition: width .6s cubic-bezier(.25, .46, .45, .94);
-        }
-
-        .pc-price-bar-fill.bar-red {
-            background: linear-gradient(90deg, #f87171, #dc2626);
-        }
-
-        .pc-card-footer {
-            padding: 0 18px 16px;
-            margin-top: auto;
-        }
-
-        .pc-view-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            padding: 10px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #11998e, #38ef7d);
-            color: #fff;
-            font-weight: 700;
-            font-size: 13.5px;
-            text-decoration: none;
-            transition: opacity .2s, transform .15s;
-        }
-
-        .pc-view-btn:hover {
-            opacity: .88;
-            transform: translateY(-1px);
-            color: #fff;
-            text-decoration: none;
-        }
-
-        /* ── Price bar chart (horizontal) ── */
-        .pc-bar-chart {
-            background: #fff;
-            border-radius: 18px;
-            border: 1.5px solid #e8edf4;
-            box-shadow: 0 2px 14px rgba(0, 0, 0, .06);
-            padding: 24px 24px 20px;
+        /* ── Stat Chips ── */
+        .pc-cat-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
             margin-bottom: 32px;
         }
 
-        .pc-bar-chart h4 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 15px;
-            font-weight: 700;
-            color: #1a1a2e;
-            margin: 0 0 20px;
+        .pc-stat-chip {
+            background: var(--glass-bg);
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 6px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s;
+        }
+        
+        .pc-stat-chip:hover {
+            transform: translateY(-2px);
+            background: rgba(255,255,255,0.06);
         }
 
+        .chip-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chip-val {
+            font-family: 'Poppins', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .c-green .chip-val { color: var(--accent-1); text-shadow: 0 0 10px rgba(16,185,129,0.3); }
+        .c-red .chip-val { color: #f43f5e; text-shadow: 0 0 10px rgba(244,63,94,0.3); }
+        .c-blue .chip-val { color: #60a5fa; text-shadow: 0 0 10px rgba(96,165,250,0.3); }
+
+        /* ── Modern Product List (Replaces Table) ── */
+        .pc-product-group {
+            background: var(--glass-bg);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            padding: 24px;
+            margin-bottom: 32px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: fadeUp 0.6s ease forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .pc-product-group:nth-child(even) { animation-delay: 0.1s; }
+        
+        .pg-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .pg-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pg-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Chart rows inside group */
         .pc-chart-row {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 14px;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.02);
+            transition: all 0.2s ease;
+        }
+
+        .pc-chart-row:hover {
+            background: rgba(255,255,255,0.04);
+            border-color: rgba(255,255,255,0.08);
         }
 
         .pc-chart-label {
-            width: 130px;
-            font-size: 12.5px;
-            color: #475569;
+            width: 140px;
+            font-size: 13px;
+            color: #e2e8f0;
             font-weight: 600;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .pc-chart-bar-wrap {
             flex: 1;
-            height: 28px;
-            background: #f1f5f9;
-            border-radius: 8px;
-            position: relative;
+            height: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
             overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            position: relative;
         }
 
         .pc-chart-bar {
             height: 100%;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            padding-left: 10px;
-            font-size: 11.5px;
-            font-weight: 700;
-            color: #fff;
-            transition: width .7s cubic-bezier(.25, .46, .45, .94);
-            min-width: 40px;
+            border-radius: 10px;
+            transition: width 1s cubic-bezier(.25, .46, .45, .94);
+            position: relative;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
         }
 
         .pc-chart-price {
-            width: 80px;
+            width: 90px;
             text-align: right;
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        /* List Items */
+        .pc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .pc-list-item {
+            display: grid;
+            grid-template-columns: 85px 2fr 1fr 1fr 1fr auto;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .pc-list-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .pct-rank {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .rank-gold { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .rank-high { background: rgba(244, 63, 94, 0.1); color: #fb7185; border: 1px solid rgba(244,63,94,0.2); }
+        .rank-mid { background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
+
+        .pct-farmer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pct-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: cover;
+            background: rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .pct-img img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .farmer-info a {
+            color: #fff;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 2px;
+            transition: color 0.2s;
+        }
+        .farmer-info a:hover { color: var(--accent-1); }
+        
+        .pct-loc { font-size: 12px; color: var(--text-muted); }
+
+        .price-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .pct-price { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 800; color: #fff; }
+        .pct-qty { color: var(--text-muted); font-size: 12px; }
+
+        .pct-vs {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .vs-cheap { background: rgba(16,185,129,0.1); color: var(--accent-1); }
+        .vs-pricey { background: rgba(244,63,94,0.1); color: #fb7185; }
+        .vs-mid { background: rgba(255,255,255,0.05); color: #94a3b8; }
+
+        .bids-block { text-align: center; }
+        .bids-val { font-weight: 800; color: var(--accent-2); font-size: 16px; }
+        .bids-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+
+        .view-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 10px 20px;
             font-size: 13px;
             font-weight: 700;
-            color: #059669;
-            flex-shrink: 0;
+            text-decoration: none;
+            transition: all .2s ease;
+            white-space: nowrap;
+        }
+
+        .view-btn:hover {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            border-color: transparent;
+            color: #05080f;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+        }
+
+        @media (max-width: 900px) {
+            .pc-list-item {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 20px;
+            }
+            .pct-rank { align-self: flex-start; }
+            .bids-block { text-align: left; display: flex; gap: 8px; align-items: center; }
+            .view-btn { width: 100%; margin-top: 8px; }
         }
 
         /* ── Empty state ── */
         .pc-empty {
-            padding: 60px 20px;
+            padding: 100px 20px;
             text-align: center;
-            color: #94a3b8;
+            color: var(--text-muted);
+            background: var(--glass-bg);
+            border-radius: 20px;
+            border: 1px dashed var(--glass-border);
+            backdrop-filter: blur(10px);
         }
 
-        .pc-empty i {
-            font-size: 3rem;
-            margin-bottom: 14px;
-            display: block;
-        }
+        .pc-empty i { font-size: 4rem; margin-bottom: 20px; display: block; opacity: 0.5; }
+        .pc-empty p { font-size: 16px; margin: 0; }
 
-        .pc-empty p {
-            font-size: 15px;
-            margin: 0;
+        @keyframes fadeUp {
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -644,11 +681,10 @@ foreach ($grouped as $cat => $items) {
 
     <!-- HERO -->
     <div class="pc-hero">
-        <div class="container" style="max-width:1100px; position:relative; z-index:2;">
+        <div class="container" style="max-width:1100px;position:relative;z-index:2;">
             <div class="pc-hero-badge"><i class="fas fa-balance-scale"></i> Price Comparison</div>
-            <h1>Compare Prices Across Farmers</h1>
-            <p class="sub">Find the best deals on fresh produce. Compare listings, track price trends, and make informed buying decisions.</p>
-
+            <h1>Compare Prices <span>Across Farmers</span></h1>
+            <p class="sub">Find the best deals on fresh produce. Compare live listings, track price trends, and make smarter buying decisions.</p>
             <form method="GET" action="price_compare.php">
                 <?php if ($selected_category): ?>
                     <input type="hidden" name="category" value="<?php echo htmlspecialchars($selected_category); ?>">
@@ -656,7 +692,7 @@ foreach ($grouped as $cat => $items) {
                 <div class="pc-search-wrap">
                     <i class="fas fa-search"></i>
                     <input type="text" name="q" id="pcSearch"
-                        placeholder="Search tomatoes, rice, dairy…"
+                        placeholder="Search mango, tomato, dairy…"
                         value="<?php echo htmlspecialchars($search_query); ?>"
                         autocomplete="off">
                     <button type="submit" class="pc-search-btn"><i class="fas fa-arrow-right"></i> Compare</button>
@@ -666,7 +702,38 @@ foreach ($grouped as $cat => $items) {
     </div>
 
     <!-- MAIN -->
-    <div class="container py-4" style="max-width:1100px;">
+    <div class="container" style="max-width:1100px;">
+
+        <!-- Floating global stats bar -->
+        <?php
+        $total_listings = array_sum(array_map('count', $grouped));
+        $all_prices     = array_merge(...array_values(array_map(fn($g) => array_column($g, 'price'), $grouped ?: [[]])));
+        $global_min     = $all_prices ? min($all_prices) : 0;
+        $global_max     = $all_prices ? max($all_prices) : 0;
+        $global_avg     = $all_prices ? round(array_sum($all_prices) / count($all_prices)) : 0;
+        ?>
+        <div class="pc-float-bar">
+            <div class="pc-float-stat">
+                <div class="pfs-val"><?php echo count($categories); ?></div>
+                <div class="pfs-label">Categories</div>
+            </div>
+            <div class="pc-float-stat">
+                <div class="pfs-val"><?php echo $total_listings; ?></div>
+                <div class="pfs-label">Live Listings</div>
+            </div>
+            <div class="pc-float-stat">
+                <div class="pfs-val pfs-accent"><?php echo number_format($global_min, 0); ?>৳</div>
+                <div class="pfs-label">Lowest Price</div>
+            </div>
+            <div class="pc-float-stat">
+                <div class="pfs-val"><?php echo number_format($global_avg, 0); ?>৳</div>
+                <div class="pfs-label">Market Average</div>
+            </div>
+            <div class="pc-float-stat">
+                <div class="pfs-val" style="color:#f43f5e;"><?php echo number_format($global_max, 0); ?>৳</div>
+                <div class="pfs-label">Highest Price</div>
+            </div>
+        </div>
 
         <!-- Category filter pills -->
         <div class="pc-cats-wrap">
@@ -690,153 +757,159 @@ foreach ($grouped as $cat => $items) {
         <?php else: ?>
 
             <?php foreach ($grouped as $cat => $items):
-                $stats   = $cat_stats[$cat];
-                $prices  = array_column($items, 'price');
-                $min_p   = $stats['min'];
-                $max_p   = $stats['max'];
-                $avg_p   = $stats['avg'];
-                $range   = max(1, $max_p - $min_p);
+                $stats = $cat_stats[$cat];
+                $min_p = $stats['min'];
+                $max_p = $stats['max'];
+                $avg_p = $stats['avg'];
+
+                // Group items by product_name within this category
+                $by_product = [];
+                foreach ($items as $item) {
+                    $by_product[$item['product_name']][] = $item;
+                }
             ?>
 
-                <!-- Category section -->
+                <!-- Category Section Heading -->
                 <div class="pc-section-head">
-                    <h2>
-                        <span class="pc-section-dot"></span>
-                        <?php echo htmlspecialchars($cat); ?>
-                    </h2>
-                    <span style="font-size:12.5px;color:#94a3b8;font-weight:500;"><?php echo count($items); ?> listing<?php echo count($items) !== 1 ? 's' : ''; ?></span>
+                    <h2><span class="pc-dot"></span><?php echo htmlspecialchars($cat); ?></h2>
+                    <span style="font-size:13px;color:var(--text-muted);font-weight:500;background:rgba(255,255,255,0.05);padding:4px 12px;border-radius:20px;"><?php echo count($items); ?> listing<?php echo count($items) !== 1 ? 's' : ''; ?></span>
                 </div>
 
-                <!-- Stat chips -->
+                <!-- Category stat chips -->
                 <div class="pc-cat-stats">
-                    <div class="pc-stat-chip c-green">
-                        <span class="chip-label">Lowest Price</span>
-                        <span class="chip-val"><?php echo number_format($stats['min'], 0); ?>৳</span>
-                    </div>
-                    <div class="pc-stat-chip c-blue">
-                        <span class="chip-label">Average Price</span>
-                        <span class="chip-val"><?php echo number_format($stats['avg'], 0); ?>৳</span>
-                    </div>
-                    <div class="pc-stat-chip c-red">
-                        <span class="chip-label">Highest Price</span>
-                        <span class="chip-val"><?php echo number_format($stats['max'], 0); ?>৳</span>
-                    </div>
-                    <div class="pc-stat-chip">
-                        <span class="chip-label">Sellers</span>
-                        <span class="chip-val"><?php echo count($items); ?></span>
-                    </div>
+                    <div class="pc-stat-chip c-green"><span class="chip-label">Lowest</span><span class="chip-val"><?php echo number_format($min_p, 0); ?>৳</span></div>
+                    <div class="pc-stat-chip c-blue"><span class="chip-label">Avg Price</span><span class="chip-val"><?php echo number_format($avg_p, 0); ?>৳</span></div>
+                    <div class="pc-stat-chip c-red"><span class="chip-label">Highest</span><span class="chip-val"><?php echo number_format($max_p, 0); ?>৳</span></div>
+                    <div class="pc-stat-chip"><span class="chip-label">Sellers</span><span class="chip-val"><?php echo count($items); ?></span></div>
                 </div>
 
-                <!-- Horizontal bar chart -->
-                <?php if (count($items) > 1): ?>
-                    <div class="pc-bar-chart mb-4">
-                        <h4><i class="fas fa-chart-bar" style="color:#11998e;margin-right:8px;"></i>Price Comparison Chart</h4>
-                        <?php foreach ($items as $item):
-                            $pct   = $max_p > 0 ? round(($item['price'] / $max_p) * 100) : 0;
-                            $is_low = $item['price'] == $min_p;
-                            $is_high = $item['price'] == $max_p;
-                            $bar_color = $is_low ? 'background:linear-gradient(90deg,#059669,#38ef7d)' : ($is_high ? 'background:linear-gradient(90deg,#dc2626,#f87171)' : 'background:linear-gradient(90deg,#6366f1,#818cf8)');
-                            $farmer_label = !empty($item['farm_name']) ? $item['farm_name'] : $item['farmer_name'];
-                        ?>
-                            <div class="pc-chart-row">
-                                <div class="pc-chart-label" title="<?php echo htmlspecialchars($farmer_label); ?>"><?php echo htmlspecialchars($farmer_label); ?></div>
-                                <div class="pc-chart-bar-wrap">
-                                    <div class="pc-chart-bar" style="width:0; <?php echo $bar_color; ?>" data-w="<?php echo $pct; ?>%">
-                                        <?php if ($is_low): ?><i class="fas fa-crown" style="font-size:10px;"></i><?php endif; ?>
-                                    </div>
-                                </div>
-                                <div class="pc-chart-price"><?php echo number_format($item['price'], 0); ?>৳</div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
+                <?php foreach ($by_product as $prod_name => $prod_items):
+                    $prod_prices = array_column($prod_items, 'price');
+                    $prod_min = min($prod_prices);
+                    $prod_max = max($prod_prices);
+                    $prod_avg = round(array_sum($prod_prices) / count($prod_prices));
 
-                <!-- Cards grid -->
-                <div class="row g-3 mb-5">
-                    <?php foreach ($items as $idx => $item):
-                        $rank = $idx === 0 ? 'rank-best' : ($idx === count($items) - 1 && count($items) > 1 ? 'rank-high' : 'rank-mid');
-                        $rank_label = $idx === 0 ? '🏆 Best Price' : ($idx === count($items) - 1 && count($items) > 1 ? '📈 Highest' : '#' . ($idx + 1));
-                        $diff_pct = $avg_p > 0 ? round((($item['price'] - $avg_p) / $avg_p) * 100) : 0;
-                        $bar_w = $max_p > 0 ? round(($item['price'] / $max_p) * 100) : 0;
-                        $is_low_card = $item['price'] == $min_p;
-                        $farmer_disp = !empty($item['farm_name']) ? $item['farm_name'] : $item['farmer_name'];
-                    ?>
-                        <div class="col-sm-6 col-lg-4">
-                            <div class="pc-card">
-                                <div class="pc-card-img">
-                                    <?php if (!empty($item['image'])): ?>
-                                        <img src="assets/images/<?php echo htmlspecialchars($item['image']); ?>" alt="<?php echo htmlspecialchars($item['product_name']); ?>">
-                                    <?php else: ?>
-                                        <div class="no-img"><i class="fas fa-leaf"></i></div>
-                                    <?php endif; ?>
-                                    <span class="pc-rank-badge <?php echo $rank; ?>"><?php echo $rank_label; ?></span>
-                                    <?php if (count($items) > 1): ?>
-                                        <span class="pc-vs-avg <?php echo $diff_pct <= 0 ? 'vs-cheaper' : 'vs-pricier'; ?>">
-                                            <?php echo $diff_pct <= 0
-                                                ? '<i class="fas fa-arrow-down"></i> ' . abs($diff_pct) . '% vs avg'
-                                                : '<i class="fas fa-arrow-up"></i> ' . $diff_pct . '% vs avg'; ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="pc-card-body">
-                                    <div class="pc-card-title"><?php echo htmlspecialchars($item['product_name']); ?></div>
-                                    <div class="pc-card-farmer">
-                                        <i class="fas fa-user-tie" style="color:#059669;"></i>
-                                        <a href="farmer/profile.php?id=<?php echo (int)$item['farmer_id']; ?>"
-                                            style="color:#059669;font-weight:600;text-decoration:none;"><?php echo htmlspecialchars($farmer_disp); ?></a>
+                    // Sort cheapest first
+                    usort($prod_items, fn($a, $b) => $a['price'] <=> $b['price']);
+                ?>
+
+                    <!-- Product Group Panel -->
+                    <div class="pc-product-group">
+                        <div class="pg-header">
+                            <div class="pg-title"><i class="fas fa-leaf" style="color:var(--accent-1);"></i> <?php echo htmlspecialchars($prod_name); ?></div>
+                            <div class="pg-meta"><?php echo count($prod_items); ?> seller<?php echo count($prod_items) !== 1 ? 's' : ''; ?> • avg <?php echo number_format($prod_avg, 0); ?>৳</div>
+                        </div>
+
+                        <!-- Bar chart for this product -->
+                        <?php if (count($prod_items) > 1): ?>
+                            <div style="margin-bottom:24px;">
+                                <?php foreach ($prod_items as $pi):
+                                    $pct = $prod_max > 0 ? round(($pi['price'] / $prod_max) * 100) : 0;
+                                    $is_lo = $pi['price'] == $prod_min;
+                                    $is_hi = $pi['price'] == $prod_max;
+                                    $bc = $is_lo ? 'background:linear-gradient(90deg, #10b981, #34d399)'
+                                        : ($is_hi ? 'background:linear-gradient(90deg, #f43f5e, #fb7185)'
+                                            : 'background:linear-gradient(90deg, #3b82f6, #60a5fa)');
+                                    $fl = !empty($pi['farm_name']) ? $pi['farm_name'] : $pi['farmer_name'];
+                                ?>
+                                    <div class="pc-chart-row">
+                                        <div class="pc-chart-label" title="<?php echo htmlspecialchars($fl); ?>">
+                                            <?php if ($is_lo): ?><i class="fas fa-crown" style="color:#fbbf24;"></i><?php endif; ?>
+                                            <?php echo htmlspecialchars($fl); ?>
+                                        </div>
+                                        <div class="pc-chart-bar-wrap">
+                                            <div class="pc-chart-bar" style="width:0;<?php echo $bc; ?>" data-w="<?php echo $pct; ?>%"></div>
+                                        </div>
+                                        <div class="pc-chart-price"><?php echo number_format($pi['price'], 0); ?>৳</div>
                                     </div>
-                                    <div class="pc-price-row">
-                                        <span class="pc-price"><?php echo number_format($item['price'], 0); ?>৳</span>
-                                        <span class="pc-unit">/ <?php echo htmlspecialchars($item['quantity'] . ' ' . $item['unit']); ?></span>
-                                    </div>
-                                    <div class="pc-meta-row">
-                                        <span class="pc-meta-chip bid"><i class="fas fa-gavel"></i><?php echo (int)$item['bid_count']; ?> bids</span>
-                                        <?php if (!empty($item['location'])): ?>
-                                            <span class="pc-meta-chip loc"><i class="fas fa-map-marker-alt"></i><?php echo htmlspecialchars($item['location']); ?></span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="pc-price-bar-wrap">
-                                        <div class="pc-price-bar-label">Price relative to highest in category</div>
-                                        <div class="pc-price-bar-track">
-                                            <div class="pc-price-bar-fill <?php echo !$is_low_card && $bar_w > 70 ? 'bar-red' : ''; ?>"
-                                                style="width:0" data-w="<?php echo $bar_w; ?>%"></div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+
+                        <!-- Interactive List of Sellers -->
+                        <div class="pc-list">
+                            <?php foreach ($prod_items as $ri => $pi):
+                                $is_lo  = $pi['price'] == $prod_min;
+                                $is_hi  = $pi['price'] == $prod_max && count($prod_items) > 1;
+                                $dp     = $prod_avg > 0 ? round((($pi['price'] - $prod_avg) / $prod_avg) * 100) : 0;
+                                $fd     = !empty($pi['farm_name']) ? $pi['farm_name'] : $pi['farmer_name'];
+
+                                if ($is_lo) {
+                                    $rk = 'rank-gold';
+                                    $rl = '<i class="fas fa-trophy" style="font-size:10px;"></i> Best';
+                                } elseif ($is_hi) {
+                                    $rk = 'rank-high';
+                                    $rl = '<i class="fas fa-arrow-trend-up" style="font-size:10px;"></i> High';
+                                } else {
+                                    $rk = 'rank-mid';
+                                    $rl = '#' . ($ri + 1);
+                                }
+
+                                if ($dp < -5) {
+                                    $vc = 'vs-cheap';
+                                    $vt = '<i class="fas fa-arrow-down"></i> ' . abs($dp) . '%';
+                                } elseif ($dp > 5) {
+                                    $vc = 'vs-pricey';
+                                    $vt = '<i class="fas fa-arrow-up"></i> ' . $dp . '%';
+                                } else {
+                                    $vc = 'vs-mid';
+                                    $vt = '≈ avg';
+                                }
+                            ?>
+                                <div class="pc-list-item">
+                                    <span class="pct-rank <?php echo $rk; ?>"><?php echo $rl; ?></span>
+                                    
+                                    <div class="pct-farmer">
+                                        <div class="pct-img">
+                                            <?php if (!empty($pi['image'])): ?>
+                                                <img src="assets/images/<?php echo htmlspecialchars($pi['image']); ?>" alt="">
+                                            <?php else: ?><i class="fas fa-image"></i><?php endif; ?>
+                                        </div>
+                                        <div class="farmer-info">
+                                            <a href="farmer/profile.php?id=<?php echo (int)$pi['farmer_id']; ?>"><?php echo htmlspecialchars($fd); ?></a>
+                                            <div class="pct-loc"><i class="fas fa-map-marker-alt" style="margin-right:4px;"></i><?php echo htmlspecialchars($pi['location'] ?? '—'); ?></div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="pc-card-footer">
-                                    <a href="product_detail.php?id=<?php echo (int)$item['id']; ?>" class="pc-view-btn">
-                                        <i class="fas fa-gavel"></i> View & Bid
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
 
-            <?php endforeach; ?>
+                                    <div class="price-block">
+                                        <span class="pct-price"><?php echo number_format($pi['price'], 0); ?>৳</span>
+                                        <span class="pct-qty">per <?php echo htmlspecialchars($pi['quantity'] . ' ' . $pi['unit']); ?></span>
+                                    </div>
+
+                                    <div>
+                                        <span class="pct-vs <?php echo $vc; ?>" title="Compared to average"><?php echo $vt; ?></span>
+                                    </div>
+
+                                    <div class="bids-block">
+                                        <div class="bids-val"><?php echo (int)$pi['bid_count']; ?></div>
+                                        <div class="bids-lbl">Bids</div>
+                                    </div>
+
+                                    <a href="product_detail.php?id=<?php echo (int)$pi['id']; ?>" class="view-btn"><i class="fas fa-gavel"></i> Bid Now</a>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                <?php endforeach; /* by_product */ ?>
+
+            <?php endforeach; /* grouped */ ?>
         <?php endif; ?>
+
+        <div style="height:60px;"></div>
     </div>
 
     <?php include 'includes/footer.php'; ?>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Animate bar chart
-            document.querySelectorAll('.pc-chart-bar[data-w]').forEach(el => {
-                const w = el.getAttribute('data-w');
-                setTimeout(() => {
+            // Animate bars with a slight delay for cool effect
+            setTimeout(() => {
+                document.querySelectorAll('.pc-chart-bar[data-w]').forEach(el => {
+                    const w = el.getAttribute('data-w');
                     el.style.width = w;
-                }, 200);
-            });
-            // Animate price bars in cards
-            document.querySelectorAll('.pc-price-bar-fill[data-w]').forEach(el => {
-                const w = el.getAttribute('data-w');
-                setTimeout(() => {
-                    el.style.width = w;
-                }, 300);
-            });
+                });
+            }, 100);
         });
     </script>
 </body>
