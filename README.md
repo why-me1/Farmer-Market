@@ -38,10 +38,10 @@ See [RATING_SYSTEM_README.md](RATING_SYSTEM_README.md) for full scoring details.
 ## Quick Setup
 
 1. Place this project in your XAMPP htdocs directory.
-2. Start Apache and MySQL from XAMPP.
+2. Start Apache and MySQL from XAMPP. If XAMPP MySQL refuses to stay up, run [start_mysql_3306.bat](start_mysql_3306.bat) from this project to launch MariaDB directly on 3306.
 3. Create a database in phpMyAdmin.
 4. Import [database.sql](database.sql). If needed, also import [delivery_migration.sql](delivery_migration.sql) and [farmer_market.sql](farmer_market.sql).
-5. Update database settings in [includes/config.php](includes/config.php) if your local credentials differ.
+5. Update your local MySQL credentials by setting `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` if your setup differs from the defaults used in [includes/config.php](includes/config.php).
 6. Open http://localhost/demo in your browser.
 
 Last updated: April 23, 2026.

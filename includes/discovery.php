@@ -1,8 +1,6 @@
 <?php
 
-require_once 'db.php';
-
-function discoveryEnsureFollowTable()
+function discoveryEnsureFollowTable(): void
 {
     global $conn;
 
@@ -17,7 +15,7 @@ function discoveryEnsureFollowTable()
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
-function discoveryNormalizeIdList($rawValue)
+function discoveryNormalizeIdList(string $rawValue): array
 {
     if (!is_string($rawValue) || trim($rawValue) === '') {
         return [];
@@ -35,7 +33,7 @@ function discoveryNormalizeIdList($rawValue)
     return array_values(array_unique($ids));
 }
 
-function discoveryGetRecentlyViewedPostIds($limit = 6)
+function discoveryGetRecentlyViewedPostIds(int $limit = 6): array
 {
     $ids = discoveryNormalizeIdList($_COOKIE['recently_viewed_posts'] ?? '');
     if ($limit > 0) {
@@ -45,9 +43,8 @@ function discoveryGetRecentlyViewedPostIds($limit = 6)
     return $ids;
 }
 
-function discoveryTrackRecentlyViewedPost($postId, $limit = 6)
+function discoveryTrackRecentlyViewedPost(int $postId, int $limit = 6): void
 {
-    $postId = (int)$postId;
     if ($postId <= 0) {
         return;
     }
@@ -64,7 +61,7 @@ function discoveryTrackRecentlyViewedPost($postId, $limit = 6)
     }
 }
 
-function discoveryFetchPostsByIds($ids, $limit = null)
+function discoveryFetchPostsByIds(array $ids, ?int $limit = null): array
 {
     global $conn;
 
@@ -97,7 +94,7 @@ function discoveryFetchPostsByIds($ids, $limit = null)
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function discoveryIsFollowingFarmer($userId, $farmerId)
+function discoveryIsFollowingFarmer(int $userId, int $farmerId): bool
 {
     global $conn;
 
@@ -112,7 +109,7 @@ function discoveryIsFollowingFarmer($userId, $farmerId)
     return $isFollowing;
 }
 
-function discoveryGetFarmerFollowerCount($farmerId)
+function discoveryGetFarmerFollowerCount(int $farmerId): int
 {
     global $conn;
 
@@ -121,6 +118,7 @@ function discoveryGetFarmerFollowerCount($farmerId)
     $stmt = $conn->prepare("SELECT COUNT(*) FROM farmer_follows WHERE farmer_id = ?");
     $stmt->bind_param("i", $farmerId);
     $stmt->execute();
+    $count = 0;
     $stmt->bind_result($count);
     $stmt->fetch();
     $stmt->close();
@@ -128,7 +126,7 @@ function discoveryGetFarmerFollowerCount($farmerId)
     return (int)$count;
 }
 
-function discoveryGetFarmerFollowerIds($farmerId)
+function discoveryGetFarmerFollowerIds(int $farmerId): array
 {
     global $conn;
 
@@ -149,7 +147,7 @@ function discoveryGetFarmerFollowerIds($farmerId)
     return $followerIds;
 }
 
-function discoveryToggleFarmerFollow($userId, $farmerId)
+function discoveryToggleFarmerFollow(int $userId, int $farmerId): array
 {
     global $conn;
 
@@ -172,7 +170,7 @@ function discoveryToggleFarmerFollow($userId, $farmerId)
     return ['following' => true, 'followers' => discoveryGetFarmerFollowerCount($farmerId)];
 }
 
-function discoveryGetTrendingProducts($limit = 8)
+function discoveryGetTrendingProducts(int $limit = 8): array
 {
     global $conn;
 
@@ -205,7 +203,7 @@ function discoveryGetTrendingProducts($limit = 8)
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function discoveryGetSimilarProducts($postId, $category, $farmerId, $limit = 4)
+function discoveryGetSimilarProducts(int $postId, string $category, int $farmerId, int $limit = 4): array
 {
     global $conn;
 
@@ -244,7 +242,7 @@ function discoveryGetSimilarProducts($postId, $category, $farmerId, $limit = 4)
     return $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 }
 
-function discoveryGetRecentlyViewedProducts($limit = 6)
+function discoveryGetRecentlyViewedProducts(int $limit = 6): array
 {
     $ids = discoveryGetRecentlyViewedPostIds($limit);
     return discoveryFetchPostsByIds($ids, $limit);

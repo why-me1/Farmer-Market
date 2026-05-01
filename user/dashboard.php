@@ -5,6 +5,13 @@ require_once '../includes/ratings.php';
 require_once '../includes/discovery.php';
 check_login();
 
+ensure_delivery_otp_schema();
+
+/** @var mysqli $conn */
+/** @var string $base_url */
+$conn = $conn;
+$base_url = $base_url;
+
 if ($_SESSION['role'] !== 'user') {
     header("Location: ../index.php");
     exit();

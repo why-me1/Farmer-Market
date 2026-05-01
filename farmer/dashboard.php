@@ -1,8 +1,11 @@
-﻿<?php
+<?php
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/discovery.php';
 check_login();
+
+/** @var mysqli $conn */
+/** @var string $base_url */
 
 if ($_SESSION['role'] !== 'farmer') {
     header("Location: ../index.php");
@@ -19,6 +22,7 @@ $farmer = $u_stmt->get_result()->fetch_assoc();
 $u_stmt->close();
 
 // Active listings
+$active_listings = 0;
 $active_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND status = 'active' AND is_approved = 1");
 $active_stmt->bind_param("i", $farmer_id);
 $active_stmt->execute();
@@ -27,6 +31,7 @@ $active_stmt->fetch();
 $active_stmt->close();
 
 // Total sold posts
+$total_sold = 0;
 $sold_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND status = 'sold'");
 $sold_stmt->bind_param("i", $farmer_id);
 $sold_stmt->execute();
@@ -35,6 +40,7 @@ $sold_stmt->fetch();
 $sold_stmt->close();
 
 // Total posts
+$total_posts = 0;
 $total_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ?");
 $total_stmt->bind_param("i", $farmer_id);
 $total_stmt->execute();
@@ -43,6 +49,7 @@ $total_stmt->fetch();
 $total_stmt->close();
 
 // Pending (awaiting approval)
+$pending_posts = 0;
 $pending_stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND is_approved = 0");
 $pending_stmt->bind_param("i", $farmer_id);
 $pending_stmt->execute();
@@ -1053,6 +1060,26 @@ $display_name = !empty($farmer['farm_name']) ? $farmer['farm_name'] : (!empty($f
                                 <p>Handle fulfilment and update delivery status.</p>
                                 <div class="fd-action-footer">
                                     <span class="fd-action-link c-blue">Manage <i class="fas fa-arrow-right"></i></span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <a href="price_insights.php" class="fd-action">
+                                <div class="fd-action-icon a-teal"><i class="fas fa-balance-scale"></i></div>
+                                <h5>Price Insights</h5>
+                                <p>See how your prices compare to market and price smarter.</p>
+                                <div class="fd-action-footer">
+                                    <span class="fd-action-link c-teal">Analyse <i class="fas fa-arrow-right"></i></span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-sm-6 col-md-4">
+                            <a href="../price_compare.php" class="fd-action">
+                                <div class="fd-action-icon a-rose"><i class="fas fa-chart-bar"></i></div>
+                                <h5>Market Prices</h5>
+                                <p>Browse live product prices from all farmers on the market.</p>
+                                <div class="fd-action-footer">
+                                    <span class="fd-action-link c-rose">View market <i class="fas fa-arrow-right"></i></span>
                                 </div>
                             </a>
                         </div>

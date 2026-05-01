@@ -2,8 +2,10 @@
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
-require_once 'config.php';
-require_once 'functions.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/functions.php';
+
+global $conn;
 
 // Default values
 $notification_count = 0;
@@ -42,7 +44,7 @@ if (isset($_SESSION['user_id'])) {
 }
 
 // Define base URL
-$base_url = "http://localhost/DEMO/";
+$base_url = "http://localhost/demo/";
 
 // Determine dashboard URL
 $dashboard_url = '#';
@@ -897,6 +899,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
         <ul class="fm-nav-links">
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a></li>
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>auctions.php"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a></li>
+            <li><a class="fm-nav-link" href="<?php echo $base_url; ?>price_compare.php"><i class="fas fa-balance-scale"></i> Compare Prices</a></li>
             <li><a class="fm-nav-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a></li>
         </ul>
 
@@ -1010,6 +1013,7 @@ $display_role = $role === 'user' ? 'Buyer' : ucfirst($role);
 
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>browse.php"><i class="fas fa-th-large"></i> Browse</a>
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>auctions.php"><span class="live-dot"></span><i class="fas fa-gavel"></i> Live Auctions</a>
+    <a class="fm-mobile-link" href="<?php echo $base_url; ?>price_compare.php"><i class="fas fa-balance-scale"></i> Compare Prices</a>
     <a class="fm-mobile-link" href="<?php echo $base_url; ?>bidding_guide.php"><i class="fas fa-circle-info"></i> How it Works</a>
 
     <?php if ($role !== 'guest'): ?>

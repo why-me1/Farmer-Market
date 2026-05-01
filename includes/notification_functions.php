@@ -5,9 +5,9 @@
  * Handles all notification-related operations
  */
 
-require_once 'db.php';
+require_once __DIR__ . '/db.php';
 
-function ensureNotificationSchema()
+function ensureNotificationSchema(): void
 {
     global $conn;
 
@@ -23,7 +23,7 @@ function ensureNotificationSchema()
  * @param string $type - Type of event ('comment' or 'comment_approved')
  * @return bool - Success status
  */
-function createNotification($user_id, $post_id = null, $comment_id = null, $type = 'comment')
+function createNotification(int $user_id, ?int $post_id = null, ?int $comment_id = null, string $type = 'comment'): bool
 {
     global $conn;
 
@@ -43,7 +43,7 @@ function createNotification($user_id, $post_id = null, $comment_id = null, $type
  * @param int $limit - Number of notifications to fetch
  * @return array - Array of notifications
  */
-function getUserNotifications($user_id, $limit = 10)
+function getUserNotifications(int $user_id, int $limit = 10): array
 {
     global $conn;
 
@@ -66,10 +66,11 @@ function getUserNotifications($user_id, $limit = 10)
  * @param int $user_id - User ID
  * @return int - Count of unread notifications
  */
-function getUnreadNotificationCount($user_id)
+function getUnreadNotificationCount(int $user_id): int
 {
     global $conn;
 
+    $count = 0;
     $stmt = $conn->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -86,7 +87,7 @@ function getUnreadNotificationCount($user_id)
  * @param int $user_id - User ID (for security)
  * @return bool - Success status
  */
-function markNotificationAsRead($notification_id, $user_id)
+function markNotificationAsRead(int $notification_id, int $user_id): bool
 {
     global $conn;
 
@@ -103,7 +104,7 @@ function markNotificationAsRead($notification_id, $user_id)
  * @param int $user_id - User ID
  * @return bool - Success status
  */
-function markAllNotificationsAsRead($user_id)
+function markAllNotificationsAsRead(int $user_id): bool
 {
     global $conn;
 
@@ -127,7 +128,7 @@ function markAllNotificationsAsRead($user_id)
  * @param float $bid_amount - Bid amount (not stored, just for logging)
  * @param string $product_name - Product name (not stored, just for logging)
  */
-function notifyFarmerBidPlaced($farmer_id, $post_id, $buyer_name, $bid_amount, $product_name)
+function notifyFarmerBidPlaced(int $farmer_id, int $post_id, string $buyer_name, float|int $bid_amount, string $product_name): bool
 {
     // Keep only one unread bid notification per product for the farmer.
     // When more bids arrive, refresh the timestamp instead of stacking duplicates.
@@ -161,7 +162,7 @@ function notifyFarmerBidPlaced($farmer_id, $post_id, $buyer_name, $bid_amount, $
  * @param string $buyer_name - Buyer's name (not stored)
  * @param string $product_name - Product name (not stored)
  */
-function notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_name)
+function notifyFarmerProductSold(int $farmer_id, int $post_id, string $buyer_name, string $product_name): bool
 {
     // Create notification with type 'comment_approved' for sold product
     return createNotification($farmer_id, $post_id, null, 'comment_approved');
@@ -173,7 +174,7 @@ function notifyFarmerProductSold($farmer_id, $post_id, $buyer_name, $product_nam
  * @param int $post_id - Post ID
  * @param string $product_name - Product name (not stored)
  */
-function notifyBuyerOutbid($buyer_id, $post_id, $product_name)
+function notifyBuyerOutbid(int $buyer_id, int $post_id, string $product_name): bool
 {
     // Keep one unread outbid notification per product for the buyer and increment count.
     global $conn;
@@ -204,7 +205,7 @@ function notifyBuyerOutbid($buyer_id, $post_id, $product_name)
  * @param int $post_id - Post ID
  * @param string $product_name - Product name (not stored)
  */
-function notifyBuyerWonBid($buyer_id, $post_id, $product_name)
+function notifyBuyerWonBid(int $buyer_id, int $post_id, string $product_name): bool
 {
     // Create a dedicated winner notification with next-step context
     return createNotification($buyer_id, $post_id, null, 'auction_won');
@@ -217,7 +218,7 @@ function notifyBuyerWonBid($buyer_id, $post_id, $product_name)
  * @param string $product_name - Product name (not stored)
  * @param string $status - Delivery status (not stored)
  */
-function notifyBuyerDeliveryUpdate($buyer_id, $post_id, $product_name, $status)
+function notifyBuyerDeliveryUpdate(int $buyer_id, int $post_id, string $product_name, string $status): bool
 {
     // Create notification for specific delivery stage
     $status = strtolower(trim((string)$status));
@@ -239,7 +240,7 @@ function notifyBuyerDeliveryUpdate($buyer_id, $post_id, $product_name, $status)
  * @param int $post_id
  * @return array|null
  */
-function getPostDeliveryMeta($post_id)
+function getPostDeliveryMeta(int $post_id): ?array
 {
     global $conn;
 
@@ -261,10 +262,11 @@ function getPostDeliveryMeta($post_id)
  * @param int $user_id - User ID
  * @return string - User role
  */
-function getUserRole($user_id)
+function getUserRole(int $user_id): string
 {
     global $conn;
 
+    $role = '';
     $stmt = $conn->prepare("SELECT role FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -287,10 +289,11 @@ function getUserRole($user_id)
  * @param int $user_id - User ID
  * @return string - Username
  */
-function getUsername($user_id)
+function getUsername(int $user_id): string
 {
     global $conn;
 
+    $username = '';
     $stmt = $conn->prepare("SELECT username FROM users WHERE id = ?");
     $stmt->bind_param("i", $user_id);
     $stmt->execute();
@@ -306,7 +309,7 @@ function getUsername($user_id)
  * @param array $notification - Notification data
  * @return string - Formatted message
  */
-function getNotificationMessage($notification)
+function getNotificationMessage(array $notification): string
 {
     global $conn;
 

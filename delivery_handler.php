@@ -7,6 +7,8 @@ require_once __DIR__ . '/includes/ratings.php';
 // fail when called from the root. We only use createNotification() which needs $conn.
 // $conn is already available from config.php, so we define a minimal wrapper here.
 
+ensure_delivery_otp_schema();
+
 header('Content-Type: application/json');
 
 // ── Catch PHP fatal errors and return JSON so the browser never sees a blank ──
@@ -215,6 +217,7 @@ if ($action === 'verify_otp' && $user_role === 'farmer') {
     $stmt->close();
 
     // Get product name for notification
+    $product_name = '';
     $stmt = $conn->prepare("SELECT product_name FROM posts WHERE id = ?");
     $stmt->bind_param("i", $post_id);
     $stmt->execute();

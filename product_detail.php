@@ -134,6 +134,7 @@ if ($already_sold) {
 // Send notifications and adjust ratings if needed
 if ($is_sold) {
     // Get winner's user_id for notifications
+    $winner_user_id = null;
     $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? LIMIT 1");
     $winner_stmt->bind_param("id", $post_id, $max_bid);
     $winner_stmt->execute();
@@ -168,8 +169,15 @@ if ($is_sold) {
     }
 } elseif ($is_unsold) {
     // Adjust farmer rating for unsold product (not enough bids)
-    $check_unsold = $conn->prepare("SELECT id FROM notifications WHERE post_id = ? AND type = 'comment_approved' LIMIT 1");
-    $check_unsold->bind_param("i", $post_id);
+    $check_unsold = $conn->prepare(
+        "SELECT id FROM rating_score_history
+         WHERE user_id = ?
+           AND score_type = 'farmer_reputation'
+           AND trigger_event = 'listing_unsold'
+           AND context_json LIKE CONCAT('%\"post_id\":', ?, '%')
+         LIMIT 1"
+    );
+    $check_unsold->bind_param("ii", $post['farmer_id'], $post_id);
     $check_unsold->execute();
     $unsold_result = $check_unsold->get_result();
 
@@ -749,15 +757,12 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                         class="pd-bid-input"
                                         placeholder="0"
                                         required step="1" min="1"
-                                        value="<?php echo intval($min_bid); ?>"
-                                        </div>
-                                    <p class="pd-min-bid-hint">
-                                        <i class="fas fa-info-circle"></i>
-                                        Minimum bid: <strong><?php echo number_format($min_bid, 0); ?>৳</strong>
-                                    </p>
-                                    <button type="submit" class="pd-place-bid-btn">
-                                        <i class="fas fa-gavel"></i> Place Bid
-                                    </button>
+                                        value="<?php echo intval($min_bid); ?>">
+                                </div>
+
+                                <button type="submit" class="pd-place-bid-btn">
+                                    <i class="fas fa-gavel"></i> Place Bid
+                                </button>
                             </form>
                         <?php else: ?>
                             <div class="pd-login-prompt">
@@ -1197,8 +1202,29 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                gap: 10px;
+                flex-wrap: wrap;
                 padding: 10px 16px;
                 background: #f8fafc;
+            }
+
+            .pd-map-card-foot a {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                line-height: 1.2;
+                white-space: nowrap;
+            }
+
+            @media (max-width: 600px) {
+                .pd-map-card-foot {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .pd-map-card-foot a {
+                    white-space: normal;
+                }
             }
         </style>
         <script>

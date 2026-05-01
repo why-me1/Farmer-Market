@@ -38,3 +38,34 @@ error_log
 # Ignore config files containing credentials
 config.php
 db.php
+
+# Additional recommended ignores
+# Local env and secret variants
+.env.local
+.env.*.local
+*.key
+*.pem
+.ssh/
+
+# Logs and caches
+npm-debug.log*
+yarn-error.log*
+.cache/
+.sass-cache/
+coverage/
+phpunit.result.cache
+
+# Temporary/runtime files
+tmp/
+temp/
+sessions/
+uploads/tmp/
+public/uploads/tmp/
+
+# Security keys and certs
+*.p12
+*.crt
+*.csr
+
+# Editor/project files
+*.sublime-workspace

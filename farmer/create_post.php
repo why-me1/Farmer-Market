@@ -12,6 +12,9 @@ require_once '../includes/ratings.php';
 require_once '../includes/discovery.php';
 require_once '../includes/notification_functions.php';
 
+/** @var mysqli $conn */
+/** @var string $base_url */
+
 // Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);

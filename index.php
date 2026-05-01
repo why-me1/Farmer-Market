@@ -1,6 +1,5 @@
 <?php
 session_start();
-include 'includes/db.php'; // Database connection
 date_default_timezone_set('Asia/Dhaka');
 require_once 'includes/config.php';
 require_once 'includes/functions.php';
@@ -263,6 +262,8 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
 
         <!-- 2. LIVE AUCTIONS TEASER BANNER -->
         <?php
+        $teaser_all_count = 0;
+        $teaser_end_count = 0;
         $teaser_all = $conn->prepare("SELECT COUNT(*) FROM posts WHERE is_approved=1 AND status='active' AND auction_start_date <= NOW() AND auction_end_date > NOW() AND CAST(posts.id AS CHAR) NOT IN (SELECT CAST(post_id AS CHAR) FROM comments WHERE is_approved = 1)");
         $teaser_all->execute();
         $teaser_all->bind_result($teaser_all_count);

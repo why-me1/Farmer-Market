@@ -88,13 +88,13 @@ function ratings_ensure_schema()
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
 /** Clamp a value to the 0–5 star range with 1 decimal. */
-function clamp_rating($v)
+function clamp_rating(float|int $v): float
 {
     return round(max(0.0, min(5.0, (float)$v)), 1);
 }
 
 /** Read a user's stored reputation score. Returns 2.5 (neutral) if none set. */
-function get_user_automatic_rating($user_id)
+function get_user_automatic_rating(int $user_id): float
 {
     global $conn;
     $stmt = $conn->prepare("SELECT automatic_rating FROM users WHERE id = ?");
@@ -106,7 +106,7 @@ function get_user_automatic_rating($user_id)
 }
 
 /** Persist a reputation score (0–5) for a user. */
-function save_user_rating($user_id, $score)
+function save_user_rating(int $user_id, float|int $score): float
 {
     global $conn;
     $score = clamp_rating($score);
@@ -118,12 +118,12 @@ function save_user_rating($user_id, $score)
 }
 
 /** Legacy delta helper – kept for any direct callers outside this file. */
-function update_user_rating($user_id, $delta)
+function update_user_rating(int $user_id, float|int $delta): float
 {
     return save_user_rating($user_id, get_user_automatic_rating($user_id) + $delta);
 }
 
-function rating_factor_signal($score_01)
+function rating_factor_signal(float|int $score_01): string
 {
     $score_01 = (float)$score_01;
     if ($score_01 >= 0.75) return 'strong';
@@ -131,7 +131,7 @@ function rating_factor_signal($score_01)
     return 'weak';
 }
 
-function rating_event_label($event)
+function rating_event_label(string $event): string
 {
     $map = [
         'bid_placed' => 'Bid placed',
@@ -147,7 +147,7 @@ function rating_event_label($event)
     return isset($map[$event]) ? $map[$event] : ucwords(str_replace('_', ' ', (string)$event));
 }
 
-function rating_event_reason($trigger_event, $score_type, $context = null)
+function rating_event_reason(string $trigger_event, string $score_type, ?array $context = null): string
 {
     $ctx = is_array($context) ? $context : [];
 
@@ -209,7 +209,7 @@ function rating_event_reason($trigger_event, $score_type, $context = null)
     return 'Your reputation was recalculated from the latest marketplace activity.';
 }
 
-function log_rating_score_change($user_id, $score_type, $trigger_event, $old_score, $new_score, array $breakdown = [], array $context = [])
+function log_rating_score_change(int $user_id, string $score_type, string $trigger_event, float|int $old_score, float|int $new_score, array $breakdown = [], array $context = []): void
 {
     global $conn;
 
@@ -249,7 +249,7 @@ function log_rating_score_change($user_id, $score_type, $trigger_event, $old_sco
     $stmt->close();
 }
 
-function get_rating_change_history($user_id, $score_type = null, $limit = 15)
+function get_rating_change_history(int $user_id, ?string $score_type = null, int $limit = 15): array
 {
     global $conn;
     ratings_ensure_schema();
@@ -293,7 +293,7 @@ function get_rating_change_history($user_id, $score_type = null, $limit = 15)
 
 // ─── Market price helpers (public API unchanged) ─────────────────────────────
 
-function get_market_price_for_product($product_name)
+function get_market_price_for_product(string $product_name): ?float
 {
     global $conn;
     $stmt = $conn->prepare("SELECT market_price FROM market_prices WHERE product_name = ? LIMIT 1");
@@ -305,7 +305,7 @@ function get_market_price_for_product($product_name)
     return $row ? (float)$row['market_price'] : null;
 }
 
-function set_market_price_for_product($product_name, $price, $admin_id = null)
+function set_market_price_for_product(string $product_name, float|int $price, ?int $admin_id = null): void
 {
     global $conn;
     $stmt = $conn->prepare("INSERT INTO market_prices (product_name, market_price, updated_by)
@@ -318,7 +318,7 @@ function set_market_price_for_product($product_name, $price, $admin_id = null)
     $stmt->close();
 }
 
-function get_buyer_reputation_breakdown($buyer_id)
+function get_buyer_reputation_breakdown(int $buyer_id): array
 {
     $bid_fairness        = _buyer_bid_fairness($buyer_id);
     $purchase_completion = _buyer_purchase_completion($buyer_id);
@@ -378,7 +378,7 @@ function get_buyer_reputation_breakdown($buyer_id)
     ];
 }
 
-function get_farmer_reputation_breakdown($farmer_id)
+function get_farmer_reputation_breakdown(int $farmer_id): array
 {
     $buyer_ratings        = _farmer_buyer_ratings($farmer_id);
     $sale_success         = _farmer_sale_success_rate($farmer_id);
@@ -451,7 +451,7 @@ function get_farmer_reputation_breakdown($farmer_id)
  *   More than 50% below        → 0.0
  * Returns 0.5 (neutral) when the buyer has placed no bids yet.
  */
-function _buyer_bid_fairness($buyer_id)
+function _buyer_bid_fairness(int $buyer_id): float
 {
     global $conn;
     $stmt = $conn->prepare(
@@ -493,9 +493,12 @@ function _buyer_bid_fairness($buyer_id)
  * Delivered auctions / total auction wins.
  * Returns 0.5 (neutral) when buyer has never won anything.
  */
-function _buyer_purchase_completion($buyer_id)
+function _buyer_purchase_completion(int $buyer_id): float
 {
     global $conn;
+
+    $wins = 0;
+    $completed = 0;
 
     $stmt = $conn->prepare("SELECT COUNT(*) FROM comments WHERE user_id = ? AND is_approved = 1");
     $stmt->bind_param("i", $buyer_id);
@@ -528,7 +531,7 @@ function _buyer_purchase_completion($buyer_id)
  *   Paid after  12 hours → 0.4
  * Returns 0.5 (neutral) when no payment records exist.
  */
-function _buyer_payment_speed($buyer_id)
+function _buyer_payment_speed(int $buyer_id): float
 {
     global $conn;
     $stmt = $conn->prepare(
@@ -558,7 +561,7 @@ function _buyer_payment_speed($buyer_id)
  * Average farmer-to-buyer rating from buyer_ratings table, normalised to 0–1.
  * Returns 0.5 (neutral) when no feedback exists.
  */
-function _buyer_farmer_feedback($buyer_id)
+function _buyer_farmer_feedback(int $buyer_id): float
 {
     global $conn;
     $stmt = $conn->prepare("SELECT AVG(rating) AS avg_r FROM buyer_ratings WHERE buyer_id = ?");
@@ -580,7 +583,7 @@ function _buyer_farmer_feedback($buyer_id)
  *                   + 0.20 × PaymentSpeed
  *                   + 0.15 × FarmerFeedback)
  */
-function calculate_buyer_reputation($buyer_id, $trigger_event = 'system_recalculation', array $context = [])
+function calculate_buyer_reputation(int $buyer_id, string $trigger_event = 'system_recalculation', array $context = []): float
 {
     ratings_ensure_schema();
 
@@ -600,7 +603,7 @@ function calculate_buyer_reputation($buyer_id, $trigger_event = 'system_recalcul
  * Average buyer review rating across all farmer products, normalised to 0–1.
  * Returns 0.5 (neutral) when no reviews exist.
  */
-function _farmer_buyer_ratings($farmer_id)
+function _farmer_buyer_ratings(int $farmer_id): float
 {
     global $conn;
     $stmt = $conn->prepare(
@@ -621,11 +624,14 @@ function _farmer_buyer_ratings($farmer_id)
 /**
  * SaleSuccessRate (0–1)
  * Products with status sold or delivered / total products listed.
- * Returns 0.5 (neutral) when no products exist.
+ * Returns 0.5 (neutral) until the farmer has at least one completed sale.
  */
-function _farmer_sale_success_rate($farmer_id)
+function _farmer_sale_success_rate(int $farmer_id): float
 {
     global $conn;
+
+    $total = 0;
+    $sold = 0;
 
     $stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND is_approved = 1");
     $stmt->bind_param("i", $farmer_id);
@@ -646,6 +652,8 @@ function _farmer_sale_success_rate($farmer_id)
     $stmt->fetch();
     $stmt->close();
 
+    if ($sold == 0) return 0.5;
+
     return (float)$sold / (float)$total;
 }
 
@@ -656,9 +664,9 @@ function _farmer_sale_success_rate($farmer_id)
  *   5–10 unique bidders → 0.7
  *   2–4  unique bidders → 0.4
  *   < 2  unique bidders → 0.1
- * Returns 0.1 when farmer has no posts with bids.
+ * Returns 0.5 (neutral) when the farmer has no bid activity yet.
  */
-function _farmer_engagement($farmer_id)
+function _farmer_engagement(int $farmer_id): float
 {
     global $conn;
     $stmt = $conn->prepare(
@@ -673,7 +681,7 @@ function _farmer_engagement($farmer_id)
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close();
 
-    if (empty($rows)) return 0.1;
+    if (empty($rows)) return 0.5;
 
     $total = 0.0;
     foreach ($rows as $r) {
@@ -691,9 +699,12 @@ function _farmer_engagement($farmer_id)
  * Delivered posts / (sold + delivered posts).
  * Returns 0.5 (neutral) when farmer has no completed sales.
  */
-function _farmer_delivery_reliability($farmer_id)
+function _farmer_delivery_reliability(int $farmer_id): float
 {
     global $conn;
+
+    $sold_total = 0;
+    $delivered = 0;
 
     $stmt = $conn->prepare(
         "SELECT COUNT(*) FROM posts
@@ -728,13 +739,23 @@ function _farmer_delivery_reliability($farmer_id)
  *                    + 0.20 × EngagementScore
  *                    + 0.15 × DeliveryReliability)
  */
-function calculate_farmer_reputation($farmer_id, $trigger_event = 'system_recalculation', array $context = [])
+function calculate_farmer_reputation(int $farmer_id, string $trigger_event = 'system_recalculation', array $context = []): float
 {
     ratings_ensure_schema();
 
     $old_score = get_user_automatic_rating($farmer_id);
     $breakdown = get_farmer_reputation_breakdown($farmer_id);
-    $new_score = save_user_rating($farmer_id, $breakdown['score']);
+    $new_score = $breakdown['score'];
+
+    // An unsold listing should never improve the stored reputation score.
+    // Keep the weighted recalculation, but cap the result so this event can
+    // only hold steady or reduce the score.
+    if ($trigger_event === 'listing_unsold') {
+        $new_score = min($new_score, max(0.0, round($old_score - 0.1, 1)));
+        $breakdown['score'] = $new_score;
+    }
+
+    $new_score = save_user_rating($farmer_id, $new_score);
     log_rating_score_change($farmer_id, 'farmer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
     return $new_score;
 }
@@ -747,7 +768,7 @@ function calculate_farmer_reputation($farmer_id, $trigger_event = 'system_recalc
  * Record that a buyer won an auction. Call this when a bid is approved.
  * Creates a transaction row so payment speed can be tracked later.
  */
-function record_auction_win($buyer_id, $post_id, $farmer_id)
+function record_auction_win(int $buyer_id, int $post_id, int $farmer_id): void
 {
     global $conn;
     ratings_ensure_schema();
@@ -764,7 +785,7 @@ function record_auction_win($buyer_id, $post_id, $farmer_id)
  * Record that a buyer paid for a won auction, then recalculate their score.
  * Call this from your payment confirmation flow.
  */
-function record_buyer_payment($buyer_id, $post_id)
+function record_buyer_payment(int $buyer_id, int $post_id): float
 {
     global $conn;
     ratings_ensure_schema();
@@ -782,7 +803,7 @@ function record_buyer_payment($buyer_id, $post_id)
  * Let a farmer rate a buyer (1–5 stars) after a completed transaction.
  * Persists the rating then recalculates the buyer's reputation score.
  */
-function add_farmer_buyer_rating($farmer_id, $buyer_id, $post_id, $rating)
+function add_farmer_buyer_rating(int $farmer_id, int $buyer_id, int $post_id, float|int $rating): float
 {
     global $conn;
     ratings_ensure_schema();
@@ -808,7 +829,7 @@ function add_farmer_buyer_rating($farmer_id, $buyer_id, $post_id, $rating)
 // instead of one-shot delta adjustments.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function adjust_rating_for_bid($user_id, $bid_amount, $farmer_price)
+function adjust_rating_for_bid(int $user_id, float|int $bid_amount, float|int $farmer_price): float
 {
     return calculate_buyer_reputation(
         $user_id,
@@ -817,7 +838,7 @@ function adjust_rating_for_bid($user_id, $bid_amount, $farmer_price)
     );
 }
 
-function adjust_rating_for_post($farmer_id, $post_price, $product_name)
+function adjust_rating_for_post(int $farmer_id, float|int $post_price, string $product_name): float
 {
     return calculate_farmer_reputation(
         $farmer_id,
@@ -826,7 +847,7 @@ function adjust_rating_for_post($farmer_id, $post_price, $product_name)
     );
 }
 
-function adjust_rating_for_sale($farmer_id, $post_id, $final_bid_amount)
+function adjust_rating_for_sale(int $farmer_id, int $post_id, float|int $final_bid_amount): float
 {
     global $conn;
     // Also record the auction win for the buyer
@@ -850,12 +871,12 @@ function adjust_rating_for_sale($farmer_id, $post_id, $final_bid_amount)
     );
 }
 
-function adjust_rating_for_unsold($farmer_id, $post_id)
+function adjust_rating_for_unsold(int $farmer_id, int $post_id): float
 {
     return calculate_farmer_reputation($farmer_id, 'listing_unsold', ['post_id' => (int)$post_id]);
 }
 
-function adjust_rating_for_bidding_activity($farmer_id, $post_id, $bid_count)
+function adjust_rating_for_bidding_activity(int $farmer_id, int $post_id, int $bid_count): float
 {
     return calculate_farmer_reputation(
         $farmer_id,
