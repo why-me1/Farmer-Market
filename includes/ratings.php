@@ -43,7 +43,8 @@ function ratings_ensure_schema()
         `product_name` VARCHAR(255) NOT NULL UNIQUE,
         `market_price` DECIMAL(10,2) NOT NULL,
         `updated_by`   INT DEFAULT NULL,
-        `updated_at`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        `updated_at`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT fk_mp_user FOREIGN KEY (`updated_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     // buyer_ratings: farmers rate buyers (1–5) after a completed transaction
@@ -54,7 +55,10 @@ function ratings_ensure_schema()
         `post_id`    INT NOT NULL,
         `rating`     DECIMAL(2,1) NOT NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE KEY `unique_buyer_rating` (`farmer_id`, `buyer_id`, `post_id`)
+        UNIQUE KEY `unique_buyer_rating` (`farmer_id`, `buyer_id`, `post_id`),
+        CONSTRAINT fk_br_farmer FOREIGN KEY (`farmer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+        CONSTRAINT fk_br_buyer FOREIGN KEY (`buyer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+        CONSTRAINT fk_br_post FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     // transactions: track when a buyer paid after winning an auction
@@ -65,7 +69,10 @@ function ratings_ensure_schema()
         `farmer_id`  INT NOT NULL,
         `win_at`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `paid_at`    TIMESTAMP NULL DEFAULT NULL,
-        UNIQUE KEY `unique_transaction` (`post_id`, `buyer_id`)
+        UNIQUE KEY `unique_transaction` (`post_id`, `buyer_id`),
+        CONSTRAINT fk_tx_post FOREIGN KEY (`post_id`) REFERENCES `posts`(`id`) ON DELETE CASCADE,
+        CONSTRAINT fk_tx_buyer FOREIGN KEY (`buyer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+        CONSTRAINT fk_tx_farmer FOREIGN KEY (`farmer_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
     // Keep a transparent audit trail for score increases/decreases.
@@ -81,7 +88,8 @@ function ratings_ensure_schema()
         `context_json`   TEXT NULL,
         `created_at`     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         INDEX `idx_rsh_user_created` (`user_id`, `created_at`),
-        INDEX `idx_rsh_user_type` (`user_id`, `score_type`)
+        INDEX `idx_rsh_user_type` (`user_id`, `score_type`),
+        CONSTRAINT fk_rsh_user FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
 
@@ -320,6 +328,7 @@ function set_market_price_for_product(string $product_name, float|int $price, ?i
 
 function get_buyer_reputation_breakdown(int $buyer_id): array
 {
+    global $conn;
     $bid_fairness        = _buyer_bid_fairness($buyer_id);
     $purchase_completion = _buyer_purchase_completion($buyer_id);
     $payment_speed       = _buyer_payment_speed($buyer_id);
@@ -369,17 +378,43 @@ function get_buyer_reputation_breakdown(int $buyer_id): array
         $weighted_total += $weighted;
     }
 
+    $raw_score = clamp_rating(5.0 * $weighted_total);
+
+    // ANTI-FRAUD CHECK: Require minimum 3 completed transactions before score deviates from 2.5
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM transactions WHERE buyer_id = ? AND paid_at IS NOT NULL");
+    if (!$stmt) {
+        // Fallback if not initialized fully
+        $tx_count = 0;
+    } else {
+        $stmt->bind_param("i", $buyer_id);
+        $stmt->execute();
+        $stmt->bind_result($tx_count);
+        $stmt->fetch();
+        $stmt->close();
+    }
+
+    $is_probation = ($tx_count < 3);
+    $final_score = $is_probation ? 2.5 : $raw_score;
+
     return [
         'score_type' => 'buyer_reputation',
         'title' => 'Buyer Reputation',
-        'score' => clamp_rating(5.0 * $weighted_total),
+        'score' => $final_score,
+        'raw_calculated_score' => $raw_score,
         'factors' => $factors,
-        'formula' => '5 × (0.35×BidFairness + 0.30×PurchaseCompletion + 0.20×PaymentSpeed + 0.15×FarmerFeedback)'
+        'formula' => '5 × (0.35×BidFairness + 0.30×PurchaseCompletion + 0.20×PaymentSpeed + 0.15×FarmerFeedback)',
+        'probation' => [
+            'is_active' => $is_probation,
+            'completed' => $tx_count,
+            'required' => 3,
+            'message' => $is_probation ? "Complete " . (3 - $tx_count) . " more transactions to unlock your dynamic score." : "Probation completed."
+        ]
     ];
 }
 
 function get_farmer_reputation_breakdown(int $farmer_id): array
 {
+    global $conn;
     $buyer_ratings        = _farmer_buyer_ratings($farmer_id);
     $sale_success         = _farmer_sale_success_rate($farmer_id);
     $engagement           = _farmer_engagement($farmer_id);
@@ -429,12 +464,36 @@ function get_farmer_reputation_breakdown(int $farmer_id): array
         $weighted_total += $weighted;
     }
 
+    $raw_score = clamp_rating(5.0 * $weighted_total);
+
+    // ANTI-FRAUD CHECK: Require minimum 3 delivered sales before score deviates from 2.5
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM posts WHERE farmer_id = ? AND status = 'delivered'");
+    if (!$stmt) {
+        $tx_count = 0;
+    } else {
+        $stmt->bind_param("i", $farmer_id);
+        $stmt->execute();
+        $stmt->bind_result($tx_count);
+        $stmt->fetch();
+        $stmt->close();
+    }
+
+    $is_probation = ($tx_count < 3);
+    $final_score = $is_probation ? 2.5 : $raw_score;
+
     return [
         'score_type' => 'farmer_reputation',
         'title' => 'Farmer Reputation',
-        'score' => clamp_rating(5.0 * $weighted_total),
+        'score' => $final_score,
+        'raw_calculated_score' => $raw_score,
         'factors' => $factors,
-        'formula' => '5 × (0.40×BuyerRatings + 0.25×SaleSuccessRate + 0.20×EngagementScore + 0.15×DeliveryReliability)'
+        'formula' => '5 × (0.40×BuyerRatings + 0.25×SaleSuccessRate + 0.20×EngagementScore + 0.15×DeliveryReliability)',
+        'probation' => [
+            'is_active' => $is_probation,
+            'completed' => $tx_count,
+            'required' => 3,
+            'message' => $is_probation ? "Deliver " . (3 - $tx_count) . " more orders to unlock your dynamic score." : "Probation completed."
+        ]
     ];
 }
 
@@ -454,38 +513,32 @@ function get_farmer_reputation_breakdown(int $farmer_id): array
 function _buyer_bid_fairness(int $buyer_id): float
 {
     global $conn;
-    $stmt = $conn->prepare(
-        "SELECT CAST(c.comment_text AS DECIMAL(12,2)) AS bid, p.price AS asking
-         FROM comments c
-         JOIN posts p ON p.id = c.post_id
-         WHERE c.user_id = ?
-           AND c.comment_text REGEXP '^[0-9]+(\\.[0-9]+)?$'"
-    );
+    // Fix: Moved aggregation to SQL for O(1) memory usage and massive performance boost
+    $stmt = $conn->prepare("
+        SELECT AVG(
+            CASE 
+                WHEN asking <= 0 THEN 0.5
+                WHEN ((asking - bid) / asking) * 100.0 <= 20 THEN 1.0
+                WHEN ((asking - bid) / asking) * 100.0 <= 40 THEN 0.8
+                WHEN ((asking - bid) / asking) * 100.0 <= 60 THEN 0.6
+                ELSE 0.3
+            END
+        ) as final_score
+        FROM (
+            SELECT MAX(CAST(c.comment_text AS DECIMAL(12,2))) AS bid, CAST(p.price AS DECIMAL(12,2)) AS asking
+            FROM comments c
+            JOIN posts p ON p.id = c.post_id
+            WHERE c.user_id = ?
+              AND c.comment_text REGEXP '^[0-9]+(\\.[0-9]+)?$'
+            GROUP BY p.id, p.price
+        ) as subquery
+    ");
     $stmt->bind_param("i", $buyer_id);
     $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (empty($rows)) return 0.5;
-
-    $total = 0.0;
-    foreach ($rows as $r) {
-        $asking = (float)$r['asking'];
-        $bid    = (float)$r['bid'];
-        if ($asking <= 0) {
-            $total += 0.5;
-            continue;
-        }
-
-        // How far below the asking price is the bid? (positive = lower than asking)
-        $pct = (($asking - $bid) / $asking) * 100.0;
-
-        if ($pct <= 10)     $total += 1.0;
-        elseif ($pct <= 30) $total += 0.7;
-        elseif ($pct <= 50) $total += 0.4;
-        else                $total += 0.0;
-    }
-    return $total / count($rows);
+    return ($row && $row['final_score'] !== null) ? (float)$row['final_score'] : 0.5;
 }
 
 /**
@@ -498,8 +551,9 @@ function _buyer_purchase_completion(int $buyer_id): float
 {
     global $conn;
 
+    // Fix: Include t.paid_at to check if buyer fulfilled their part
     $stmt = $conn->prepare(
-        "SELECT p.status, COALESCE(t.win_at, c.created_at) as event_time
+        "SELECT p.status, COALESCE(t.win_at, c.created_at) as event_time, t.paid_at
          FROM comments c
          JOIN posts p ON p.id = c.post_id
          LEFT JOIN transactions t ON t.post_id = p.id AND t.buyer_id = c.user_id
@@ -521,10 +575,14 @@ function _buyer_purchase_completion(int $buyer_id): float
             $eligible_total++;
             $completed++;
         } elseif ($r['status'] === 'sold') {
-            // Grace Period: > 3 days (259200 seconds) implies a stalled/failed transaction
+            // Grace Period: > 3 days (259200 seconds)
             $event_time = strtotime($r['event_time']);
             if (($now - $event_time) > 259200) {
-                $eligible_total++;
+                // Fix: Only penalize buyer if they didn't pay. If paid_at is not null,
+                // the delay is likely the farmer's fault, so don't count it against the buyer.
+                if ($r['paid_at'] === null) {
+                    $eligible_total++;
+                }
             }
         }
     }
@@ -544,26 +602,25 @@ function _buyer_purchase_completion(int $buyer_id): float
 function _buyer_payment_speed(int $buyer_id): float
 {
     global $conn;
-    $stmt = $conn->prepare(
-        "SELECT TIMESTAMPDIFF(MINUTE, win_at, paid_at) AS minutes
-         FROM transactions
-         WHERE buyer_id = ? AND paid_at IS NOT NULL"
-    );
+    // Fix: Moved aggregation to SQL for O(1) memory usage
+    $stmt = $conn->prepare("
+        SELECT AVG(
+            CASE 
+                WHEN paid_at IS NULL THEN 0.0
+                WHEN TIMESTAMPDIFF(MINUTE, win_at, paid_at) <= 60 THEN 1.0
+                WHEN TIMESTAMPDIFF(MINUTE, win_at, paid_at) <= 720 THEN 0.7
+                ELSE 0.4
+            END
+        ) as final_score
+        FROM transactions
+        WHERE buyer_id = ? AND (paid_at IS NOT NULL OR TIMESTAMPDIFF(MINUTE, win_at, NOW()) > 1440)
+    ");
     $stmt->bind_param("i", $buyer_id);
     $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (empty($rows)) return 0.5;
-
-    $total = 0.0;
-    foreach ($rows as $r) {
-        $mins = (float)$r['minutes'];
-        if ($mins <= 60)   $total += 1.0;
-        elseif ($mins <= 720) $total += 0.7;
-        else               $total += 0.4;
-    }
-    return $total / count($rows);
+    return ($row && $row['final_score'] !== null) ? (float)$row['final_score'] : 0.5;
 }
 
 /**
@@ -596,11 +653,21 @@ function _buyer_farmer_feedback(int $buyer_id): float
 function calculate_buyer_reputation(int $buyer_id, string $trigger_event = 'system_recalculation', array $context = []): float
 {
     ratings_ensure_schema();
+    global $conn;
 
     $old_score = get_user_automatic_rating($buyer_id);
     $breakdown = get_buyer_reputation_breakdown($buyer_id);
-    $new_score = save_user_rating($buyer_id, $breakdown['score']);
-    log_rating_score_change($buyer_id, 'buyer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+    $new_score = $breakdown['score'];
+
+    try {
+        $conn->begin_transaction();
+        $new_score = save_user_rating($buyer_id, $new_score);
+        log_rating_score_change($buyer_id, 'buyer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollback();
+        return $old_score;
+    }
     return $new_score;
 }
 
@@ -617,7 +684,7 @@ function _farmer_buyer_ratings(int $farmer_id): float
 {
     global $conn;
     $stmt = $conn->prepare(
-        "SELECT AVG(r.rating) AS avg_r
+        "SELECT AVG(r.rating) AS avg_r, COUNT(r.id) AS review_count
          FROM reviews r
          JOIN posts p ON p.id = r.product_id
          WHERE p.farmer_id = ?"
@@ -627,8 +694,14 @@ function _farmer_buyer_ratings(int $farmer_id): float
     $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (!$row || $row['avg_r'] === null) return 0.5;
-    return (float)$row['avg_r'] / 5.0;
+    if (!$row || $row['avg_r'] === null || $row['review_count'] == 0) return 0.5;
+    
+    // Fix: Use Bayesian average to reduce volatility for new farmers
+    $avg = (float)$row['avg_r'];
+    $count = (int)$row['review_count'];
+    $bayesian_avg = (($avg * $count) + (3.0 * 2)) / ($count + 2);
+    
+    return $bayesian_avg / 5.0;
 }
 
 /**
@@ -680,29 +753,30 @@ function _farmer_sale_success_rate(int $farmer_id): float
 function _farmer_engagement(int $farmer_id): float
 {
     global $conn;
-    $stmt = $conn->prepare(
-        "SELECT COUNT(DISTINCT c.user_id) AS unique_bidders
-         FROM posts p
-         JOIN comments c ON c.post_id = p.id
-         WHERE p.farmer_id = ?
-         GROUP BY p.id"
-    );
+    // Fix: Moved aggregation to SQL for O(1) memory usage
+    $stmt = $conn->prepare("
+        SELECT AVG(
+            CASE
+                WHEN unique_bidders >= 5 THEN 1.0
+                WHEN unique_bidders >= 3 THEN 0.8
+                WHEN unique_bidders >= 1 THEN 0.6
+                ELSE 0.2
+            END
+        ) as final_score
+        FROM (
+            SELECT COUNT(DISTINCT c.user_id) AS unique_bidders
+            FROM posts p
+            JOIN comments c ON c.post_id = p.id
+            WHERE p.farmer_id = ?
+            GROUP BY p.id
+        ) as subquery
+    ");
     $stmt->bind_param("i", $farmer_id);
     $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $row = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    if (empty($rows)) return 0.5;
-
-    $total = 0.0;
-    foreach ($rows as $r) {
-        $b = (int)$r['unique_bidders'];
-        if ($b > 10)     $total += 1.0;
-        elseif ($b >= 5) $total += 0.7;
-        elseif ($b >= 2) $total += 0.4;
-        else             $total += 0.1;
-    }
-    return $total / count($rows);
+    return ($row && $row['final_score'] !== null) ? (float)$row['final_score'] : 0.5;
 }
 
 /**
@@ -715,8 +789,9 @@ function _farmer_delivery_reliability(int $farmer_id): float
 {
     global $conn;
 
+    // Fix: Include t.paid_at to determine whose fault a delay is
     $stmt = $conn->prepare(
-        "SELECT p.status, COALESCE(t.win_at, p.created_at) as event_time
+        "SELECT p.status, COALESCE(t.win_at, p.created_at) as event_time, t.paid_at
          FROM posts p
          LEFT JOIN transactions t ON t.post_id = p.id
          WHERE p.farmer_id = ? AND p.status IN ('sold', 'delivered')"
@@ -737,10 +812,14 @@ function _farmer_delivery_reliability(int $farmer_id): float
             $eligible_total++;
             $delivered++;
         } elseif ($r['status'] === 'sold') {
-            // Grace Period: > 3 days (259200 seconds) implies a stalled/failed delivery
+            // Grace Period: > 3 days (259200 seconds)
             $event_time = strtotime($r['event_time']);
             if (($now - $event_time) > 259200) {
-                $eligible_total++;
+                // Fix: Only penalize farmer if the buyer DID pay.
+                // If paid_at is null, the buyer ghosted, so farmer shouldn't be blamed for no delivery.
+                if ($r['paid_at'] !== null) {
+                    $eligible_total++;
+                }
             }
         }
     }
@@ -761,6 +840,7 @@ function _farmer_delivery_reliability(int $farmer_id): float
 function calculate_farmer_reputation(int $farmer_id, string $trigger_event = 'system_recalculation', array $context = []): float
 {
     ratings_ensure_schema();
+    global $conn;
 
     $old_score = get_user_automatic_rating($farmer_id);
     $breakdown = get_farmer_reputation_breakdown($farmer_id);
@@ -774,8 +854,15 @@ function calculate_farmer_reputation(int $farmer_id, string $trigger_event = 'sy
         $breakdown['score'] = $new_score;
     }
 
-    $new_score = save_user_rating($farmer_id, $new_score);
-    log_rating_score_change($farmer_id, 'farmer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+    try {
+        $conn->begin_transaction();
+        $new_score = save_user_rating($farmer_id, $new_score);
+        log_rating_score_change($farmer_id, 'farmer_reputation', $trigger_event, $old_score, $new_score, $breakdown, $context);
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollback();
+        return $old_score;
+    }
     return $new_score;
 }
 
@@ -826,6 +913,18 @@ function add_farmer_buyer_rating(int $farmer_id, int $buyer_id, int $post_id, fl
 {
     global $conn;
     ratings_ensure_schema();
+
+    // Fix: Add server-side verification to prevent malicious ratings
+    $check_stmt = $conn->prepare("SELECT 1 FROM transactions WHERE farmer_id = ? AND buyer_id = ? AND post_id = ?");
+    $check_stmt->bind_param("iii", $farmer_id, $buyer_id, $post_id);
+    $check_stmt->execute();
+    $valid = $check_stmt->get_result()->num_rows > 0;
+    $check_stmt->close();
+
+    if (!$valid) {
+        throw new Exception("Unauthorized: You cannot rate this transaction as it does not exist or you do not own it.");
+    }
+
     $rating = max(1.0, min(5.0, (float)$rating));
     $stmt = $conn->prepare(
         "INSERT INTO buyer_ratings (farmer_id, buyer_id, post_id, rating)

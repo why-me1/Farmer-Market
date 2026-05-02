@@ -105,8 +105,10 @@ foreach ($grouped as $cat => $items) {
             --bg-darker: #05080f;
             --glass-bg: rgba(255, 255, 255, 0.04);
             --glass-border: rgba(255, 255, 255, 0.08);
-            --accent-1: #10b981; /* Emerald */
-            --accent-2: #06b6d4; /* Cyan */
+            --accent-1: #10b981;
+            /* Emerald */
+            --accent-2: #06b6d4;
+            /* Cyan */
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
@@ -118,13 +120,19 @@ foreach ($grouped as $cat => $items) {
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-dark) !important;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 25%),
                 radial-gradient(circle at 85% 30%, rgba(6, 182, 212, 0.08), transparent 25%) !important;
             background-attachment: fixed !important;
             color: var(--text-main) !important;
             margin: 0;
             min-height: 100vh;
+        }
+
+        body.price-compare-page a,
+        body.price-compare-page a:hover,
+        body.price-compare-page a:focus {
+            text-decoration: none !important;
         }
 
         /* ── HERO ── */
@@ -174,6 +182,7 @@ foreach ($grouped as $cat => $items) {
 
         .pc-hero h1 span {
             background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -206,7 +215,7 @@ foreach ($grouped as $cat => $items) {
             box-shadow: 0 8px 32px rgba(6, 182, 212, 0.15);
         }
 
-        .pc-search-wrap > i {
+        .pc-search-wrap>i {
             color: var(--text-muted);
             font-size: 18px;
         }
@@ -251,7 +260,7 @@ foreach ($grouped as $cat => $items) {
             -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
             padding: 28px 32px;
             display: flex;
             gap: 0;
@@ -266,12 +275,18 @@ foreach ($grouped as $cat => $items) {
             flex: 1;
             min-width: 130px;
             padding: 0 24px;
-            border-right: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
             text-align: center;
         }
 
-        .pc-float-stat:first-child { padding-left: 0; }
-        .pc-float-stat:last-child { border-right: none; padding-right: 0; }
+        .pc-float-stat:first-child {
+            padding-left: 0;
+        }
+
+        .pc-float-stat:last-child {
+            border-right: none;
+            padding-right: 0;
+        }
 
         .pfs-val {
             font-family: 'Poppins', sans-serif;
@@ -279,7 +294,7 @@ foreach ($grouped as $cat => $items) {
             font-weight: 800;
             color: #fff;
             line-height: 1;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
         .pfs-label {
@@ -291,7 +306,10 @@ foreach ($grouped as $cat => $items) {
             letter-spacing: 1px;
         }
 
-        .pfs-accent { color: var(--accent-1); text-shadow: 0 0 15px rgba(16,185,129,0.4); }
+        .pfs-accent {
+            color: var(--accent-1);
+            text-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
 
         /* ── Category Pills ── */
         .pc-cats-wrap {
@@ -312,8 +330,8 @@ foreach ($grouped as $cat => $items) {
             border-radius: 30px;
             font-size: 14px;
             font-weight: 600;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: var(--text-muted);
             cursor: pointer;
             text-decoration: none;
@@ -322,17 +340,17 @@ foreach ($grouped as $cat => $items) {
         }
 
         .pc-cat-pill:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
             color: #fff;
             transform: translateY(-2px);
         }
 
         .pc-cat-pill.active {
-            background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(6,182,212,0.15));
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.15));
             border-color: var(--accent-1);
             color: #fff;
-            box-shadow: 0 0 20px rgba(16,185,129,0.15);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
         }
 
         /* ── Section Heading ── */
@@ -385,10 +403,10 @@ foreach ($grouped as $cat => $items) {
             backdrop-filter: blur(10px);
             transition: transform 0.2s;
         }
-        
+
         .pc-stat-chip:hover {
             transform: translateY(-2px);
-            background: rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .chip-label {
@@ -406,9 +424,20 @@ foreach ($grouped as $cat => $items) {
             color: #fff;
         }
 
-        .c-green .chip-val { color: var(--accent-1); text-shadow: 0 0 10px rgba(16,185,129,0.3); }
-        .c-red .chip-val { color: #f43f5e; text-shadow: 0 0 10px rgba(244,63,94,0.3); }
-        .c-blue .chip-val { color: #60a5fa; text-shadow: 0 0 10px rgba(96,165,250,0.3); }
+        .c-green .chip-val {
+            color: var(--accent-1);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
+
+        .c-red .chip-val {
+            color: #f43f5e;
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+        }
+
+        .c-blue .chip-val {
+            color: #60a5fa;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+        }
 
         /* ── Modern Product List (Replaces Table) ── */
         .pc-product-group {
@@ -418,14 +447,16 @@ foreach ($grouped as $cat => $items) {
             padding: 24px;
             margin-bottom: 32px;
             backdrop-filter: blur(12px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             animation: fadeUp 0.6s ease forwards;
             opacity: 0;
             transform: translateY(10px);
         }
 
-        .pc-product-group:nth-child(even) { animation-delay: 0.1s; }
-        
+        .pc-product-group:nth-child(even) {
+            animation-delay: 0.1s;
+        }
+
         .pg-header {
             display: flex;
             align-items: center;
@@ -447,10 +478,10 @@ foreach ($grouped as $cat => $items) {
             font-size: 13px;
             color: var(--text-muted);
             font-weight: 500;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             padding: 6px 12px;
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         /* Chart rows inside group */
@@ -460,15 +491,15 @@ foreach ($grouped as $cat => $items) {
             gap: 16px;
             margin-bottom: 16px;
             padding: 12px 16px;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.02);
+            border: 1px solid rgba(255, 255, 255, 0.02);
             transition: all 0.2s ease;
         }
 
         .pc-chart-row:hover {
-            background: rgba(255,255,255,0.04);
-            border-color: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         .pc-chart-label {
@@ -488,10 +519,10 @@ foreach ($grouped as $cat => $items) {
         .pc-chart-bar-wrap {
             flex: 1;
             height: 12px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
             overflow: hidden;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
             position: relative;
         }
 
@@ -500,7 +531,7 @@ foreach ($grouped as $cat => $items) {
             border-radius: 10px;
             transition: width 1s cubic-bezier(.25, .46, .45, .94);
             position: relative;
-            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
 
         .pc-chart-price {
@@ -526,17 +557,17 @@ foreach ($grouped as $cat => $items) {
             align-items: center;
             gap: 16px;
             padding: 16px 20px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 16px;
             transition: all 0.3s ease;
         }
 
         .pc-list-item:hover {
-            background: rgba(255,255,255,0.05);
-            border-color: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
             transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
 
         .pct-rank {
@@ -553,9 +584,23 @@ foreach ($grouped as $cat => $items) {
             white-space: nowrap;
         }
 
-        .rank-gold { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-        .rank-high { background: rgba(244, 63, 94, 0.1); color: #fb7185; border: 1px solid rgba(244,63,94,0.2); }
-        .rank-mid { background: rgba(255,255,255,0.05); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
+        .rank-gold {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .rank-high {
+            background: rgba(244, 63, 94, 0.1);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        .rank-mid {
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
         .pct-farmer {
             display: flex;
@@ -568,7 +613,7 @@ foreach ($grouped as $cat => $items) {
             height: 44px;
             border-radius: 12px;
             object-fit: cover;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -576,11 +621,15 @@ foreach ($grouped as $cat => $items) {
             font-size: 1.2rem;
             overflow: hidden;
             flex-shrink: 0;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .pct-img img { width: 100%; height: 100%; object-fit: cover; }
-        
+        .pct-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .farmer-info a {
             color: #fff;
             font-weight: 600;
@@ -590,17 +639,33 @@ foreach ($grouped as $cat => $items) {
             margin-bottom: 2px;
             transition: color 0.2s;
         }
-        .farmer-info a:hover { color: var(--accent-1); }
-        
-        .pct-loc { font-size: 12px; color: var(--text-muted); }
+
+        .farmer-info a:hover {
+            color: var(--accent-1);
+        }
+
+        .pct-loc {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
 
         .price-block {
             display: flex;
             flex-direction: column;
             gap: 2px;
         }
-        .pct-price { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 800; color: #fff; }
-        .pct-qty { color: var(--text-muted); font-size: 12px; }
+
+        .pct-price {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .pct-qty {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
 
         .pct-vs {
             display: inline-flex;
@@ -612,22 +677,45 @@ foreach ($grouped as $cat => $items) {
             font-weight: 700;
         }
 
-        .vs-cheap { background: rgba(16,185,129,0.1); color: var(--accent-1); }
-        .vs-pricey { background: rgba(244,63,94,0.1); color: #fb7185; }
-        .vs-mid { background: rgba(255,255,255,0.05); color: #94a3b8; }
+        .vs-cheap {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-1);
+        }
 
-        .bids-block { text-align: center; }
-        .bids-val { font-weight: 800; color: var(--accent-2); font-size: 16px; }
-        .bids-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .vs-pricey {
+            background: rgba(244, 63, 94, 0.1);
+            color: #fb7185;
+        }
+
+        .vs-mid {
+            background: rgba(255, 255, 255, 0.05);
+            color: #94a3b8;
+        }
+
+        .bids-block {
+            text-align: center;
+        }
+
+        .bids-val {
+            font-weight: 800;
+            color: var(--accent-2);
+            font-size: 16px;
+        }
+
+        .bids-lbl {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
 
         .view-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 10px 20px;
             font-size: 13px;
@@ -642,7 +730,7 @@ foreach ($grouped as $cat => $items) {
             border-color: transparent;
             color: #05080f;
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
 
         @media (max-width: 900px) {
@@ -651,9 +739,22 @@ foreach ($grouped as $cat => $items) {
                 gap: 12px;
                 padding: 20px;
             }
-            .pct-rank { align-self: flex-start; }
-            .bids-block { text-align: left; display: flex; gap: 8px; align-items: center; }
-            .view-btn { width: 100%; margin-top: 8px; }
+
+            .pct-rank {
+                align-self: flex-start;
+            }
+
+            .bids-block {
+                text-align: left;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .view-btn {
+                width: 100%;
+                margin-top: 8px;
+            }
         }
 
         /* ── Empty state ── */
@@ -667,16 +768,28 @@ foreach ($grouped as $cat => $items) {
             backdrop-filter: blur(10px);
         }
 
-        .pc-empty i { font-size: 4rem; margin-bottom: 20px; display: block; opacity: 0.5; }
-        .pc-empty p { font-size: 16px; margin: 0; }
+        .pc-empty i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+            opacity: 0.5;
+        }
+
+        .pc-empty p {
+            font-size: 16px;
+            margin: 0;
+        }
 
         @keyframes fadeUp {
-            to { opacity: 1; transform: translateY(0); }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 
-<body>
+<body class="price-compare-page">
     <?php include 'includes/nav.php'; ?>
 
     <!-- HERO -->
@@ -858,7 +971,7 @@ foreach ($grouped as $cat => $items) {
                             ?>
                                 <div class="pc-list-item">
                                     <span class="pct-rank <?php echo $rk; ?>"><?php echo $rl; ?></span>
-                                    
+
                                     <div class="pct-farmer">
                                         <div class="pct-img">
                                             <?php if (!empty($pi['image'])): ?>

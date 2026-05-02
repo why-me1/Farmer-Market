@@ -95,24 +95,34 @@ foreach ($listings as $l) {
             --bg-darker: #05080f;
             --glass-bg: rgba(255, 255, 255, 0.04);
             --glass-border: rgba(255, 255, 255, 0.08);
-            --accent-1: #10b981; /* Emerald */
-            --accent-2: #06b6d4; /* Cyan */
+            --accent-1: #10b981;
+            /* Emerald */
+            --accent-2: #06b6d4;
+            /* Cyan */
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-dark) !important;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 85% 10%, rgba(16, 185, 129, 0.08), transparent 25%),
                 radial-gradient(circle at 15% 80%, rgba(6, 182, 212, 0.08), transparent 25%) !important;
             background-attachment: fixed !important;
             color: var(--text-main) !important;
             margin: 0;
             min-height: 100vh;
+        }
+
+        body.price-insights-page a,
+        body.price-insights-page a:hover,
+        body.price-insights-page a:focus {
+            text-decoration: none !important;
         }
 
         /* HERO */
@@ -165,6 +175,7 @@ foreach ($listings as $l) {
 
         .pi-hero h1 span {
             background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -196,7 +207,7 @@ foreach ($listings as $l) {
         }
 
         .pi-hero-back:hover {
-            background: rgba(255,255,255,0.08);
+            background: rgba(255, 255, 255, 0.08);
             color: var(--accent-1);
             transform: translateY(-2px);
         }
@@ -220,7 +231,7 @@ foreach ($listings as $l) {
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             padding: 24px 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             gap: 16px;
@@ -229,7 +240,7 @@ foreach ($listings as $l) {
 
         .pi-sum-card:hover {
             transform: translateY(-4px);
-            background: rgba(255,255,255,0.06);
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .pi-sum-icon {
@@ -241,13 +252,32 @@ foreach ($listings as $l) {
             justify-content: center;
             font-size: 22px;
             flex-shrink: 0;
-            box-shadow: inset 0 2px 5px rgba(255,255,255,0.2);
+            box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.2);
         }
 
-        .sum-total { background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(96,165,250,0.2)); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
-        .sum-below { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(52,211,153,0.2)); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .sum-above { background: linear-gradient(135deg, rgba(244,63,94,0.2), rgba(251,113,133,0.2)); color: #fb7185; border: 1px solid rgba(244,63,94,0.3); }
-        .sum-equal { background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(251,191,36,0.2)); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .sum-total {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.2));
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .sum-below {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.2));
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .sum-above {
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0.2), rgba(251, 113, 133, 0.2));
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        .sum-equal {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
 
         .pi-sum-val {
             font-family: 'Poppins', sans-serif;
@@ -279,7 +309,7 @@ foreach ($listings as $l) {
 
         .pi-table-head {
             padding: 24px 28px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -325,17 +355,17 @@ foreach ($listings as $l) {
             align-items: center;
             gap: 16px;
             padding: 16px 20px;
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.03);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
             border-radius: 16px;
             transition: all 0.3s ease;
         }
 
         .pi-list-item:hover {
-            background: rgba(255,255,255,0.05);
-            border-color: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         }
 
         /* Product Info */
@@ -344,43 +374,87 @@ foreach ($listings as $l) {
             flex-direction: column;
             gap: 4px;
         }
-        .prod-name { font-weight: 700; color: #fff; font-size: 15px; }
+
+        .prod-name {
+            font-weight: 700;
+            color: #fff;
+            font-size: 15px;
+        }
+
         .prod-cat {
             display: inline-block;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             color: var(--accent-2);
             border-radius: 8px;
             padding: 2px 8px;
             font-size: 11px;
             font-weight: 600;
             width: fit-content;
-            border: 1px solid rgba(6,182,212,0.2);
+            border: 1px solid rgba(6, 182, 212, 0.2);
         }
 
         /* Prices */
-        .price-col { display: flex; flex-direction: column; gap: 2px; }
-        .my-price { font-family: 'Poppins', sans-serif; font-size: 18px; font-weight: 800; color: var(--accent-1); }
-        .mkt-avg { font-family: 'Poppins', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
-        .mkt-range { font-size: 11px; color: var(--text-muted); }
+        .price-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .my-price {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--accent-1);
+        }
+
+        .mkt-avg {
+            font-family: 'Poppins', sans-serif;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .mkt-range {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
 
         /* Gauges */
-        .pi-gauge-wrap { display: flex; flex-direction: column; gap: 6px; }
+        .pi-gauge-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
         .pi-gauge {
             width: 100%;
             height: 6px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 3px;
             overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
         }
+
         .pi-gauge-fill {
             height: 100%;
             border-radius: 3px;
             transition: width 1s cubic-bezier(.25, .46, .45, .94);
         }
-        .gauge-green { background: linear-gradient(90deg, #10b981, #34d399); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
-        .gauge-red { background: linear-gradient(90deg, #f43f5e, #fb7185); box-shadow: 0 0 8px rgba(244,63,94,0.5); }
-        .gauge-yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+
+        .gauge-green {
+            background: linear-gradient(90deg, #10b981, #34d399);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        .gauge-red {
+            background: linear-gradient(90deg, #f43f5e, #fb7185);
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+        }
+
+        .gauge-yellow {
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+        }
 
         .pi-diff-pill {
             display: inline-flex;
@@ -393,23 +467,55 @@ foreach ($listings as $l) {
             width: fit-content;
             text-transform: uppercase;
         }
-        .diff-low { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .diff-high { background: rgba(244,63,94,0.15); color: #fb7185; border: 1px solid rgba(244,63,94,0.3); }
-        .diff-avg { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-        .diff-none { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+
+        .diff-low {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .diff-high {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        .diff-avg {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .diff-none {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-muted);
+        }
 
         /* Bids */
-        .bid-col { text-align: center; }
-        .bid-val { font-weight: 800; color: var(--accent-2); font-size: 16px; }
-        .bid-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+        .bid-col {
+            text-align: center;
+        }
+
+        .bid-val {
+            font-weight: 800;
+            color: var(--accent-2);
+            font-size: 16px;
+        }
+
+        .bid-lbl {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
 
         /* Actions */
         .action-btns {
             display: flex;
             gap: 8px;
         }
+
         .action-btn {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
             border-radius: 10px;
             width: 36px;
@@ -419,19 +525,30 @@ foreach ($listings as $l) {
             justify-content: center;
             font-size: 14px;
             text-decoration: none;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             transition: all 0.2s;
         }
+
         .action-btn:hover {
             transform: translateY(-2px);
         }
-        .btn-view:hover { background: rgba(6,182,212,0.2); border-color: var(--accent-2); color: var(--accent-2); }
-        .btn-comp:hover { background: rgba(16,185,129,0.2); border-color: var(--accent-1); color: var(--accent-1); }
+
+        .btn-view:hover {
+            background: rgba(6, 182, 212, 0.2);
+            border-color: var(--accent-2);
+            color: var(--accent-2);
+        }
+
+        .btn-comp:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent-1);
+            color: var(--accent-1);
+        }
 
         /* Tip box */
         .pi-tip-box {
-            background: rgba(16,185,129,0.05);
-            border: 1px solid rgba(16,185,129,0.2);
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
             border-radius: 20px;
             padding: 24px;
             display: flex;
@@ -452,7 +569,7 @@ foreach ($listings as $l) {
             font-size: 22px;
             color: #05080f;
             flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
 
         .pi-tip-box h5 {
@@ -476,7 +593,13 @@ foreach ($listings as $l) {
             text-align: center;
             color: var(--text-muted);
         }
-        .pi-empty i { font-size: 3rem; margin-bottom: 16px; display: block; opacity: 0.5; }
+
+        .pi-empty i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+            opacity: 0.5;
+        }
 
         @media (max-width: 900px) {
             .pi-list-item {
@@ -484,14 +607,28 @@ foreach ($listings as $l) {
                 gap: 12px;
                 padding: 20px;
             }
-            .bid-col { text-align: left; display: flex; gap: 8px; align-items: center; }
-            .action-btns { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
-            .action-btn { width: 100%; }
+
+            .bid-col {
+                text-align: left;
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+
+            .action-btns {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .action-btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
-<body>
+<body class="price-insights-page">
     <?php include '../includes/nav.php'; ?>
 
     <div class="container py-4" style="max-width:1100px;">
@@ -597,7 +734,7 @@ foreach ($listings as $l) {
                                 <span class="prod-name"><?php echo htmlspecialchars($l['product_name']); ?></span>
                                 <span class="prod-cat"><?php echo htmlspecialchars($l['category']); ?></span>
                             </div>
-                            
+
                             <div class="price-col">
                                 <span class="my-price"><?php echo number_format($my, 0); ?>৳</span>
                                 <span class="mkt-range">per <?php echo htmlspecialchars($l['quantity'] . ' ' . $l['unit']); ?></span>

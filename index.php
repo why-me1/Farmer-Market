@@ -587,7 +587,7 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                     <div class="br-card-price-row">
                                         <div>
                                             <span class="br-price-label">Starting at</span>
-                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 2); ?></span>
+                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 0); ?></span>
                                         </div>
                                         <?php if ($max_bid && $max_bid > $post['price']): ?>
                                             <div class="br-current-bid">
@@ -692,7 +692,7 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
                                     <div class="br-card-price-row">
                                         <div>
                                             <span class="br-price-label">Starting at</span>
-                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 2); ?></span>
+                                            <span class="br-price-val">৳<?php echo number_format($post['price'], 0); ?></span>
                                         </div>
                                         <?php if ($max_bid && $max_bid > $post['price']): ?>
                                             <div class="br-current-bid">

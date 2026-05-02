@@ -4,6 +4,8 @@
 
 The Farmers' Market platform uses a **multi-factor reputation algorithm** to score both buyers and farmers on a **0.0 – 5.0 star scale**. Scores are stored in `users.automatic_rating` and are **fully recalculated from raw data** on every relevant event — there are no cumulative delta adjustments. New users start at **2.5** (neutral).
 
+**Anti-Fraud Probation:** To prevent manipulation, new buyers must complete 3 paid transactions, and new farmers must complete 3 delivered sales, before their score can deviate from the 2.5 baseline.
+
 Scores are displayed as star ratings throughout the platform (profile pages, dashboards, bid activity).
 
 ---
@@ -20,16 +22,16 @@ All four sub-factors return a value between **0.0 and 1.0**. Each returns **0.5 
 
 ### Factor 1 — Bid Fairness (weight: 35%)
 
-Measures how reasonable a buyer's bids are relative to the farmer's asking price, averaged across all bids placed.
+Measures how reasonable a buyer's highest bid per item is relative to the farmer's asking price, averaged across all listings they bid on.
 
 | Bid vs Asking Price         | Score |
 | --------------------------- | ----- |
-| Within 10% below (or above) | 1.0   |
-| 10 – 30% below              | 0.7   |
-| 30 – 50% below              | 0.4   |
-| More than 50% below         | 0.0   |
+| Within 20% below (or above) | 1.0   |
+| 20 – 40% below              | 0.8   |
+| 40 – 60% below              | 0.6   |
+| More than 60% below         | 0.3   |
 
-Only numeric bids are included. Bids above the asking price are treated as within 10% (score 1.0).
+Only the **highest numeric bid** per buyer per post is included to prevent spamming. Bids above the asking price are treated as within 20% (score 1.0). Low starting bids are not heavily penalized to encourage natural negotiation.
 
 **Triggered by:** every bid placed (`comment.php`)
 
@@ -43,7 +45,9 @@ Ratio of delivered auctions vs eligible auction wins. Includes a **3-day grace p
 
 - A buyer who receives delivery on all completed orders scores **1.0**
 - Items won within the last 3 days (`sold` state) are assumed to be in transit and are **ignored**.
-- Items stuck in the `sold` state for **> 3 days** without an OTP confirmation are assumed stalled/ghosted, and are counted as a failure against the buyer's score.
+- Items stuck in the `sold` state for **> 3 days** are checked for payment:
+  - If the buyer **has not paid**, it counts as a failure against the buyer's score.
+  - If the buyer **has paid**, the delay is assumed to be the farmer's fault, and the buyer is **not** penalized.
 - No eligible wins yet → **0.5** (neutral)
 
 **Triggered by:** every bid placed; every delivery confirmed in Manage Orders
@@ -57,14 +61,15 @@ Measures how quickly a transaction is completed after the buyer wins an auction.
 - `win_at` — stamped when the auction auto-selects the highest bidder
 - `paid_at` — stamped when the farmer marks the order as **Delivered**
 
-| Gap (win → delivered)         | Score         |
+| Gap (win → paid)              | Score         |
 | ----------------------------- | ------------- |
 | ≤ 1 hour                      | 1.0           |
 | 1 – 12 hours                  | 0.7           |
 | > 12 hours                    | 0.4           |
+| Ghosted (Unpaid > 24 hours)   | 0.0           |
 | No completed transactions yet | 0.5 (neutral) |
 
-Averaged across all past transactions.
+Averaged across all past transactions. Unpaid items past 24 hours heavily penalize the buyer.
 
 **Triggered by:** farmer marking an order as Delivered (`manage_orders.php`)
 
@@ -96,9 +101,11 @@ All four sub-factors return a value between **0.0 and 1.0**. Each returns **0.5 
 
 ### Factor 1 — Buyer Ratings (weight: 40%)
 
-Average star rating (1–5) left by buyers on the farmer's products via product reviews, normalised to 0–1.
+Bayesian average of star ratings (1–5) left by buyers on the farmer's products via product reviews, normalised to 0–1.
 
-> BuyerRatings = average review rating ÷ 5
+> BuyerRatings = bayesian_average(reviews) ÷ 5
+
+A Bayesian average is used to prevent high volatility for new farmers (e.g., preventing a single 5-star review from granting a perfect score, or a single 1-star review from destroying reputation).
 
 **Triggered by:** buyer submitting a product review (`submit_review.php`)
 
@@ -124,12 +131,14 @@ Measures buyer demand per product by counting unique bidders per listing, then a
 
 | Unique bidders per listing | Score |
 | -------------------------- | ----- |
-| > 10                       | 1.0   |
-| 5 – 10                     | 0.7   |
-| 2 – 4                      | 0.4   |
-| < 2                        | 0.1   |
+| ≥ 5                        | 1.0   |
+| 3 – 4                      | 0.8   |
+| 1 – 2                      | 0.6   |
+| 0                          | 0.2   |
 
-No listings with bids yet → **0.1**
+No listings with bids yet → **0.5** (neutral)
+
+Thresholds are balanced to be fair to farmers selling niche or high-value items (like bulk grain or machinery), which naturally attract fewer but more serious bidders.
 
 **Triggered by:** every bid placed on any of the farmer's products
 
@@ -143,7 +152,9 @@ Proportion of eligible sales that the farmer has successfully marked as delivere
 
 - A farmer who always delivers eligible orders scores **1.0**
 - Items sold within the last 3 days (`sold` state) are assumed to be safely on the delivery truck and are **ignored**.
-- Items stuck in the `sold` state for **> 3 days** are assumed stalled/failed, and count as a failure against the farmer's score.
+- Items stuck in the `sold` state for **> 3 days** are checked for payment:
+  - If the buyer **has paid**, it counts as a delivery failure against the farmer's score.
+  - If the buyer **has not paid**, the delay is the buyer's fault (ghosted), and the farmer is **not** penalized.
 - No eligible sales yet → **0.5** (neutral)
 
 **Triggered by:** farmer marking an order as Delivered
@@ -200,8 +211,12 @@ Badge thresholds on profiles:
 
 - **Scale:** 0.0 – 5.0, stored as `DECIMAL(3,1)` in `users.automatic_rating`
 - **Default:** 2.5 (neutral, for new users with no activity)
+- **Anti-Fraud:** Scores are strictly locked to 2.5 until minimum completed thresholds are met (3 paid transactions for buyers, 3 delivered orders for farmers).
 - **Migration:** legacy 0–10 values are halved to 0–5 automatically on first load
 - **New tables:** `transactions` (win_at / paid_at tracking), `buyer_ratings` (farmer-to-buyer ratings) — created automatically if they don't exist
+- **Data Integrity:** Strict `FOREIGN KEY` constraints with `ON DELETE CASCADE` prevent orphaned ratings/transactions if users or posts are deleted.
+- **ACID Transactions:** The update of a user's score and the insertion of their audit log (`rating_score_history`) are wrapped in database transactions (`$conn->begin_transaction()`) to guarantee consistency and prevent race conditions.
+- **Performance:** Complex aggregations are handled via optimized SQL `CASE` queries, ensuring constant O(1) memory usage regardless of user transaction volume.
 - **Market prices:** managed by admins via `admin/update_market_price.php`, stored in `market_prices` table
 
 ---
@@ -213,8 +228,10 @@ Badge thresholds on profiles:
 | v1.0           | Delta-based system: fixed +/- adjustments on 0–10 scale                                                                                                                                                                                                                      |
 | v2.0           | Added sale speed, unsold penalties, bidding activity deltas                                                                                                                                                                                                                  |
 | v3.0           | Full rewrite: multi-factor weighted formula, 0–5 scale, full recalculation on every event, `transactions` and `buyer_ratings` tables, farmer-rates-buyer UI, auction winner tie-break fix, sale success rate excludes unapproved posts, reviews trigger farmer recalculation |
-| v3.1 (current) | Added **3-Day Grace Period** algorithm for Purchase Completion and Delivery Reliability to ensure users aren't penalised while goods are in transit. Updated **Sale Success Rate** to ignore active listings, preventing penalties for new inventory.                          |
+| v3.1           | Added **3-Day Grace Period** algorithm for Purchase Completion and Delivery Reliability to ensure users aren't penalised while goods are in transit. Updated **Sale Success Rate** to ignore active listings, preventing penalties for new inventory.                          |
+| v3.2           | Closed logical gaps: Added 24h timeout penalty for non-payment, separated blame logic for delayed deliveries vs unpaid wins, prevented bid spamming by tracking max bid, softened engagement thresholds for niche products, and implemented Bayesian average for reviews. |
+| v3.3 (current) | Enterprise hardening: Added Anti-Fraud probation period (score locked to 2.5 until 3 transactions), added Foreign Key constraints, wrapped score recalculations in ACID database transactions, secured rating endpoints against IDOR, and optimized aggregations to SQL. |
 
 ---
 
-_Last Updated: May 2, 2026_
+_Last Updated: May 3, 2026_
