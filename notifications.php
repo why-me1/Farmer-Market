@@ -47,6 +47,8 @@ function notifMeta(string $type): array
         'auction_won'       => ['icon' => 'fa-trophy',         'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
         'comment_approved'  => ['icon' => 'fa-check-circle',   'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
         'announcement'      => ['icon' => 'fa-bullhorn',       'color' => '#7c3aed', 'bg' => '#ede9fe', 'label' => 'Announcement'],
+        'qa_question'       => ['icon' => 'fa-question-circle', 'color' => '#059669', 'bg' => '#ecfdf5', 'label' => 'Q&A Question'],
+        'qa_answer'         => ['icon' => 'fa-reply',           'color' => '#0f766e', 'bg' => '#ccfbf1', 'label' => 'Q&A Answer'],
         'product_sold'      => ['icon' => 'fa-hands-helping',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Action Required'],
         'delivery_local_selected'    => ['icon' => 'fa-map-marker-alt', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Local Selected'],
         'delivery_courier_selected'  => ['icon' => 'fa-shipping-fast',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Courier Selected'],
@@ -79,6 +81,7 @@ function notifPriority(string $type): string
     if (in_array($type, $warning, true)) return 'warning';
     if (in_array($type, ['account_warning', 'account_banned'], true)) return 'danger';
     if ($type === 'announcement') return 'info';
+    if (in_array($type, ['qa_question', 'qa_answer'], true)) return 'info';
     return 'info';
 }
 

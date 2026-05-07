@@ -54,13 +54,12 @@ $approved_stmt->bind_result($approved_bids);
 $approved_stmt->fetch();
 $approved_stmt->close();
 
-// Total auctions participated (ended)
 $auctions_stmt = $conn->prepare("SELECT COUNT(DISTINCT c.post_id)
-                                  FROM comments c
-                                  JOIN posts p ON c.post_id = p.id
-                                  WHERE c.user_id = ?
-                                  AND (p.status IN ('sold', 'delivered')
-                                OR (p.auction_end_date IS NOT NULL AND p.auction_end_date <= UNIX_TIMESTAMP(NOW())))");
+                                                                    FROM comments c
+                                                                    JOIN posts p ON c.post_id = p.id
+                                                                    WHERE c.user_id = ?
+                                                                    AND (p.status IN ('sold', 'delivered')
+                                                                OR (p.auction_end_date IS NOT NULL AND p.auction_end_date <= NOW()))");
 $auctions_stmt->bind_param("i", $user_id);
 $auctions_stmt->execute();
 $auctions_stmt->bind_result($total_auctions_participated);
@@ -72,7 +71,7 @@ $pending_stmt = $conn->prepare("SELECT COUNT(*) FROM comments c
                                 JOIN posts p ON c.post_id = p.id
                                 WHERE c.user_id = ?
                                 AND p.status = 'active'
-                                AND (p.auction_end_date IS NULL OR p.auction_end_date > UNIX_TIMESTAMP(NOW()))");
+                                AND (p.auction_end_date IS NULL OR p.auction_end_date > NOW())");
 $pending_stmt->bind_param("i", $user_id);
 $pending_stmt->execute();
 $pending_stmt->bind_result($pending_bids);
@@ -112,7 +111,12 @@ $my_bids_stmt = $conn->prepare("
                WHERE c_top.post_id = p.id
                ORDER BY CAST(c_top.comment_text AS DECIMAL(10,2)) DESC, c_top.created_at DESC, c_top.id DESC
                LIMIT 1
-           ) AS highest_bidder_id
+           ) AS highest_bidder_id,
+           (
+                SELECT MAX(c_app.is_approved)
+                FROM comments c_app
+                WHERE c_app.post_id = p.id AND c_app.user_id = ?
+            ) AS is_bid_approved
     FROM posts p
     JOIN users u ON p.farmer_id = u.id
     WHERE EXISTS (
@@ -120,7 +124,7 @@ $my_bids_stmt = $conn->prepare("
     )
     ORDER BY latest_bid_date DESC
 ");
-$my_bids_stmt->bind_param("iii", $user_id, $user_id, $user_id);
+$my_bids_stmt->bind_param("iiii", $user_id, $user_id, $user_id, $user_id);
 $my_bids_stmt->execute();
 $my_bids = $my_bids_stmt->get_result();
 $my_bid_products_count = $my_bids->num_rows;
@@ -802,6 +806,152 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             margin-top: 5px;
         }
 
+        /* ── Winning pulse animation ── */
+        @keyframes winningPulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, .45);
+            }
+
+            50% {
+                box-shadow: 0 0 0 7px rgba(16, 185, 129, 0);
+            }
+        }
+
+        /* ── Bid status column (My Bids tab) ── */
+        .bid-status-col {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 6px;
+            min-width: 175px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .bid-status-col .ud-pill {
+            white-space: nowrap;
+            font-size: 11.5px;
+            padding: 5px 13px;
+            border-radius: 20px;
+        }
+
+        /* Winning pill — vivid gradient + pulse */
+        .pill-winning {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff !important;
+            font-weight: 700;
+            letter-spacing: .3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            animation: winningPulse 1.8s ease-in-out infinite;
+        }
+
+        /* Outbid pill */
+        .pill-outbid {
+            background: #fef2f2;
+            color: #b91c1c;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .bid-status-col .bid-highest {
+            font-size: 12px;
+            font-weight: 700;
+            color: #b91c1c;
+            background: #fef2f2;
+            border-radius: 8px;
+            padding: 2px 9px;
+        }
+
+        .bid-status-col .bid-winning-price {
+            font-size: 12px;
+            color: #065f46;
+            font-weight: 700;
+            background: #ecfdf5;
+            border-radius: 8px;
+            padding: 2px 9px;
+        }
+
+        /* Won pill — solid green, static (auction over, no pulse) */
+        .pill-won {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff !important;
+            font-weight: 700;
+            letter-spacing: .3px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Lost pill — muted grey */
+        .pill-lost {
+            background: #f1f5f9;
+            color: #64748b;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Winner's bid shown to loser */
+        .bid-status-col .bid-lost-price {
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 600;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 2px 9px;
+        }
+
+        /* CTA button for winning rows */
+        .ud-btn-view-auction {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 5px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all .2s;
+            box-shadow: 0 3px 10px rgba(5, 150, 105, .35);
+        }
+
+        .ud-btn-view-auction:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(5, 150, 105, .45);
+            color: #fff;
+        }
+
+        /* Row glow when winning */
+        .ud-item-row.is-winning {
+            background: linear-gradient(90deg, #f0fdf4, #fff);
+            border-left: 3px solid #10b981;
+            padding-left: 21px;
+        }
+
+        .bid-status-col .ud-date {
+            font-size: 11px;
+            color: #c0c8d0;
+            margin-top: 1px;
+        }
+
+        @media(max-width:576px) {
+            .bid-status-col {
+                align-items: flex-start;
+                min-width: auto;
+            }
+        }
+
         .ud-btn-review {
             display: inline-flex;
             align-items: center;
@@ -1348,12 +1498,16 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                 <?php if ($my_bids->num_rows > 0): ?>
                                     <?php while ($bid = $my_bids->fetch_assoc()): ?>
                                         <?php
-                                        $is_active_auction = ($bid['status'] === 'active') && (empty($bid['auction_end_date']) || (int)$bid['auction_end_date'] > time());
+                                        $auction_end_ts = !empty($bid['auction_end_date']) ? strtotime($bid['auction_end_date']) : null;
+                                        $is_active_auction = ($bid['status'] === 'active') && (empty($auction_end_ts) || $auction_end_ts > time());
                                         $is_winning = $is_active_auction && ((int)$bid['highest_bidder_id'] === (int)$user_id);
                                         $latest_bid_amount = (float)$bid['latest_bid_amount'];
                                         $highest_bid_amount = (float)$bid['highest_bid_amount'];
+                                        // Outcome for ended auctions
+                                        $is_won  = !$is_active_auction && (bool)($bid['is_bid_approved'] ?? false);
+                                        $is_lost = !$is_active_auction && !$is_won;
                                         ?>
-                                        <div class="ud-item-row">
+                                        <div class="ud-item-row<?php echo $is_winning ? ' is-winning' : ''; ?>">
                                             <?php if ($bid['image']): ?>
                                                 <img src="<?php echo $base_url; ?>assets/images/<?php echo htmlspecialchars($bid['image']); ?>"
                                                     class="ud-thumb" alt="<?php echo htmlspecialchars($bid['product_name']); ?>">
@@ -1368,25 +1522,27 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                                     <span><i class="fas fa-user-tie"></i> Farmer : <?php echo htmlspecialchars($bid['farmer_username']); ?></span>
                                                 </div>
                                                 <div class="ud-item-meta">
-                                                    <span>Your latest bid: &#2547;<?php echo number_format($latest_bid_amount, 2); ?></span>
-                                                    <?php if (!$is_winning): ?>
-                                                        <span>Highest bid: &#2547;<?php echo number_format($highest_bid_amount, 2); ?></span>
+                                                    <span>Your latest bid: &#2547;<?php echo number_format($latest_bid_amount, 0); ?></span>
+                                                    <?php if (!$is_winning && $is_active_auction): ?>
+                                                        <span>Highest bid: &#2547;<?php echo number_format($highest_bid_amount, 0); ?></span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
-                                            <div class="ud-status">
+                                            <div class="bid-status-col">
                                                 <?php if ($is_winning): ?>
-                                                    <span class="ud-pill" style="background:#ecfdf5;color:#065f46;">🟢 You are currently winning!</span>
-                                                    <div class="mt-2">
-                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>" class="ud-btn-review">View Auction</a>
-                                                    </div>
+                                                    <span class="ud-pill pill-winning"><i class="fas fa-trophy"></i> Currently Winning!</span>
+                                                    <span class="bid-winning-price">&#2547;<?php echo number_format($latest_bid_amount, 0); ?> &mdash; Your bid</span>
+                                                    <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>" class="ud-btn-view-auction"><i class="fas fa-eye"></i> View Auction</a>
                                                 <?php elseif ($is_active_auction): ?>
-                                                    <span class="ud-pill" style="background:#fef2f2;color:#b91c1c;">🔴 Outbid! Current highest: &#2547;<?php echo number_format($highest_bid_amount, 2); ?></span>
-                                                    <div class="mt-2">
-                                                        <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>#bid-form" class="ud-btn-review">Bid Again</a>
-                                                    </div>
-                                                <?php else: ?>
-                                                    <span class="ud-pill pending"><i class="fas fa-flag-checkered"></i> Auction Ended</span>
+                                                    <span class="ud-pill pill-outbid"><i class="fas fa-arrow-up"></i> Outbid!</span>
+                                                    <span class="bid-highest">&#2547;<?php echo number_format($highest_bid_amount, 0); ?> highest</span>
+                                                    <a href="<?php echo $base_url; ?>product_detail.php?id=<?php echo $bid['post_id']; ?>#bid-form" class="ud-btn-review"><i class="fas fa-gavel"></i> Bid Again</a>
+                                                <?php elseif ($is_won): ?>
+                                                    <span class="ud-pill pill-won"><i class="fas fa-check-circle"></i> You Won!</span>
+                                                    <span class="bid-winning-price">&#2547;<?php echo number_format($latest_bid_amount, 0); ?> &mdash; Winning bid</span>
+                                                <?php else: /* lost */ ?>
+                                                    <span class="ud-pill pill-lost"><i class="fas fa-times-circle"></i> You Lost</span>
+                                                    <span class="bid-lost-price">&#2547;<?php echo number_format($highest_bid_amount, 0); ?> &mdash; Winner's bid</span>
                                                 <?php endif; ?>
                                                 <div class="ud-date"><?php echo date('M j, Y', strtotime($bid['latest_bid_date'])); ?></div>
                                             </div>
@@ -1432,8 +1588,8 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                             </div>
                                             <div class="ud-price">
                                                 <div class="pl">Paid</div>
-                                                <div class="pv">&#2547;<?php echo number_format($purchase['bid_amount'], 2); ?></div>
-                                                <div class="ask">Ask &#2547;<?php echo number_format($purchase['asking_price'], 2); ?></div>
+                                                <div class="pv">&#2547;<?php echo number_format($purchase['bid_amount'], 0); ?></div>
+                                                <div class="ask">Ask &#2547;<?php echo number_format($purchase['asking_price'], 0); ?></div>
                                             </div>
                                             <?php
                                             // Fetch OTP record for this purchase (local delivery)
@@ -1537,7 +1693,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                             </div>
                                             <div class="ud-price">
                                                 <div class="pl">Starting</div>
-                                                <div class="pv">&#2547;<?php echo number_format($wl['price'], 2); ?></div>
+                                                <div class="pv">&#2547;<?php echo number_format($wl['price'], 0); ?></div>
                                             </div>
                                             <div class="ud-status">
                                                 <?php if ($wl_is_ended): ?>
@@ -1658,7 +1814,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                             </div>
                             <i class="fas fa-chevron-right udql-arrow"></i>
                         </a>
-                        <a href="profile.php" class="ud-quick-link">
+                        <a href="profile.php?id=<?php echo $user_id; ?>" class="ud-quick-link">
                             <div class="udql-icon green"><i class="fas fa-user-circle"></i></div>
                             <div class="udql-text">
                                 <div class="ql-title">My Profile</div>

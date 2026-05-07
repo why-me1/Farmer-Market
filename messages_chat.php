@@ -76,25 +76,27 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
     <?php require_once 'includes/nav.php'; ?>
     <style>
         body {
-            background: #f0fdf4;
+            background: #f1f5f9;
         }
 
         /* ── Page wrapper ── */
         .chat-page {
-            max-width: 760px;
-            margin: 30px auto 60px;
+            max-width: 900px;
+            margin: 20px auto 40px;
             padding: 0 16px;
             display: flex;
             flex-direction: column;
-            height: calc(100vh - 120px);
+            height: calc(100vh - 100px);
+            font-family: inherit;
         }
 
         /* ── Chat window card ── */
         .chat-card {
             flex: 1;
             background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 4px 24px rgba(5, 150, 105, 0.11);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -103,108 +105,145 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
 
         /* ── Header ── */
         .chat-head {
-            background: linear-gradient(135deg, #065f46, #059669);
-            padding: 14px 20px;
+            background: #fff;
+            padding: 16px 24px;
             display: flex;
             align-items: center;
-            gap: 14px;
+            gap: 16px;
             flex-shrink: 0;
+            border-bottom: 1px solid #f1f5f9;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+            z-index: 10;
         }
 
         .chat-back {
-            background: rgba(255, 255, 255, 0.18);
+            background: transparent;
             border: none;
-            color: #fff;
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
+            color: #64748b;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.85rem;
+            font-size: 1.1rem;
             cursor: pointer;
             flex-shrink: 0;
             text-decoration: none;
-            transition: background 0.15s;
+            transition: all 0.2s ease;
         }
 
         .chat-back:hover {
-            background: rgba(255, 255, 255, 0.28);
-            color: #fff;
+            background: #f8fafc;
+            color: #0f172a;
         }
 
         .chat-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 11px;
-            background: rgba(255, 255, 255, 0.22);
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #059669);
             color: #fff;
-            font-size: 0.92rem;
+            font-size: 1.1rem;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+            position: relative;
+        }
+
+        .chat-avatar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2.5px solid #fff;
         }
 
         .chat-head-info {
             flex: 1;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .chat-head-name {
             font-weight: 700;
-            color: #fff;
-            font-size: 0.97rem;
+            color: #0f172a;
+            font-size: 1.1rem;
+            line-height: 1.2;
         }
 
         .chat-head-role {
-            font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.75);
-            margin-top: 1px;
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 500;
         }
 
-        .chat-head-status {
+        .btn-profile {
+            background: #f1f5f9;
+            border: none;
+            color: #475569;
+            padding: 8px 16px;
+            border-radius: 99px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.85);
+            gap: 6px;
+            transition: all 0.2s ease;
         }
 
-        .status-dot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: #a7f3d0;
+        .btn-profile:hover {
+            background: #e2e8f0;
+            color: #0f172a;
         }
 
         /* ── Messages area ── */
         .chat-body {
             flex: 1;
             overflow-y: auto;
-            padding: 20px 20px 10px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 12px;
             scroll-behavior: smooth;
+            background: #fafbfc url('data:image/svg+xml;utf8,<svg width="20" height="20" xmlns="http://www.w3.org/2000/svg"><circle cx="2" cy="2" r="1.5" fill="%23e2e8f0"/></svg>') repeat;
         }
 
         .msg-day-divider {
             text-align: center;
-            font-size: 0.68rem;
+            margin: 20px 0 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .msg-day-divider span {
+            background: #fff;
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 0.75rem;
             font-weight: 700;
-            color: #94a3b8;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-            margin: 10px 0 4px;
+            color: #64748b;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f1f5f9;
         }
 
         /* ── Bubble ── */
         .bubble-row {
             display: flex;
             align-items: flex-end;
-            gap: 8px;
+            gap: 10px;
+            margin-bottom: 4px;
         }
 
         .bubble-row.mine {
@@ -216,86 +255,108 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
         }
 
         .bubble-mini-avatar {
-            width: 26px;
-            height: 26px;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #059669, #10b981);
-            color: #fff;
-            font-size: 0.6rem;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 0.7rem;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            margin-bottom: 2px;
+            margin-bottom: 18px;
         }
 
         .bubble {
-            max-width: 68%;
-            padding: 10px 14px;
-            border-radius: 16px;
-            font-size: 0.875rem;
+            max-width: 65%;
+            padding: 12px 16px;
+            border-radius: 20px;
+            font-size: 0.95rem;
             line-height: 1.5;
             word-break: break-word;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
 
         .bubble-row.mine .bubble {
-            background: linear-gradient(135deg, #059669, #10b981);
+            background: #10b981;
             color: #fff;
             border-bottom-right-radius: 4px;
         }
 
         .bubble-row.theirs .bubble {
-            background: #f1f5f9;
+            background: #fff;
             color: #1e293b;
             border-bottom-left-radius: 4px;
+            border: 1px solid #f1f5f9;
         }
 
         .bubble-time {
-            font-size: 0.65rem;
-            margin-top: 4px;
-            display: block;
-            text-align: right;
+            font-size: 0.7rem;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            position: absolute;
+            bottom: -20px;
+            right: 4px;
+            white-space: nowrap;
         }
 
         .bubble-row.mine .bubble-time {
-            color: rgba(255, 255, 255, 0.7);
+            color: #94a3b8;
         }
 
         .bubble-row.theirs .bubble-time {
             color: #94a3b8;
+            left: 4px;
+            right: auto;
+            justify-content: flex-start;
+        }
+
+        .bubble-row.mine {
+            margin-bottom: 22px;
+        }
+
+        .bubble-row.theirs {
+            margin-bottom: 22px;
         }
 
         .bubble-read-tick {
-            font-size: 0.65rem;
-            margin-left: 4px;
+            font-size: 0.8rem;
+            color: #10b981;
         }
 
         /* ── Input area ── */
         .chat-footer {
-            padding: 14px 16px;
-            border-top: 1px solid #f0fdf4;
+            padding: 16px 24px;
+            background: #fff;
+            border-top: 1px solid #f1f5f9;
             display: flex;
-            gap: 10px;
+            gap: 14px;
             align-items: flex-end;
             flex-shrink: 0;
+            z-index: 10;
         }
 
         .chat-input-wrap {
             flex: 1;
             background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 8px 16px;
             display: flex;
-            align-items: flex-end;
-            gap: 8px;
-            transition: border-color 0.15s;
+            align-items: center;
+            transition: all 0.2s ease;
         }
 
         .chat-input-wrap:focus-within {
-            border-color: #059669;
+            border-color: #10b981;
             background: #fff;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         }
 
         #chatInput {
@@ -303,10 +364,11 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
             border: none;
             background: transparent;
             resize: none;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: #1e293b;
             line-height: 1.5;
             max-height: 120px;
+            padding: 8px 0;
             overflow-y: auto;
             outline: none;
             font-family: inherit;
@@ -317,36 +379,41 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
         }
 
         .chat-send-btn {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #059669, #10b981);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #10b981;
             color: #fff;
             border: none;
-            font-size: 1rem;
+            font-size: 1.1rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: opacity 0.15s, transform 0.15s;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
         }
 
         .chat-send-btn:hover {
-            opacity: 0.88;
-            transform: scale(1.05);
+            background: #059669;
+            transform: translateY(-2px);
         }
 
         .chat-send-btn:disabled {
-            opacity: 0.45;
+            background: #cbd5e1;
+            box-shadow: none;
             transform: none;
             cursor: not-allowed;
+            color: #fff;
         }
 
         /* ── Typing indicator ── */
         .typing-indicator {
             display: none;
-            padding: 0 20px 6px;
+            padding: 8px 24px;
+            background: #fff;
+            border-top: 1px solid #f1f5f9;
         }
 
         .typing-indicator span {
@@ -362,18 +429,42 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            color: #94a3b8;
+            gap: 16px;
+            color: #64748b;
         }
 
         .chat-empty i {
-            font-size: 2.5rem;
-            color: #d1fae5;
+            font-size: 3.5rem;
+            color: #cbd5e1;
         }
 
         .chat-empty p {
-            font-size: 0.875rem;
+            font-size: 1rem;
             text-align: center;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 640px) {
+            .chat-page {
+                height: calc(100vh - 70px);
+                margin: 10px auto 20px;
+            }
+
+            .bubble {
+                max-width: 85%;
+            }
+
+            .chat-head {
+                padding: 12px 16px;
+            }
+
+            .chat-body {
+                padding: 16px;
+            }
+
+            .chat-footer {
+                padding: 12px 16px;
+            }
         }
     </style>
 </head>
@@ -394,11 +485,8 @@ $page_title = "Chat with " . htmlspecialchars($other_name);
                     <div class="chat-head-role"><?php echo $other_role; ?></div>
                 </div>
                 <?php if ($other_user['role'] === 'farmer'): ?>
-                    <a href="<?php echo $base_url; ?>farmer/profile.php?id=<?php echo $other_id; ?>"
-                        style="background:rgba(255,255,255,0.18);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:0.78rem;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:5px;transition:background 0.15s;"
-                        onmouseover="this.style.background='rgba(255,255,255,0.28)'"
-                        onmouseout="this.style.background='rgba(255,255,255,0.18)'">
-                        <i class="fas fa-user"></i> Profile
+                    <a href="<?php echo $base_url; ?>farmer/profile.php?id=<?php echo $other_id; ?>" class="btn-profile">
+                        <i class="fas fa-user-circle"></i> Profile
                     </a>
                 <?php endif; ?>
             </div>

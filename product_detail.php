@@ -1162,7 +1162,666 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
             </div>
         </div>
 
+        <!-- ===== Q&A SECTION ===== -->
+        <div class="pd-qa-section" id="qa-section">
+            <style>
+                @keyframes qa-fade-in {
+                    from { opacity: 0; transform: translateY(8px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+                .pd-qa-section {
+                    background: linear-gradient(160deg, #ffffff 0%, #f7fdfb 100%);
+                    border-radius: 22px;
+                    padding: 2.5rem;
+                    box-shadow: 0 4px 32px rgba(5,150,105,0.08), 0 1px 4px rgba(0,0,0,0.04);
+                    margin-top: 2rem;
+                    margin-bottom: 3rem;
+                    border: 1px solid #e8f5ee;
+                    position: relative;
+                    overflow: hidden;
+                    font-family: inherit;
+                }
+                
+                .pd-qa-section::before {
+                    content: '';
+                    position: absolute;
+                    top: -60px;
+                    right: -60px;
+                    width: 220px;
+                    height: 220px;
+                    background: radial-gradient(circle, rgba(5,150,105,0.06) 0%, transparent 70%);
+                    pointer-events: none;
+                }
+                
+                /* Header */
+                .pd-qa-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 12px;
+                    padding-bottom: 20px;
+                    border-bottom: 2px solid #e8f5ee;
+                    margin-bottom: 24px;
+                }
+                .pd-qa-header-left h2 {
+                    font-size: 1.4rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+                .pd-qa-header-left h2 i {
+                    color: #059669;
+                }
+                .pd-qa-header-left p {
+                    margin: 6px 0 0 36px;
+                    font-size: 0.9rem;
+                    color: #64748b;
+                }
+                .pd-qa-count-badge {
+                    background: #eafff5;
+                    color: #059669;
+                    font-size: 0.85rem;
+                    font-weight: 600;
+                    padding: 6px 12px;
+                    border-radius: 8px;
+                    border: 1px solid #bbf7d0;
+                }
+
+                /* Info Chips */
+                .pd-qa-chips {
+                    display: flex;
+                    gap: 12px;
+                    margin-bottom: 32px;
+                    flex-wrap: wrap;
+                }
+                .pd-qa-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 99px;
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    color: #475569;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                }
+                .chip-blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+                .chip-teal { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+                .chip-purple { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+
+                /* Ask Card */
+                .pd-qa-ask-card {
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin-bottom: 32px;
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+                    border-top: 4px solid #059669;
+                }
+                .pd-qa-ask-card h4 {
+                    margin: 0 0 8px;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                }
+                .pd-qa-ask-card p {
+                    margin: 0 0 16px;
+                    font-size: 0.9rem;
+                    color: #64748b;
+                }
+                .pd-qa-textarea {
+                    width: 100%;
+                    background: #f8fafc;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 12px;
+                    padding: 16px;
+                    font-size: 0.95rem;
+                    font-family: inherit;
+                    resize: vertical;
+                    min-height: 100px;
+                    color: #1e293b;
+                    transition: all 0.2s ease;
+                }
+                .pd-qa-textarea:focus {
+                    background: #fff;
+                    border-color: #10b981;
+                    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+                    outline: none;
+                }
+                .pd-qa-ask-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-top: 16px;
+                }
+                .pd-qa-char-count {
+                    font-size: 0.8rem;
+                    color: #94a3b8;
+                    font-weight: 600;
+                }
+                .pd-qa-submit-btn {
+                    background: #059669;
+                    color: #fff;
+                    border: none;
+                    border-radius: 12px;
+                    padding: 12px 24px;
+                    font-weight: 600;
+                    font-size: 0.95rem;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    box-shadow: 0 4px 6px rgba(5,150,105,0.2);
+                }
+                .pd-qa-submit-btn:hover { background: #047857; transform: translateY(-1px); }
+                .pd-qa-submit-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; box-shadow: none; }
+
+                /* Login prompt */
+                .pd-qa-login-prompt {
+                    background: #f8fafc;
+                    border: 2px dashed #cbd5e1;
+                    border-radius: 16px;
+                    padding: 24px;
+                    text-align: center;
+                    color: #475569;
+                    margin-bottom: 32px;
+                }
+                .pd-qa-login-prompt a {
+                    color: #059669;
+                    font-weight: 700;
+                    text-decoration: underline;
+                }
+
+                /* Q&A List */
+                .pd-qa-list {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 20px;
+                }
+                .pd-qa-item {
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 16px;
+                    padding: 24px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                    animation: qa-fade-in 0.4s ease;
+                }
+                .pd-qa-item-head {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
+                    margin-bottom: 16px;
+                }
+                .pd-qa-avatar {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 50%;
+                    background: #eafff5;
+                    color: #059669;
+                    font-size: 1rem;
+                    font-weight: 700;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .pd-qa-meta {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .pd-qa-asker {
+                    font-size: 1.05rem;
+                    font-weight: 700;
+                    color: #0f172a;
+                }
+                .pd-qa-time {
+                    font-size: 0.8rem;
+                    color: #64748b;
+                    margin-top: 2px;
+                }
+                .pd-qa-unanswered-tag {
+                    font-size: 0.75rem;
+                    background: #fffbeb;
+                    color: #d97706;
+                    padding: 6px 12px;
+                    border-radius: 99px;
+                    font-weight: 600;
+                    border: 1px solid #fde68a;
+                    margin-left: auto;
+                }
+                .pd-qa-question-text {
+                    font-size: 1.05rem;
+                    color: #1e293b;
+                    line-height: 1.6;
+                    margin-bottom: 20px;
+                    font-weight: 500;
+                }
+
+                /* Answer Area */
+                .pd-qa-answer {
+                    background: #f8fafc;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 20px;
+                    border: 1px solid #e2e8f0;
+                    border-left: 4px solid #10b981;
+                }
+                .pd-qa-answer-label {
+                    font-size: 0.85rem;
+                    font-weight: 700;
+                    color: #059669;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 10px;
+                }
+                .pd-qa-answer-text {
+                    font-size: 1rem;
+                    color: #334155;
+                    line-height: 1.6;
+                }
+                .pd-qa-answer-form {
+                    margin-bottom: 20px;
+                    background: #f8fafc;
+                    padding: 16px;
+                    border-radius: 12px;
+                    border: 1px solid #e2e8f0;
+                }
+                .pd-qa-answer-input {
+                    width: 100%;
+                    padding: 16px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 8px;
+                    background: #fff;
+                    resize: vertical;
+                    min-height: 80px;
+                    font-size: 0.95rem;
+                    font-family: inherit;
+                    transition: all 0.2s ease;
+                }
+                .pd-qa-answer-input:focus {
+                    border-color: #10b981;
+                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+                    outline: none;
+                }
+                .pd-qa-answer-submit {
+                    margin-top: 12px;
+                    background: #1e293b;
+                    color: #fff;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    transition: background 0.2s;
+                }
+                .pd-qa-answer-submit:hover { background: #0f172a; }
+
+                /* Actions Block */
+                .pd-qa-item-foot {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    padding-top: 16px;
+                    border-top: 1px solid #f1f5f9;
+                }
+                .pd-qa-helpful-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    background: #f8fafc;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-size: 0.85rem;
+                    color: #64748b;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .pd-qa-helpful-btn:hover {
+                    background: #f1f5f9;
+                    color: #0f172a;
+                }
+                .pd-qa-helpful-btn.voted {
+                    background: #ecfdf5;
+                    border-color: #a7f3d0;
+                    color: #059669;
+                }
+                .pd-qa-delete-btn {
+                    background: transparent;
+                    border: none;
+                    color: #ef4444;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    padding: 8px 16px;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    transition: background 0.2s;
+                }
+                .pd-qa-delete-btn:hover { background: #fef2f2; }
+
+                /* Empty / Loading States */
+                .pd-qa-empty {
+                    text-align: center;
+                    padding: 60px 20px;
+                    background: #fff;
+                    border: 2px dashed #e2e8f0;
+                    border-radius: 16px;
+                    color: #64748b;
+                }
+                .pd-qa-empty i {
+                    font-size: 3rem;
+                    color: #cbd5e1;
+                    margin-bottom: 16px;
+                    display: block;
+                }
+                .pd-qa-empty p { margin: 0; font-size: 1rem; }
+                .pd-qa-loading { text-align: center; padding: 40px; color: #94a3b8; }
+
+                /* Flash Message */
+                .pd-qa-flash {
+                    padding: 12px 16px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-weight: 600;
+                }
+                .pd-qa-flash.success { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
+                .pd-qa-flash.error { background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; }
+
+                @media (max-width: 640px) {
+                    .pd-qa-section { padding: 1.5rem; }
+                    .pd-qa-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+                    .pd-qa-header-left p { margin-left: 0; }
+                    .pd-qa-ask-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+                    .pd-qa-submit-btn { width: 100%; justify-content: center; }
+                    .pd-qa-chips { flex-direction: column; }
+                }
+            </style>
+
+            <div class="pd-qa-header">
+                <div class="pd-qa-header-left">
+                    <h2><i class="fas fa-comments"></i> Questions &amp; Answers</h2>
+                    <p>Public Q&amp;A — questions and answers are visible to everyone</p>
+                </div>
+                <span class="pd-qa-count-badge" id="qaCountBadge" style="visibility:hidden">0 Questions</span>
+            </div>
+
+            <div class="pd-qa-chips">
+                <span class="pd-qa-chip chip-blue"><i class="fas fa-question-circle"></i> Ask before bidding</span>
+                <span class="pd-qa-chip chip-teal"><i class="fas fa-seedling"></i> Farmers answer publicly</span>
+                <span class="pd-qa-chip chip-purple"><i class="fas fa-thumbs-up"></i> Helpful votes surface best replies</span>
+            </div>
+
+            <!-- Ask box -->
+            <?php if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'user'): ?>
+                <div class="pd-qa-ask-card">
+                    <h4><i class="fas fa-question-circle"></i> Ask a Question</h4>
+                    <p>Your question will be publicly visible and answered by the farmer.</p>
+                    <div id="qaFlash"></div>
+                    <textarea class="pd-qa-textarea" id="qaInput" placeholder="e.g. Are these organically grown? Is the price negotiable for bulk orders?" maxlength="800"></textarea>
+                    <div class="pd-qa-ask-row">
+                        <span class="pd-qa-char-count" id="qaCharCount">0 / 800</span>
+                        <button class="pd-qa-submit-btn" id="qaSubmitBtn" onclick="qaSubmitQuestion()">
+                            <i class="fas fa-paper-plane"></i> Ask Question
+                        </button>
+                    </div>
+                </div>
+            <?php elseif (!isset($_SESSION['user_id'])): ?>
+                <div class="pd-qa-login-prompt">
+                    <i class="fas fa-lock" style="margin-right:6px;"></i>
+                    <a href="#" data-auth-modal="login">Log in</a> or <a href="#" data-auth-modal="signup">register</a> to ask a question.
+                </div>
+            <?php endif; ?>
+
+            <!-- Q&A List -->
+            <div class="pd-qa-list" id="qaList">
+                <div class="pd-qa-loading"><i class="fas fa-spinner fa-spin"></i> Loading questions…</div>
+            </div>
+        </div>
     </div><!-- /pd-page-wrapper -->
+
+    <script>
+        (function() {
+            const POST_ID = <?php echo $post_id; ?>;
+            const USER_ID = <?php echo isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0; ?>;
+            const USER_ROLE = <?php echo json_encode($_SESSION['role'] ?? ''); ?>;
+            const FARMER_ID = <?php echo (int)$post['farmer_id']; ?>;
+            const BASE = '<?php echo $base_url; ?>';
+
+            // char counter
+            const qaInput = document.getElementById('qaInput');
+            const qaCharCount = document.getElementById('qaCharCount');
+            if (qaInput) {
+                qaInput.addEventListener('input', function() {
+                    const len = this.value.length;
+                    qaCharCount.textContent = len + ' / 800';
+                    qaCharCount.className = 'pd-qa-char-count' + (len > 750 ? ' danger' : len > 600 ? ' warn' : '');
+                });
+            }
+
+            function showFlash(msg, type) {
+                const el = document.getElementById('qaFlash');
+                if (!el) return;
+                el.innerHTML = `<div class="pd-qa-flash ${type}"><i class="fas fa-${type==='success'?'check-circle':'exclamation-circle'}"></i>${msg}</div>`;
+                setTimeout(() => {
+                    el.innerHTML = '';
+                }, 4000);
+            }
+
+            function timeAgo(dateStr) {
+                const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+                if (diff < 60) return 'just now';
+                if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+                if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+                return Math.floor(diff / 86400) + 'd ago';
+            }
+
+            function buildItem(q) {
+                const initials = (q.username || '?').substring(0, 2).toUpperCase();
+                const isOwner = USER_ID && parseInt(q.user_id) === USER_ID;
+                const isFarmer = USER_ROLE === 'farmer' && USER_ID === FARMER_ID;
+                const iHelped = parseInt(q.i_helped) > 0;
+
+                let answerHtml = '';
+                if (q.answer) {
+                    answerHtml = `<div class="pd-qa-answer">
+                    <div class="pd-qa-answer-label"><i class="fas fa-seedling"></i> Farmer's Answer &bull; <span style="font-weight:400;text-transform:none;">${timeAgo(q.answered_at)}</span></div>
+                    <div class="pd-qa-answer-text">${escHtml(q.answer)}</div>
+                </div>`;
+                } else if (isFarmer) {
+                    answerHtml = `<div class="pd-qa-answer-form">
+                    <textarea class="pd-qa-answer-input" id="answerInput_${q.id}" placeholder="Type your answer…" maxlength="1000"></textarea>
+                    <button class="pd-qa-answer-submit" onclick="qaPostAnswer(${q.id})">
+                        <i class="fas fa-check"></i> Post Answer
+                    </button>
+                </div>`;
+                }
+
+                const deleteBtnHtml = (isOwner && !q.answer) || USER_ROLE === 'admin' ?
+                    `<button class="pd-qa-delete-btn" onclick="qaDelete(${q.id})" title="Delete question"><i class="fas fa-trash-alt"></i> Delete</button>` : '';
+
+                const unansweredTag = !q.answer ?
+                    `<span class="pd-qa-unanswered-tag"><i class="fas fa-clock"></i> Awaiting answer</span>` : '';
+
+                return `<div class="pd-qa-item" id="qaItem_${q.id}">
+                <div class="pd-qa-item-head">
+                    <div class="pd-qa-avatar">${initials}</div>
+                    <div class="pd-qa-meta">
+                        <div class="pd-qa-asker">${escHtml(q.username)}</div>
+                        <div class="pd-qa-time">${timeAgo(q.created_at)}</div>
+                    </div>
+                    ${unansweredTag}
+                </div>
+                <div class="pd-qa-question-text">${escHtml(q.question)}</div>
+                ${answerHtml}
+                <div class="pd-qa-item-foot">
+                    <button class="pd-qa-helpful-btn ${iHelped?'voted':''}" id="helpBtn_${q.id}" onclick="qaHelpful(${q.id})">
+                        <i class="fas fa-thumbs-up"></i> Helpful <span id="helpCount_${q.id}">${q.helpful_count||0}</span>
+                    </button>
+                    ${deleteBtnHtml}
+                </div>
+            </div>`;
+            }
+
+            function escHtml(t) {
+                const d = document.createElement('div');
+                d.appendChild(document.createTextNode(t || ''));
+                return d.innerHTML;
+            }
+
+            function loadQA() {
+                fetch(`${BASE}qa_handler.php?action=fetch&post_id=${POST_ID}`)
+                    .then(r => r.json()).then(data => {
+                        const list = document.getElementById('qaList');
+                        const badge = document.getElementById('qaCountBadge');
+                        if (!data.success) {
+                            list.innerHTML = '<div class="pd-qa-loading">Failed to load Q&A.</div>';
+                            return;
+                        }
+                        const items = data.qa || [];
+                        badge.textContent = items.length + ' Question' + (items.length !== 1 ? 's' : '');
+                        if (items.length === 0) {
+                            list.innerHTML = `<div class="pd-qa-empty"><i class="fas fa-comments"></i><p>No questions yet. Be the first to ask!</p></div>`;
+                        } else {
+                            list.innerHTML = items.map(buildItem).join('');
+                        }
+                    });
+            }
+
+            window.qaSubmitQuestion = function() {
+                if (!qaInput) return;
+                const q = qaInput.value.trim();
+                if (q.length < 5) {
+                    showFlash('Please enter a longer question (min 5 characters).', 'error');
+                    return;
+                }
+                const btn = document.getElementById('qaSubmitBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+                const fd = new FormData();
+                fd.append('action', 'ask');
+                fd.append('post_id', POST_ID);
+                fd.append('question', q);
+                fetch(`${BASE}qa_handler.php`, {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json()).then(data => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Ask Question';
+                        if (data.error === 'login_required') {
+                            window.location.href = 'index.php?auth=login';
+                            return;
+                        }
+                        if (!data.success) {
+                            showFlash(data.error || 'Error posting question.', 'error');
+                            return;
+                        }
+                        qaInput.value = '';
+                        qaCharCount.textContent = '0 / 800';
+                        showFlash('Your question was posted!', 'success');
+                        loadQA();
+                    });
+            };
+
+            window.qaPostAnswer = function(qaId) {
+                const inp = document.getElementById('answerInput_' + qaId);
+                if (!inp) return;
+                const a = inp.value.trim();
+                if (a.length < 2) {
+                    showFlash('Please write a longer answer.', 'error');
+                    return;
+                }
+                const btn = inp.parentElement.querySelector('.pd-qa-answer-submit');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+                }
+                const fd = new FormData();
+                fd.append('action', 'answer');
+                fd.append('qa_id', qaId);
+                fd.append('answer', a);
+                fetch(`${BASE}qa_handler.php`, {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json()).then(data => {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="fas fa-check"></i> Post Answer';
+                        }
+                        if (!data.success) {
+                            showFlash(data.error || 'Error posting answer.', 'error');
+                            return;
+                        }
+                        showFlash('Answer posted successfully.', 'success');
+                        loadQA();
+                    });
+            };
+
+            window.qaHelpful = function(qaId) {
+                if (!USER_ID) {
+                    window.location.href = 'index.php?auth=login';
+                    return;
+                }
+                const fd = new FormData();
+                fd.append('action', 'helpful');
+                fd.append('qa_id', qaId);
+                fetch(`${BASE}qa_handler.php`, {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json()).then(data => {
+                        if (!data.success) return;
+                        const btn = document.getElementById('helpBtn_' + qaId);
+                        const cnt = document.getElementById('helpCount_' + qaId);
+                        if (btn) btn.className = 'pd-qa-helpful-btn' + (data.voted ? ' voted' : '');
+                        if (cnt) cnt.textContent = data.count;
+                    });
+            };
+
+            window.qaDelete = function(qaId) {
+                if (!confirm('Delete this question?')) return;
+                const fd = new FormData();
+                fd.append('action', 'delete');
+                fd.append('qa_id', qaId);
+                fetch(`${BASE}qa_handler.php`, {
+                        method: 'POST',
+                        body: fd
+                    })
+                    .then(r => r.json()).then(data => {
+                        if (!data.success) {
+                            showFlash(data.error || 'Cannot delete question.', 'error');
+                            return;
+                        }
+                        const el = document.getElementById('qaItem_' + qaId);
+                        if (el) {
+                            el.style.opacity = '0';
+                            el.style.transition = 'opacity .3s';
+                            setTimeout(() => el.remove(), 320);
+                        }
+                        showFlash('Question removed.', 'success');
+                        loadQA();
+                    });
+            };
+
+            loadQA();
+        })();
+    </script>
 
     <!-- Leaflet mini-map for farm location -->
     <?php if ($farmer_lat && $farmer_lng): ?>
@@ -1383,3 +2042,4 @@ $bids_stmt->close();
 $all_bids_stmt->close();
 $reviews_stmt->close();
 ?>
+

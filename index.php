@@ -406,12 +406,9 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
 
         <!-- 3. CATEGORY SECTIONS -->
         <div class="category-sections-wrapper mb-5">
-            <div class="section-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                <div>
-                    <h2 class="section-title mb-0"><i class="fas fa-th-large me-2"></i>Browse by Category</h2>
-                    <p class="section-subtitle mb-0">Find exactly what you're looking for</p>
-                </div>
-                <a href="browse.php" class="cat-view-all-btn">View All <i class="fas fa-arrow-right"></i></a>
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-th-large me-2"></i>Browse by Category</h2>
+                <p class="section-subtitle">Find exactly what you're looking for</p>
             </div>
 
             <div class="cat-chip-grid">
@@ -507,9 +504,12 @@ $recently_viewed_products = discoveryGetRecentlyViewedProducts(4);
 
         <!-- 4. RECENTLY LISTED SECTION -->
         <div class="recently-listed-section mb-5">
-            <div class="section-header">
-                <h2 class="section-title"><i class="fas fa-star me-2"></i>Recently Listed</h2>
-                <p class="section-subtitle">Newest products added to the marketplace</p>
+            <div class="section-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div>
+                    <h2 class="section-title mb-0"><i class="fas fa-star me-2"></i>Recently Listed</h2>
+                    <p class="section-subtitle mb-0">Newest products added to the marketplace</p>
+                </div>
+                <a href="browse.php" class="cat-view-all-btn">View All <i class="fas fa-arrow-right"></i></a>
             </div>
 
             <div id="recently-listed-grid" class="row">

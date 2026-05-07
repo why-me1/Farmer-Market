@@ -481,6 +481,12 @@ function getNotificationMessage(array $notification): string
         case 'account_banned':
             return 'Your account has been banned by the admin team.';
 
+        case 'qa_question':
+            return "New public question asked about \"{$product_name}\" — answer it to help buyers.";
+
+        case 'qa_answer':
+            return "Your question about \"{$product_name}\" has been answered by the farmer.";
+
         case 'announcement':
             $announcement_title = trim((string) ($notification['announcement_title'] ?? 'Platform announcement'));
             $announcement_message = trim((string) ($notification['announcement_message'] ?? ''));
