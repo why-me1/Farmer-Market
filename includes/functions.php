@@ -5,6 +5,41 @@ function check_login(): void
         header('Location: ' . BASE_URL . 'index.php?auth=login');
         exit();
     }
+
+    global $conn;
+
+    if (!isset($conn)) {
+        return;
+    }
+
+    ensure_user_moderation_schema();
+
+    $stmt = $conn->prepare("SELECT is_banned FROM users WHERE id = ? LIMIT 1");
+    if ($stmt) {
+        $stmt->bind_param("i", $_SESSION['user_id']);
+        $stmt->execute();
+        $stmt->bind_result($is_banned);
+
+        if ($stmt->fetch() && (int) $is_banned === 1) {
+            $stmt->close();
+            session_unset();
+            session_destroy();
+            header('Location: ' . BASE_URL . 'index.php?auth=login&blocked=1');
+            exit();
+        }
+
+        $stmt->close();
+    }
+}
+
+function ensure_user_moderation_schema(): void
+{
+    global $conn;
+
+    $conn->query("ALTER TABLE `users`
+        ADD COLUMN IF NOT EXISTS `is_banned` TINYINT(1) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS `warning_count` INT NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS `last_warning_at` DATETIME DEFAULT NULL");
 }
 
 function sanitize(string $data): string

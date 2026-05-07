@@ -3,6 +3,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 check_login();
+global $conn;
 
 if ($_SESSION['role'] !== 'admin') {
     header("Location: ../index.php");
@@ -654,6 +655,8 @@ $buyers     = count(array_filter($users, fn($u) => $u['role'] === 'buyer'));
             <a href="manage_posts.php"><i class="bi bi-card-list"></i> Manage Posts</a>
             <a href="view_statistics.php"><i class="bi bi-bar-chart-line-fill"></i> Statistics</a>
             <a href="update_market_price.php"><i class="bi bi-tags-fill"></i> Market Prices</a>
+            <a href="announcements.php"><i class="bi bi-megaphone-fill"></i> Announcements</a>
+            <a href="reports.php"><i class="bi bi-flag-fill"></i> Reports Queue</a>
         </nav>
 
         <div class="sidebar-section-label">Platform</div>

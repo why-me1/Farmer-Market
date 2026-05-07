@@ -766,7 +766,7 @@ function _farmer_engagement(int $farmer_id): float
         FROM (
             SELECT COUNT(DISTINCT c.user_id) AS unique_bidders
             FROM posts p
-            JOIN comments c ON c.post_id = p.id
+            LEFT JOIN comments c ON c.post_id = p.id
             WHERE p.farmer_id = ?
             GROUP BY p.id
         ) as subquery
@@ -850,7 +850,7 @@ function calculate_farmer_reputation(int $farmer_id, string $trigger_event = 'sy
     // Keep the weighted recalculation, but cap the result so this event can
     // only hold steady or reduce the score.
     if ($trigger_event === 'listing_unsold') {
-        $new_score = min($new_score, max(0.0, round($old_score - 0.1, 1)));
+        $new_score = min($new_score, $old_score);
         $breakdown['score'] = $new_score;
     }
 

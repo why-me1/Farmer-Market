@@ -3,6 +3,7 @@ session_start();
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 check_login();
+global $conn;
 
 if ($_SESSION['role'] !== 'admin') {
     header("Location: ../index.php");
@@ -35,7 +36,7 @@ $stats['total_value'] = $stats['total_value'] ?? 0;
 $months_labels = [];
 $months_data   = [];
 for ($i = 5; $i >= 0; $i--) {
-    $ts    = strtotime("-$i months");
+    $ts    = strtotime("first day of -$i months");
     $month = date('Y-m', $ts);
     $label = date('M Y', $ts);
     $months_labels[] = $label;
@@ -46,7 +47,7 @@ for ($i = 5; $i >= 0; $i--) {
 // Users per month (last 6 months)
 $user_months_data = [];
 for ($i = 5; $i >= 0; $i--) {
-    $month = date('Y-m', strtotime("-$i months"));
+    $month = date('Y-m', strtotime("first day of -$i months"));
     $r = $conn->query("SELECT COUNT(*) AS c FROM users WHERE DATE_FORMAT(created_at,'%Y-%m') = '$month'");
     $user_months_data[] = $r ? (int)$r->fetch_assoc()['c'] : 0;
 }
@@ -595,6 +596,8 @@ if ($r) while ($row = $r->fetch_assoc()) $recent_users[] = $row;
             <a href="manage_posts.php"><i class="bi bi-card-list"></i> Manage Posts</a>
             <a href="view_statistics.php" class="active"><i class="bi bi-bar-chart-line-fill"></i> Statistics</a>
             <a href="update_market_price.php"><i class="bi bi-tags-fill"></i> Market Prices</a>
+            <a href="announcements.php"><i class="bi bi-megaphone-fill"></i> Announcements</a>
+            <a href="reports.php"><i class="bi bi-flag-fill"></i> Reports Queue</a>
         </nav>
 
         <div class="sidebar-section-label">Platform</div>

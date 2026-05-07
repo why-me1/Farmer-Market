@@ -12,7 +12,13 @@ function ensureNotificationSchema(): void
     global $conn;
 
     $conn->query("ALTER TABLE `notifications`
-        ADD COLUMN IF NOT EXISTS `group_count` INT NOT NULL DEFAULT 1");
+        ADD COLUMN IF NOT EXISTS `group_count` INT NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS `announcement_title` VARCHAR(180) NULL,
+        ADD COLUMN IF NOT EXISTS `announcement_message` TEXT NULL,
+        ADD COLUMN IF NOT EXISTS `announcement_target` VARCHAR(50) NULL");
+
+    $conn->query("ALTER TABLE `notifications`
+        MODIFY `type` VARCHAR(64) NOT NULL");
 }
 
 /**
@@ -35,6 +41,65 @@ function createNotification(int $user_id, ?int $post_id = null, ?int $comment_id
     $stmt->close();
 
     return $result;
+}
+
+/**
+ * Create a broadcast announcement notification for a single recipient.
+ * @param int $user_id - Recipient user ID
+ * @param string $title - Announcement title
+ * @param string $message - Announcement body
+ * @param string $target - Audience label
+ * @return bool - Success status
+ */
+function createAnnouncementNotification(int $user_id, string $title, string $message, string $target = 'all'): bool
+{
+    global $conn;
+
+    ensureNotificationSchema();
+
+    $stmt = $conn->prepare("INSERT INTO notifications (user_id, post_id, comment_id, type, announcement_title, announcement_message, announcement_target, group_count) VALUES (?, NULL, NULL, 'announcement', ?, ?, ?, 1)");
+    $stmt->bind_param("isss", $user_id, $title, $message, $target);
+    $result = $stmt->execute();
+    $stmt->close();
+
+    return $result;
+}
+
+/**
+ * Broadcast an announcement to one or more account roles.
+ * @param string $title - Announcement title
+ * @param string $message - Announcement body
+ * @param array $roles - Recipient roles (user, farmer, admin)
+ * @return int - Number of recipients notified
+ */
+function broadcastAnnouncement(string $title, string $message, array $roles = ['user', 'farmer']): int
+{
+    global $conn;
+
+    ensureNotificationSchema();
+
+    $allowed_roles = ['user', 'farmer', 'admin'];
+    $roles = array_values(array_unique(array_intersect($roles, $allowed_roles)));
+
+    if (empty($roles)) {
+        return 0;
+    }
+
+    $role_sql = "'" . implode("','", array_map([$conn, 'real_escape_string'], $roles)) . "'";
+    $users_result = $conn->query("SELECT id FROM users WHERE role IN ($role_sql)");
+
+    if (!$users_result) {
+        return 0;
+    }
+
+    $inserted = 0;
+    while ($row = $users_result->fetch_assoc()) {
+        if (createAnnouncementNotification((int) $row['id'], $title, $message, implode(',', $roles))) {
+            $inserted++;
+        }
+    }
+
+    return $inserted;
 }
 
 /**
@@ -221,7 +286,7 @@ function notifyBuyerWonBid(int $buyer_id, int $post_id, string $product_name): b
 function notifyBuyerDeliveryUpdate(int $buyer_id, int $post_id, string $product_name, string $status): bool
 {
     // Create notification for specific delivery stage
-    $status = strtolower(trim((string)$status));
+    $status = strtolower(trim((string) $status));
     if ($status === 'local') {
         return createNotification($buyer_id, $post_id, null, 'delivery_local_selected');
     }
@@ -316,7 +381,7 @@ function getNotificationMessage(array $notification): string
     $type = $notification['type'];
     $product_name = $notification['product_name'] ?? 'a product';
     $post_id = $notification['post_id'];
-    $group_count = (int)($notification['group_count'] ?? 1);
+    $group_count = (int) ($notification['group_count'] ?? 1);
 
     // Get the current user's role from session to determine message context
     $current_user_role = $_SESSION['role'] ?? 'user';
@@ -355,7 +420,7 @@ function getNotificationMessage(array $notification): string
             return "Farmer selected Courier Delivery 🚚 for {$product_name}.";
 
         case 'delivery_tracking_added':
-            $delivery_meta = getPostDeliveryMeta((int)$post_id);
+            $delivery_meta = getPostDeliveryMeta((int) $post_id);
             $tracking_id = $delivery_meta['courier_tracking'] ?? '';
             if (!empty($tracking_id)) {
                 return "Tracking ID {$tracking_id} added 🚚 - track your order.";
@@ -372,7 +437,7 @@ function getNotificationMessage(array $notification): string
             return "You selected Courier Delivery for {$product_name} 🚚.";
 
         case 'farmer_tracking_added':
-            $delivery_meta = getPostDeliveryMeta((int)$post_id);
+            $delivery_meta = getPostDeliveryMeta((int) $post_id);
             $tracking_id = $delivery_meta['courier_tracking'] ?? '';
             if (!empty($tracking_id)) {
                 return "Tracking ID {$tracking_id} added successfully.";
@@ -409,6 +474,30 @@ function getNotificationMessage(array $notification): string
             }
 
             return "New auction listed: {$product_name} 🌽. View auction now.";
+
+        case 'account_warning':
+            return 'An admin warning has been issued for your account. Please review the marketplace rules.';
+
+        case 'account_banned':
+            return 'Your account has been banned by the admin team.';
+
+        case 'announcement':
+            $announcement_title = trim((string) ($notification['announcement_title'] ?? 'Platform announcement'));
+            $announcement_message = trim((string) ($notification['announcement_message'] ?? ''));
+
+            if ($announcement_title !== '' && $announcement_message !== '') {
+                return $announcement_title . ' - ' . $announcement_message;
+            }
+
+            if ($announcement_title !== '') {
+                return $announcement_title;
+            }
+
+            if ($announcement_message !== '') {
+                return $announcement_message;
+            }
+
+            return 'New announcement from the admin team';
 
         default:
             return "New notification about '{$product_name}'";

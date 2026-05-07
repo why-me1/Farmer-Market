@@ -6,7 +6,10 @@ require_once 'includes/config.php';
 require_once 'includes/functions.php';
 require_once 'includes/ratings.php';
 require_once 'includes/notification_functions.php';
+require_once 'includes/moderation_functions.php';
 require_once 'includes/discovery.php';
+
+ensureModerationSchema();
 
 if (!isset($_GET['id'])) {
     header("Location: index.php");
@@ -56,7 +59,7 @@ $auction_start_time = strtotime($post['auction_start_date']);
 $auction_end_time = strtotime($post['auction_end_date']);
 
 // Get bid count and highest bid
-$comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(CAST(comment_text AS DECIMAL(12,2))) as max_bid FROM comments WHERE post_id = ?");
+$comment_count_stmt = $conn->prepare("SELECT COUNT(*) as total_bids, MAX(CAST(comment_text AS DECIMAL(12,2))) as max_bid FROM comments WHERE post_id = ? AND is_hidden = 0");
 $comment_count_stmt->bind_param("i", $post_id);
 $comment_count_stmt->execute();
 $comment_result = $comment_count_stmt->get_result();
@@ -70,7 +73,7 @@ $actual_auction_end_time = $auction_end_time;
 
 // If there are 5 or more bids, activate 2-minute countdown from 5th bid
 if ($total_bids >= 5) {
-    $fifth_bid_stmt = $conn->prepare("SELECT created_at FROM comments WHERE post_id = ? ORDER BY created_at ASC LIMIT 4, 1");
+    $fifth_bid_stmt = $conn->prepare("SELECT created_at FROM comments WHERE post_id = ? AND is_hidden = 0 ORDER BY created_at ASC LIMIT 4, 1");
     $fifth_bid_stmt->bind_param("i", $post_id);
     $fifth_bid_stmt->execute();
     $fifth_bid_result = $fifth_bid_stmt->get_result();
@@ -135,7 +138,7 @@ if ($already_sold) {
 if ($is_sold) {
     // Get winner's user_id for notifications
     $winner_user_id = null;
-    $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? LIMIT 1");
+    $winner_stmt = $conn->prepare("SELECT user_id FROM comments WHERE post_id = ? AND comment_text = ? AND is_hidden = 0 LIMIT 1");
     $winner_stmt->bind_param("id", $post_id, $max_bid);
     $winner_stmt->execute();
     $winner_stmt->bind_result($winner_user_id);
@@ -192,7 +195,7 @@ if ($is_sold) {
 // Fetch recent bids (limit to top 10 for the card) - Sort by most recent first
 $bids_stmt = $conn->prepare("SELECT comments.*, users.username, users.id as bidder_id FROM comments 
                              JOIN users ON comments.user_id = users.id 
-                             WHERE comments.post_id = ? ORDER BY comments.created_at DESC LIMIT 10");
+                             WHERE comments.post_id = ? AND comments.is_hidden = 0 ORDER BY comments.created_at DESC LIMIT 10");
 $bids_stmt->bind_param("i", $post_id);
 $bids_stmt->execute();
 $bids_result = $bids_stmt->get_result();
@@ -200,7 +203,7 @@ $bids_result = $bids_stmt->get_result();
 // Fetch all bids for the full list
 $all_bids_stmt = $conn->prepare("SELECT comments.*, users.username, users.id as bidder_id FROM comments 
                                   JOIN users ON comments.user_id = users.id 
-                                  WHERE comments.post_id = ? ORDER BY comments.created_at DESC");
+                                  WHERE comments.post_id = ? AND comments.is_hidden = 0 ORDER BY comments.created_at DESC");
 $all_bids_stmt->bind_param("i", $post_id);
 $all_bids_stmt->execute();
 $all_bids_result = $all_bids_stmt->get_result();
@@ -904,42 +907,53 @@ $pd_recently_viewed_display = array_values(array_filter($pd_recently_viewed, fun
                                 <span id="pdWlText"><?php echo $pd_is_wishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'; ?></span>
                             </button>
                         </div>
-                        <script>
-                            function pdToggleWishlist(btn) {
-                                var postId = btn.dataset.postId;
-                                fetch('wishlist_handler.php', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/x-www-form-urlencoded'
-                                        },
-                                        body: 'action=toggle&post_id=' + postId
-                                    })
-                                    .then(function(r) {
-                                        return r.json();
-                                    })
-                                    .then(function(d) {
-                                        if (d.login_required) {
-                                            window.location.href = 'index.php?auth=login';
-                                            return;
-                                        }
-                                        if (d.success) {
-                                            var txt = document.getElementById('pdWlText');
-                                            if (d.saved) {
-                                                btn.style.borderColor = '#ef4444';
-                                                btn.style.background = '#fff1f2';
-                                                btn.style.color = '#ef4444';
-                                                txt.textContent = 'Saved to Wishlist';
-                                            } else {
-                                                btn.style.borderColor = '#e2e8f0';
-                                                btn.style.background = '#fff';
-                                                btn.style.color = '#64748b';
-                                                txt.textContent = 'Save to Wishlist';
-                                            }
-                                        }
-                                    });
-                            }
-                        </script>
                     <?php endif; ?>
+
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                        <div class="pd-action-item">
+                            <a href="report_content.php?target_type=post&target_id=<?php echo $post_id; ?>&reported_user_id=<?php echo (int) $post['farmer_id']; ?>&back=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>"
+                                style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;border-radius:12px;border:2px solid #e2e8f0;background:#fff;color:#dc2626;font-size:.9rem;font-weight:600;text-decoration:none;transition:all .2s;">
+                                <i class="fas fa-flag" style="font-size:1rem;"></i>
+                                <span>Report Post</span>
+                            </a>
+                        </div>
+                    <?php endif; ?>
+
+                    <script>
+                        function pdToggleWishlist(btn) {
+                            var postId = btn.dataset.postId;
+                            fetch('wishlist_handler.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded'
+                                    },
+                                    body: 'action=toggle&post_id=' + postId
+                                })
+                                .then(function(r) {
+                                    return r.json();
+                                })
+                                .then(function(d) {
+                                    if (d.login_required) {
+                                        window.location.href = 'index.php?auth=login';
+                                        return;
+                                    }
+                                    if (d.success) {
+                                        var txt = document.getElementById('pdWlText');
+                                        if (d.saved) {
+                                            btn.style.borderColor = '#ef4444';
+                                            btn.style.background = '#fff1f2';
+                                            btn.style.color = '#ef4444';
+                                            txt.textContent = 'Saved to Wishlist';
+                                        } else {
+                                            btn.style.borderColor = '#e2e8f0';
+                                            btn.style.background = '#fff';
+                                            btn.style.color = '#64748b';
+                                            txt.textContent = 'Save to Wishlist';
+                                        }
+                                    }
+                                });
+                        }
+                    </script>
                 </div>
 
                 <!-- Farm Location Mini Map -->

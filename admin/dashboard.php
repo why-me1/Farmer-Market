@@ -3,6 +3,7 @@
 require_once '../includes/config.php';
 require_once '../includes/functions.php';
 check_login();
+global $conn;
 
 // Regenerate session ID for security
 session_regenerate_id(true);
@@ -31,6 +32,7 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -46,7 +48,9 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             --primary: #6366f1;
         }
 
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -58,7 +62,8 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
         /* Sidebar */
         .sidebar {
             position: fixed;
-            top: 0; left: 0;
+            top: 0;
+            left: 0;
             width: var(--sidebar-width);
             height: 100vh;
             background: var(--sidebar-bg);
@@ -70,7 +75,7 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
 
         .sidebar-brand {
             padding: 24px 20px 20px;
-            border-bottom: 1px solid rgba(255,255,255,.07);
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
         }
 
         .sidebar-brand h2 {
@@ -86,11 +91,15 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
         }
 
         .brand-icon {
-            width: 38px; height: 38px;
+            width: 38px;
+            height: 38px;
             background: var(--primary);
             border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.1rem; color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #fff;
             margin-bottom: 10px;
         }
 
@@ -123,21 +132,31 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             border-left-color: var(--primary);
         }
 
-        .sidebar-nav a i { font-size: 1rem; width: 20px; text-align: center; }
+        .sidebar-nav a i {
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+        }
 
         .sidebar-footer {
             margin-top: auto;
             padding: 16px 20px;
-            border-top: 1px solid rgba(255,255,255,.07);
+            border-top: 1px solid rgba(255, 255, 255, .07);
         }
 
         .sidebar-footer a {
-            display: flex; align-items: center; gap: 10px;
-            color: #94a3b8; font-size: .83rem; text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+            font-size: .83rem;
+            text-decoration: none;
             transition: color .18s;
         }
 
-        .sidebar-footer a:hover { color: #f87171; }
+        .sidebar-footer a:hover {
+            color: #f87171;
+        }
 
         /* Main content */
         .main-content {
@@ -155,28 +174,59 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: sticky; top: 0;
+            position: sticky;
+            top: 0;
             z-index: 100;
         }
 
-        .topbar-title { font-size: .95rem; font-weight: 600; color: #0f172a; }
-        .topbar-title small { display: block; font-size: .73rem; font-weight: 400; color: #94a3b8; }
-
-        .admin-badge { display: flex; align-items: center; gap: 10px; }
-
-        .admin-avatar {
-            width: 36px; height: 36px;
-            background: linear-gradient(135deg, #6366f1, #818cf8);
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-weight: 700; font-size: .85rem;
+        .topbar-title {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #0f172a;
         }
 
-        .admin-info strong { font-size: .85rem; color: #0f172a; display: block; }
-        .admin-info span   { font-size: .72rem; color: #94a3b8; }
+        .topbar-title small {
+            display: block;
+            font-size: .73rem;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+
+        .admin-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: .85rem;
+        }
+
+        .admin-info strong {
+            font-size: .85rem;
+            color: #0f172a;
+            display: block;
+        }
+
+        .admin-info span {
+            font-size: .72rem;
+            color: #94a3b8;
+        }
 
         /* Page body */
-        .page-body { padding: 32px; flex: 1; }
+        .page-body {
+            padding: 32px;
+            flex: 1;
+        }
 
         /* Hero banner */
         .hero-banner {
@@ -191,26 +241,41 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
 
         .hero-banner::before {
             content: '';
-            position: absolute; top: -60px; right: -60px;
-            width: 220px; height: 220px;
-            background: rgba(255,255,255,.06);
+            position: absolute;
+            top: -60px;
+            right: -60px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255, 255, 255, .06);
             border-radius: 50%;
         }
 
         .hero-banner::after {
             content: '';
-            position: absolute; bottom: -80px; right: 80px;
-            width: 300px; height: 300px;
-            background: rgba(255,255,255,.04);
+            position: absolute;
+            bottom: -80px;
+            right: 80px;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, .04);
             border-radius: 50%;
         }
 
-        .hero-banner h1 { font-size: 1.65rem; font-weight: 700; margin-bottom: 6px; }
-        .hero-banner p  { opacity: .82; font-size: .9rem; margin: 0; }
+        .hero-banner h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .hero-banner p {
+            opacity: .82;
+            font-size: .9rem;
+            margin: 0;
+        }
 
         .hero-date {
             display: inline-block;
-            background: rgba(255,255,255,.15);
+            background: rgba(255, 255, 255, .15);
             border-radius: 20px;
             padding: 4px 14px;
             font-size: .74rem;
@@ -230,26 +295,62 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             height: 100%;
         }
 
-        .stat-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.08); transform: translateY(-2px); }
+        .stat-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+            transform: translateY(-2px);
+        }
 
         .stat-icon {
-            width: 50px; height: 50px;
+            width: 50px;
+            height: 50px;
             border-radius: 14px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 1.3rem;
             flex-shrink: 0;
         }
 
-        .stat-icon.purple  { background: #ede9fe; color: #7c3aed; }
-        .stat-icon.green   { background: #dcfce7; color: #16a34a; }
-        .stat-icon.amber   { background: #fef3c7; color: #d97706; }
-        .stat-icon.cyan    { background: #cffafe; color: #0891b2; }
+        .stat-icon.purple {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
 
-        .stat-value { font-size: 1.7rem; font-weight: 700; color: #0f172a; line-height: 1; }
-        .stat-label { font-size: .76rem; color: #64748b; margin-top: 4px; }
+        .stat-icon.green {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .stat-icon.amber {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .stat-icon.cyan {
+            background: #cffafe;
+            color: #0891b2;
+        }
+
+        .stat-value {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: .76rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
 
         /* Section heading */
-        .section-heading { font-size: .95rem; font-weight: 700; color: #0f172a; margin: 0 0 18px; }
+        .section-heading {
+            font-size: .95rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 18px;
+        }
 
         /* Action cards */
         .action-card {
@@ -265,23 +366,61 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             transition: box-shadow .2s, transform .2s;
         }
 
-        .action-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,.09); transform: translateY(-3px); }
+        .action-card:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .09);
+            transform: translateY(-3px);
+        }
 
         .action-icon {
-            width: 62px; height: 62px;
+            width: 62px;
+            height: 62px;
             border-radius: 18px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 1.6rem;
             margin-bottom: 16px;
         }
 
-        .action-icon.indigo  { background: #ede9fe; color: #6366f1; }
-        .action-icon.emerald { background: #d1fae5; color: #059669; }
-        .action-icon.amber   { background: #fef3c7; color: #d97706; }
-        .action-icon.sky     { background: #e0f2fe; color: #0284c7; }
+        .action-icon.indigo {
+            background: #ede9fe;
+            color: #6366f1;
+        }
 
-        .action-card h5 { font-size: .92rem; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
-        .action-card p  { font-size: .79rem; color: #64748b; flex: 1; margin-bottom: 18px; line-height: 1.5; }
+        .action-icon.emerald {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .action-icon.amber {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .action-icon.sky {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+
+        .action-icon.red {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .action-card h5 {
+            font-size: .92rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .action-card p {
+            font-size: .79rem;
+            color: #64748b;
+            flex: 1;
+            margin-bottom: 18px;
+            line-height: 1.5;
+        }
 
         .action-btn {
             display: inline-flex;
@@ -297,12 +436,30 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             justify-content: center;
         }
 
-        .action-btn:hover { opacity: .88; transform: scale(.98); }
+        .action-btn:hover {
+            opacity: .88;
+            transform: scale(.98);
+        }
 
-        .btn-indigo  { background: #6366f1; color: #fff; }
-        .btn-emerald { background: #059669; color: #fff; }
-        .btn-amber   { background: #d97706; color: #fff; }
-        .btn-sky     { background: #0284c7; color: #fff; }
+        .btn-indigo {
+            background: #6366f1;
+            color: #fff;
+        }
+
+        .btn-emerald {
+            background: #059669;
+            color: #fff;
+        }
+
+        .btn-amber {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .btn-sky {
+            background: #0284c7;
+            color: #fff;
+        }
 
         /* Footer */
         .page-footer {
@@ -315,13 +472,25 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
         }
 
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; }
-            .page-body { padding: 16px; }
-            .topbar { padding: 12px 16px; }
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .page-body {
+                padding: 16px;
+            }
+
+            .topbar {
+                padding: 12px 16px;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <!-- Sidebar -->
@@ -348,6 +517,12 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
             </a>
             <a href="update_market_price.php">
                 <i class="bi bi-tags-fill"></i> Market Prices
+            </a>
+            <a href="announcements.php">
+                <i class="bi bi-megaphone-fill"></i> Announcements
+            </a>
+            <a href="reports.php">
+                <i class="bi bi-flag-fill"></i> Reports Queue
             </a>
         </nav>
 
@@ -398,7 +573,8 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
                     <?php echo date('l, F j, Y'); ?>
                 </div>
                 <h1>Welcome back, <?php echo htmlspecialchars($admin_name); ?>!</h1>
-                <p>Here&rsquo;s what&rsquo;s happening on your platform today. Manage users, listings, and market prices all in one place.</p>
+                <p>Here&rsquo;s what&rsquo;s happening on your platform today. Manage users, listings, and market prices
+                    all in one place.</p>
             </div>
 
             <!-- Stats Row -->
@@ -489,6 +665,28 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
                     </div>
                 </div>
 
+                <div class="col-sm-6 col-xl-3">
+                    <div class="action-card">
+                        <div class="action-icon amber"><i class="bi bi-megaphone-fill"></i></div>
+                        <h5>Announcements</h5>
+                        <p>Broadcast a notice to buyers, farmers, or the full platform.</p>
+                        <a href="announcements.php" class="action-btn btn-amber">
+                            <i class="bi bi-arrow-right-circle"></i> Send Notice
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="action-card">
+                        <div class="action-icon red"><i class="bi bi-shield-exclamation"></i></div>
+                        <h5>Reports Queue</h5>
+                        <p>Review reported posts, comments, and users from one moderation inbox.</p>
+                        <a href="reports.php" class="action-btn btn-indigo">
+                            <i class="bi bi-arrow-right-circle"></i> Open Queue
+                        </a>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -500,4 +698,5 @@ $admin_name = $_SESSION['username'] ?? 'Admin';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

@@ -40,12 +40,13 @@ $total_count   = count($notifications);
 $read_count    = $total_count - $unread_count;
 
 // Helper: pick icon + color per type
-function notifMeta($type)
+function notifMeta(string $type): array
 {
     $map = [
         'comment'           => ['icon' => 'fa-comment-dots',   'color' => '#6366f1', 'bg' => '#ede9fe', 'label' => 'Bid Update'],
         'auction_won'       => ['icon' => 'fa-trophy',         'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
         'comment_approved'  => ['icon' => 'fa-check-circle',   'color' => '#059669', 'bg' => '#d1fae5', 'label' => 'You Won'],
+        'announcement'      => ['icon' => 'fa-bullhorn',       'color' => '#7c3aed', 'bg' => '#ede9fe', 'label' => 'Announcement'],
         'product_sold'      => ['icon' => 'fa-hands-helping',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Action Required'],
         'delivery_local_selected'    => ['icon' => 'fa-map-marker-alt', 'color' => '#f59e0b', 'bg' => '#fef3c7', 'label' => 'Local Selected'],
         'delivery_courier_selected'  => ['icon' => 'fa-shipping-fast',  'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Courier Selected'],
@@ -63,21 +64,25 @@ function notifMeta($type)
         'sale'              => ['icon' => 'fa-shopping-bag',    'color' => '#10b981', 'bg' => '#d1fae5', 'label' => 'Sale'],
         'order'             => ['icon' => 'fa-box',             'color' => '#0ea5e9', 'bg' => '#e0f2fe', 'label' => 'Order'],
         'review'            => ['icon' => 'fa-star',            'color' => '#f59e0b', 'bg' => '#fef9c3', 'label' => 'Review'],
+        'account_warning'   => ['icon' => 'fa-triangle-exclamation', 'color' => '#d97706', 'bg' => '#fef3c7', 'label' => 'Warning'],
+        'account_banned'    => ['icon' => 'fa-user-slash',      'color' => '#dc2626', 'bg' => '#fee2e2', 'label' => 'Ban Notice'],
     ];
     return $map[$type] ?? ['icon' => 'fa-bell', 'color' => '#6b7280', 'bg' => '#f3f4f6', 'label' => ucfirst(str_replace('_', ' ', $type))];
 }
 
-function notifPriority($type)
+function notifPriority(string $type): string
 {
     $success = ['auction_won', 'comment_approved', 'delivery_delivered', 'farmer_order_delivered'];
     $warning = ['delivery_local_otp_required'];
 
     if (in_array($type, $success, true)) return 'success';
     if (in_array($type, $warning, true)) return 'warning';
+    if (in_array($type, ['account_warning', 'account_banned'], true)) return 'danger';
+    if ($type === 'announcement') return 'info';
     return 'info';
 }
 
-function notifReadUrl($notification)
+function notifReadUrl(array $notification): string
 {
     $type = (string)($notification['type'] ?? '');
     $post_id = (int)($notification['post_id'] ?? 0);
@@ -104,7 +109,7 @@ function notifReadUrl($notification)
 }
 
 // Relative time helper
-function timeAgo($datetime)
+function timeAgo(string $datetime): string
 {
     $diff = time() - strtotime($datetime);
     if ($diff < 60)       return 'Just now';

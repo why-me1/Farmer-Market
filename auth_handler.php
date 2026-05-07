@@ -7,6 +7,8 @@ header('Content-Type: application/json');
 
 $action = $_POST['action'] ?? '';
 
+ensure_user_moderation_schema();
+
 // ── LOGIN ──────────────────────────────────────────────────────────────────
 if ($action === 'login') {
     if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
@@ -23,10 +25,10 @@ if ($action === 'login') {
         exit();
     }
 
-    $stmt = $conn->prepare("SELECT id, password, role, failed_attempts, last_attempt FROM users WHERE username = ?");
+    $stmt = $conn->prepare("SELECT id, password, role, failed_attempts, last_attempt, is_banned FROM users WHERE username = ?");
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    $stmt->bind_result($id, $hashed_password, $role, $failed_attempts, $last_attempt);
+    $stmt->bind_result($id, $hashed_password, $role, $failed_attempts, $last_attempt, $is_banned);
 
     if ($stmt->fetch()) {
         $stmt->close();
@@ -35,6 +37,11 @@ if ($action === 'login') {
         if ($failed_attempts >= 3 && $time_since_last_attempt < $lockout_duration) {
             $remaining = $lockout_duration - $time_since_last_attempt;
             echo json_encode(['success' => false, 'message' => "Account locked. Try again in {$remaining} seconds."]);
+            exit();
+        }
+
+        if ((int) $is_banned === 1) {
+            echo json_encode(['success' => false, 'message' => 'This account has been banned by the administrator.']);
             exit();
         }
 

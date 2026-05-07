@@ -3,6 +3,9 @@ require_once '../includes/config.php';
 require_once '../includes/functions.php';
 require_once '../includes/ratings.php';
 
+global $conn;
+$base_url = BASE_URL;
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ../index.php');
     exit();
@@ -446,6 +449,7 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
             border-radius: 18px;
             padding: 1px;
             background: linear-gradient(135deg, rgba(99, 102, 241, .15), rgba(124, 58, 237, .1), transparent);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
             -webkit-mask-composite: xor;
             mask-composite: exclude;
@@ -897,6 +901,13 @@ $display_name  = !empty($user['full_name']) ? $user['full_name'] : $user['userna
                                     <a href="<?php echo $base_url; ?>index.php?auth=login"
                                         class="up-msg-btn up-msg-btn--ghost">
                                         <i class="bi bi-chat-dots"></i> Login to Message
+                                    </a>
+                                <?php endif; ?>
+                                <?php if ($viewer_id): ?>
+                                    <a href="<?php echo $base_url; ?>report_content.php?target_type=user&target_id=<?php echo $userId; ?>&reported_user_id=<?php echo $userId; ?>&back=<?php echo urlencode($_SERVER['REQUEST_URI']); ?>"
+                                        class="up-msg-btn up-msg-btn--ghost"
+                                        style="margin-top:10px;border-color:#fecaca;color:#dc2626;">
+                                        <i class="bi bi-flag-fill"></i> Report User
                                     </a>
                                 <?php endif; ?>
                             </div>
